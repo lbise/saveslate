@@ -25,7 +25,7 @@ This stack is:
 * Not beginner-fluffy
 * Not enterprise-bloated
 
-## Create
+## Create Project
 
 Install required packages
 
@@ -35,3 +35,30 @@ Create skeleton with vite
 
 * npm create vite@latest
     * TypeScript + SWC
+
+## Tailwind CSS
+
+Install tailwind
+
+* npm install tailwindcss @tailwindcss/vite
+
+Configure vite
+
+vite.config.ts
+```js
+import { defineConfig } from 'vite'
+import react from '@vitejs/plugin-react-swc'
+import tailwindcss from '@tailwindcss/vite'
+
+// https://vite.dev/config/
+export default defineConfig({
+  plugins: [react(), tailwindcss()],
+})
+```
+Import tailwind
+
+index.css
+```
+@import "tailwindcss";
+```
+Delete not needed App.css and remove reference from App.tsx
