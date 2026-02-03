@@ -16,10 +16,8 @@ export function ThemeToggle({ className }: ThemeToggleProps) {
       className={cn(
         'relative flex items-center w-14 h-8 rounded-full p-1',
         'transition-colors duration-300 ease-in-out',
-        'focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--color-accent)] focus-visible:ring-offset-2',
-        isDark
-          ? 'bg-[var(--color-accent)]'
-          : 'bg-[var(--color-border)]',
+        'focus:outline-none focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-offset-2',
+        isDark ? 'bg-accent' : 'bg-border',
         className
       )}
       aria-label={isDark ? 'Switch to light mode' : 'Switch to dark mode'}
@@ -34,7 +32,7 @@ export function ThemeToggle({ className }: ThemeToggleProps) {
         )}
       >
         {isDark ? (
-          <Moon className="w-3.5 h-3.5 text-[var(--color-accent)]" />
+          <Moon className="w-3.5 h-3.5 text-accent" />
         ) : (
           <Sun className="w-3.5 h-3.5 text-amber-500" />
         )}

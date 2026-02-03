@@ -18,20 +18,18 @@ export function Dashboard() {
   const recentTransactions = getTransactionsWithDetails().slice(0, 5);
 
   return (
-    <div className="space-y-6 max-w-7xl mx-auto">
+    <div className="page-container">
       {/* Welcome header */}
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-2xl lg:text-3xl font-bold text-[var(--color-text-primary)]">
-            Hey there!
-          </h1>
-          <p className="text-[var(--color-text-secondary)] mt-1">
+          <h1 className="heading-1">Hey there!</h1>
+          <p className="text-body mt-1">
             Let's see how your money is vibing today
           </p>
         </div>
-        <div className="hidden sm:flex items-center gap-2 px-4 py-2 bg-[var(--color-accent-bg)] rounded-full">
-          <Sparkles className="w-4 h-4 text-[var(--color-accent)]" />
-          <span className="text-sm font-medium text-[var(--color-accent)]">
+        <div className="hidden sm:flex items-center gap-2 px-4 py-2 bg-accent-bg rounded-full">
+          <Sparkles className="w-4 h-4 text-accent" />
+          <span className="text-sm font-medium text-accent">
             Looking good!
           </span>
         </div>
@@ -39,7 +37,7 @@ export function Dashboard() {
 
       {/* Net Worth Card - The Star of the Show */}
       <Card className="overflow-hidden">
-        <div className="bg-gradient-to-br from-[var(--color-accent)] to-[var(--color-accent-dark)] p-6 lg:p-8">
+        <div className="bg-gradient-to-br from-accent to-accent-dark p-6 lg:p-8">
           <p className="text-white/80 text-sm font-medium mb-2">Total Balance</p>
           <p className="text-3xl lg:text-4xl font-bold text-white mb-4">
             {formatCurrency(netWorth)}
@@ -90,15 +88,13 @@ export function Dashboard() {
                   {account.type}
                 </Badge>
               </div>
-              <p className="text-sm text-[var(--color-text-secondary)] mb-1">
+              <p className="text-body mb-1">
                 {account.name}
               </p>
               <p
                 className={cn(
                   'text-xl font-bold',
-                  account.balance >= 0
-                    ? 'text-[var(--color-text-primary)]'
-                    : 'text-[var(--color-expense)]'
+                  account.balance >= 0 ? 'text-text-primary' : 'text-expense'
                 )}
               >
                 {formatCurrency(account.balance, account.currency)}
@@ -114,20 +110,17 @@ export function Dashboard() {
         <Card>
           <CardHeader className="flex flex-row items-center justify-between">
             <CardTitle>Recent Activity</CardTitle>
-            <Link
-              to="/transactions"
-              className="flex items-center gap-1 text-sm text-[var(--color-accent)] hover:underline"
-            >
+            <Link to="/transactions" className="text-link">
               View all
               <ArrowRight className="w-4 h-4" />
             </Link>
           </CardHeader>
           <CardContent className="p-0">
-            <div className="divide-y divide-[var(--color-border-light)]">
+            <div className="divide-y divide-border-light">
               {recentTransactions.map((transaction) => (
                 <div
                   key={transaction.id}
-                  className="flex items-center gap-4 px-5 py-4 hover:bg-[var(--color-bg-hover)] transition-colors"
+                  className="flex items-center gap-4 px-5 py-4 hover:bg-bg-hover transition-colors"
                 >
                   <CategoryIcon
                     icon={transaction.category.icon}
@@ -135,19 +128,17 @@ export function Dashboard() {
                     size="sm"
                   />
                   <div className="flex-1 min-w-0">
-                    <p className="text-sm font-medium text-[var(--color-text-primary)] truncate">
+                    <p className="text-sm font-medium text-text-primary truncate">
                       {transaction.description}
                     </p>
-                    <p className="text-xs text-[var(--color-text-muted)]">
+                    <p className="text-xs text-text-muted">
                       {formatRelativeDate(transaction.date)} · {transaction.account.name}
                     </p>
                   </div>
                   <p
                     className={cn(
                       'text-sm font-semibold whitespace-nowrap',
-                      transaction.type === 'income'
-                        ? 'text-[var(--color-income)]'
-                        : 'text-[var(--color-expense)]'
+                      transaction.type === 'income' ? 'text-income' : 'text-expense'
                     )}
                   >
                     {transaction.type === 'income' ? '+' : '-'}
@@ -174,16 +165,16 @@ export function Dashboard() {
                       color={item.category.color}
                       size="sm"
                     />
-                    <span className="text-sm font-medium text-[var(--color-text-primary)]">
+                    <span className="text-sm font-medium text-text-primary">
                       {item.category.name}
                     </span>
                   </div>
-                  <span className="text-sm font-semibold text-[var(--color-text-primary)]">
+                  <span className="text-sm font-semibold text-text-primary">
                     {formatCurrency(item.amount)}
                   </span>
                 </div>
                 {/* Progress bar */}
-                <div className="h-2 bg-[var(--color-bg-tertiary)] rounded-full overflow-hidden">
+                <div className="h-2 bg-bg-tertiary rounded-full overflow-hidden">
                   <div
                     className="h-full rounded-full transition-all duration-500"
                     style={{
@@ -203,41 +194,31 @@ export function Dashboard() {
         <CardContent className="p-6">
           <div className="grid grid-cols-2 lg:grid-cols-4 gap-6">
             <div>
-              <p className="text-sm text-[var(--color-text-muted)] mb-1">
-                Monthly Income
-              </p>
-              <p className="text-xl font-bold text-[var(--color-income)]">
+              <p className="text-muted mb-1">Monthly Income</p>
+              <p className="text-xl font-bold text-income">
                 {formatCurrency(stats.totalIncome)}
               </p>
             </div>
             <div>
-              <p className="text-sm text-[var(--color-text-muted)] mb-1">
-                Monthly Expenses
-              </p>
-              <p className="text-xl font-bold text-[var(--color-expense)]">
+              <p className="text-muted mb-1">Monthly Expenses</p>
+              <p className="text-xl font-bold text-expense">
                 {formatCurrency(stats.totalExpenses)}
               </p>
             </div>
             <div>
-              <p className="text-sm text-[var(--color-text-muted)] mb-1">
-                Net Savings
-              </p>
+              <p className="text-muted mb-1">Net Savings</p>
               <p
                 className={cn(
                   'text-xl font-bold',
-                  stats.netSavings >= 0
-                    ? 'text-[var(--color-savings)]'
-                    : 'text-[var(--color-expense)]'
+                  stats.netSavings >= 0 ? 'text-savings' : 'text-expense'
                 )}
               >
                 {formatCurrency(stats.netSavings)}
               </p>
             </div>
             <div>
-              <p className="text-sm text-[var(--color-text-muted)] mb-1">
-                Savings Rate
-              </p>
-              <p className="text-xl font-bold text-[var(--color-accent)]">
+              <p className="text-muted mb-1">Savings Rate</p>
+              <p className="text-xl font-bold text-accent">
                 {stats.savingsRate.toFixed(1)}%
               </p>
             </div>

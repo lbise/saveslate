@@ -7,21 +7,21 @@ export function AppLayout() {
   const [sidebarOpen, setSidebarOpen] = useState(false);
 
   return (
-    <div className="min-h-screen flex bg-[var(--color-bg-primary)]">
+    <div className="min-h-screen flex bg-bg-primary">
       {/* Sidebar */}
       <Sidebar isOpen={sidebarOpen} onClose={() => setSidebarOpen(false)} />
 
       {/* Main content */}
       <div className="flex-1 flex flex-col min-h-screen lg:ml-0">
         {/* Mobile header */}
-        <header className="lg:hidden sticky top-0 z-30 flex items-center gap-4 px-4 py-3 bg-[var(--color-bg-card)] border-b border-[var(--color-border)]">
+        <header className="lg:hidden sticky top-0 z-30 flex items-center gap-4 px-4 py-3 bg-bg-card border-b border-border">
           <button
             onClick={() => setSidebarOpen(true)}
-            className="p-2 rounded-lg hover:bg-[var(--color-bg-hover)] transition-colors"
+            className="btn-icon"
           >
-            <Menu className="w-6 h-6 text-[var(--color-text-primary)]" />
+            <Menu className="w-6 h-6" />
           </button>
-          <h1 className="text-lg font-bold text-[var(--color-text-primary)]">
+          <h1 className="text-lg font-bold text-text-primary">
             MeloMoney
           </h1>
         </header>
