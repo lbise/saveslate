@@ -1,4 +1,4 @@
-import { NavLink } from 'react-router-dom';
+import { NavLink } from "react-router-dom";
 import {
   LayoutDashboard,
   ArrowLeftRight,
@@ -7,9 +7,9 @@ import {
   Settings,
   X,
   type LucideIcon,
-} from 'lucide-react';
-import { cn } from '../../lib/utils';
-import { ThemeToggle } from '../ui/ThemeToggle';
+} from "lucide-react";
+import { cn } from "../../lib/utils";
+import { ThemeToggle } from "../ui/ThemeToggle";
 
 interface NavItem {
   label: string;
@@ -18,11 +18,11 @@ interface NavItem {
 }
 
 const navItems: NavItem[] = [
-  { label: 'Dashboard', path: '/', icon: LayoutDashboard },
-  { label: 'Transactions', path: '/transactions', icon: ArrowLeftRight },
-  { label: 'Accounts', path: '/accounts', icon: Wallet },
-  { label: 'Categories', path: '/categories', icon: Tags },
-  { label: 'Settings', path: '/settings', icon: Settings },
+  { label: "Dashboard", path: "/", icon: LayoutDashboard },
+  { label: "Transactions", path: "/transactions", icon: ArrowLeftRight },
+  { label: "Accounts", path: "/accounts", icon: Wallet },
+  { label: "Categories", path: "/categories", icon: Tags },
+  { label: "Settings", path: "/settings", icon: Settings },
 ];
 
 interface SidebarProps {
@@ -44,12 +44,12 @@ export function Sidebar({ isOpen, onClose }: SidebarProps) {
       {/* Sidebar */}
       <aside
         className={cn(
-          'fixed top-0 left-0 z-50 h-full w-64 flex flex-col',
-          'bg-sidebar-bg text-sidebar-text',
-          'border-r border-sidebar-border',
-          'transition-all duration-300 ease-in-out',
-          'lg:translate-x-0 lg:static lg:z-auto',
-          isOpen ? 'translate-x-0' : '-translate-x-full'
+          "fixed top-0 left-0 z-50 h-full w-64 flex flex-col",
+          "bg-sidebar-bg text-sidebar-text",
+          "border-r border-sidebar-border",
+          "transition-all duration-300 ease-in-out",
+          "lg:translate-x-0 lg:static lg:z-auto",
+          isOpen ? "translate-x-0" : "-translate-x-full",
         )}
       >
         {/* Logo / Brand */}
@@ -60,9 +60,7 @@ export function Sidebar({ isOpen, onClose }: SidebarProps) {
             </div>
             <div>
               <h1 className="text-lg font-bold tracking-tight">MeloMoney</h1>
-              <p className="text-xs text-sidebar-text-muted">
-                Money, but fun!
-              </p>
+              <p className="text-xs text-sidebar-text-muted">Money, but fun!</p>
             </div>
           </div>
           <button
@@ -81,7 +79,7 @@ export function Sidebar({ isOpen, onClose }: SidebarProps) {
               to={item.path}
               onClick={onClose}
               className={({ isActive }) =>
-                isActive ? 'nav-link-active' : 'nav-link'
+                isActive ? "nav-link-active" : "nav-link"
               }
             >
               <item.icon className="w-5 h-5" />
@@ -93,18 +91,13 @@ export function Sidebar({ isOpen, onClose }: SidebarProps) {
         {/* Theme toggle */}
         <div className="p-4 border-t border-sidebar-border">
           <div className="flex items-center justify-between px-4 py-2">
-            <span className="text-sm font-medium text-sidebar-text-muted">
-              Theme
-            </span>
             <ThemeToggle />
           </div>
         </div>
 
         {/* Fun footer */}
         <div className="p-4 text-center">
-          <p className="text-xs text-sidebar-text-muted">
-            Money, made simple
-          </p>
+          <p className="text-xs text-sidebar-text-muted">Money, made simple</p>
         </div>
       </aside>
     </>
