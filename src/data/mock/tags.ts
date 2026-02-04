@@ -1,14 +1,15 @@
-import type { Category } from '../../types';
+import type { Tag } from '../../types';
 
-// Playful, colorful categories with fun icons
-export const CATEGORIES: Category[] = [
-  // Expense categories
+// Default tags (converted from categories) + goal-related tags
+export const TAGS: Tag[] = [
+  // Expense tags
   {
     id: 'groceries',
     name: 'Groceries',
     icon: 'ShoppingCart',
     color: '#10b981', // emerald
     type: 'expense',
+    isDefault: true,
   },
   {
     id: 'dining',
@@ -16,6 +17,7 @@ export const CATEGORIES: Category[] = [
     icon: 'UtensilsCrossed',
     color: '#f97316', // orange
     type: 'expense',
+    isDefault: true,
   },
   {
     id: 'transport',
@@ -23,6 +25,7 @@ export const CATEGORIES: Category[] = [
     icon: 'Train',
     color: '#3b82f6', // blue
     type: 'expense',
+    isDefault: true,
   },
   {
     id: 'entertainment',
@@ -30,6 +33,7 @@ export const CATEGORIES: Category[] = [
     icon: 'Gamepad2',
     color: '#a855f7', // purple
     type: 'expense',
+    isDefault: true,
   },
   {
     id: 'shopping',
@@ -37,6 +41,7 @@ export const CATEGORIES: Category[] = [
     icon: 'ShoppingBag',
     color: '#ec4899', // pink
     type: 'expense',
+    isDefault: true,
   },
   {
     id: 'health',
@@ -44,6 +49,7 @@ export const CATEGORIES: Category[] = [
     icon: 'Heart',
     color: '#ef4444', // red
     type: 'expense',
+    isDefault: true,
   },
   {
     id: 'home',
@@ -51,6 +57,7 @@ export const CATEGORIES: Category[] = [
     icon: 'Home',
     color: '#8b5cf6', // violet
     type: 'expense',
+    isDefault: true,
   },
   {
     id: 'subscriptions',
@@ -58,6 +65,7 @@ export const CATEGORIES: Category[] = [
     icon: 'Repeat',
     color: '#06b6d4', // cyan
     type: 'expense',
+    isDefault: true,
   },
   {
     id: 'travel',
@@ -65,6 +73,7 @@ export const CATEGORIES: Category[] = [
     icon: 'Mountain',
     color: '#14b8a6', // teal
     type: 'expense',
+    isDefault: true,
   },
   {
     id: 'gifts',
@@ -72,15 +81,17 @@ export const CATEGORIES: Category[] = [
     icon: 'Gift',
     color: '#f43f5e', // rose
     type: 'expense',
+    isDefault: true,
   },
 
-  // Income categories
+  // Income tags
   {
     id: 'salary',
     name: 'Salary',
     icon: 'Briefcase',
     color: '#22c55e', // green
     type: 'income',
+    isDefault: true,
   },
   {
     id: 'freelance',
@@ -88,6 +99,7 @@ export const CATEGORIES: Category[] = [
     icon: 'Laptop',
     color: '#6366f1', // indigo
     type: 'income',
+    isDefault: true,
   },
   {
     id: 'investments',
@@ -95,6 +107,7 @@ export const CATEGORIES: Category[] = [
     icon: 'TrendingUp',
     color: '#eab308', // yellow
     type: 'income',
+    isDefault: true,
   },
   {
     id: 'gifts-received',
@@ -102,17 +115,50 @@ export const CATEGORIES: Category[] = [
     icon: 'PartyPopper',
     color: '#f472b6', // pink
     type: 'income',
+    isDefault: true,
+  },
+
+  // Goal-related tags (auto-created with goals)
+  {
+    id: 'goal-summer-vacation',
+    name: 'Summer Vacation',
+    icon: 'Palmtree',
+    color: '#0ea5e9', // sky
+    type: 'expense',
+    isDefault: false,
+    goalId: 'goal-1',
+  },
+  {
+    id: 'goal-new-laptop',
+    name: 'New Laptop',
+    icon: 'Laptop',
+    color: '#8b5cf6', // violet
+    type: 'expense',
+    isDefault: false,
+    goalId: 'goal-2',
   },
 ];
 
-export const getCategoryById = (id: string): Category | undefined => {
-  return CATEGORIES.find((cat) => cat.id === id);
+export const getTagById = (id: string): Tag | undefined => {
+  return TAGS.find((tag) => tag.id === id);
 };
 
-export const getExpenseCategories = (): Category[] => {
-  return CATEGORIES.filter((cat) => cat.type === 'expense');
+export const getTagsByIds = (ids: string[]): Tag[] => {
+  return ids.map((id) => getTagById(id)).filter((tag): tag is Tag => tag !== undefined);
 };
 
-export const getIncomeCategories = (): Category[] => {
-  return CATEGORIES.filter((cat) => cat.type === 'income');
+export const getExpenseTags = (): Tag[] => {
+  return TAGS.filter((tag) => tag.type === 'expense');
+};
+
+export const getIncomeTags = (): Tag[] => {
+  return TAGS.filter((tag) => tag.type === 'income');
+};
+
+export const getDefaultTags = (): Tag[] => {
+  return TAGS.filter((tag) => tag.isDefault);
+};
+
+export const getGoalTags = (): Tag[] => {
+  return TAGS.filter((tag) => tag.goalId !== undefined);
 };

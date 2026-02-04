@@ -1,11 +1,11 @@
 import { TrendingUp, TrendingDown, Sparkles, ArrowRight } from 'lucide-react';
 import { Link } from 'react-router-dom';
-import { Card, CardContent, CardHeader, CardTitle, Badge, CategoryIcon } from '../components/ui';
+import { Card, CardContent, CardHeader, CardTitle, Badge, TagIcon } from '../components/ui';
 import {
   ACCOUNTS,
   getNetWorth,
   getMonthlyStats,
-  getCategorySpending,
+  getTagSpending,
   getTransactionsWithDetails,
 } from '../data/mock';
 import { formatCurrency, formatRelativeDate, cn } from '../lib/utils';
@@ -14,7 +14,7 @@ import { Icon } from '../components/ui/Icon';
 export function Dashboard() {
   const netWorth = getNetWorth();
   const stats = getMonthlyStats();
-  const categorySpending = getCategorySpending().slice(0, 5);
+  const tagSpending = getTagSpending().slice(0, 5);
   const recentTransactions = getTransactionsWithDetails().slice(0, 5);
 
   return (
@@ -117,56 +117,62 @@ export function Dashboard() {
           </CardHeader>
           <CardContent className="p-0">
             <div className="divide-y divide-border-light">
-              {recentTransactions.map((transaction) => (
-                <div
-                  key={transaction.id}
-                  className="flex items-center gap-4 px-5 py-4 hover:bg-bg-hover transition-colors"
-                >
-                  <CategoryIcon
-                    icon={transaction.category.icon}
-                    color={transaction.category.color}
-                    size="sm"
-                  />
-                  <div className="flex-1 min-w-0">
-                    <p className="text-sm font-medium text-text-primary truncate">
-                      {transaction.description}
-                    </p>
-                    <p className="text-xs text-text-muted">
-                      {formatRelativeDate(transaction.date)} · {transaction.account.name}
+              {recentTransactions.map((transaction) => {
+                // Use first tag for display
+                const primaryTag = transaction.tags[0];
+                return (
+                  <div
+                    key={transaction.id}
+                    className="flex items-center gap-4 px-5 py-4 hover:bg-bg-hover transition-colors"
+                  >
+                    {primaryTag && (
+                      <TagIcon
+                        icon={primaryTag.icon}
+                        color={primaryTag.color}
+                        size="sm"
+                      />
+                    )}
+                    <div className="flex-1 min-w-0">
+                      <p className="text-sm font-medium text-text-primary truncate">
+                        {transaction.description}
+                      </p>
+                      <p className="text-xs text-text-muted">
+                        {formatRelativeDate(transaction.date)} · {transaction.account.name}
+                      </p>
+                    </div>
+                    <p
+                      className={cn(
+                        'text-sm font-semibold whitespace-nowrap',
+                        transaction.type === 'income' ? 'text-income' : 'text-expense'
+                      )}
+                    >
+                      {transaction.type === 'income' ? '+' : '-'}
+                      {formatCurrency(transaction.amount)}
                     </p>
                   </div>
-                  <p
-                    className={cn(
-                      'text-sm font-semibold whitespace-nowrap',
-                      transaction.type === 'income' ? 'text-income' : 'text-expense'
-                    )}
-                  >
-                    {transaction.type === 'income' ? '+' : '-'}
-                    {formatCurrency(transaction.amount)}
-                  </p>
-                </div>
-              ))}
+                );
+              })}
             </div>
           </CardContent>
         </Card>
 
-        {/* Top Spending Categories */}
+        {/* Top Spending Tags */}
         <Card>
           <CardHeader>
             <CardTitle>Where's the Money Going?</CardTitle>
           </CardHeader>
           <CardContent className="space-y-4">
-            {categorySpending.map((item) => (
-              <div key={item.category.id} className="space-y-2">
+            {tagSpending.map((item) => (
+              <div key={item.tag.id} className="space-y-2">
                 <div className="flex items-center justify-between">
                   <div className="flex items-center gap-3">
-                    <CategoryIcon
-                      icon={item.category.icon}
-                      color={item.category.color}
+                    <TagIcon
+                      icon={item.tag.icon}
+                      color={item.tag.color}
                       size="sm"
                     />
                     <span className="text-sm font-medium text-text-primary">
-                      {item.category.name}
+                      {item.tag.name}
                     </span>
                   </div>
                   <span className="text-sm font-semibold text-text-primary">
@@ -179,7 +185,7 @@ export function Dashboard() {
                     className="h-full rounded-full transition-all duration-500"
                     style={{
                       width: `${Math.min(item.percentage, 100)}%`,
-                      backgroundColor: item.category.color,
+                      backgroundColor: item.tag.color,
                     }}
                   />
                 </div>

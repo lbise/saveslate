@@ -27,7 +27,7 @@ export function Icon({ name, className, size = 20, style }: IconProps) {
   return <IconComponent className={className} size={size} style={style} />;
 }
 
-interface CategoryIconProps {
+interface TagIconProps {
   icon: string;
   color: string;
   size?: 'sm' | 'md' | 'lg';
@@ -46,12 +46,12 @@ const iconSizes = {
   lg: 24,
 };
 
-export function CategoryIcon({
+export function TagIcon({
   icon,
   color,
   size = 'md',
   className,
-}: CategoryIconProps) {
+}: TagIconProps) {
   return (
     <div
       className={cn(
@@ -65,3 +65,6 @@ export function CategoryIcon({
     </div>
   );
 }
+
+// Alias for backwards compatibility during migration
+export const CategoryIcon = TagIcon;

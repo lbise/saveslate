@@ -1,9 +1,10 @@
 import { useState, useMemo } from 'react';
-import { Search, Filter, ArrowUpDown, ChevronDown } from 'lucide-react';
-import { Card, CardContent, Badge, CategoryIcon } from '../components/ui';
+import { Search, Filter, ArrowUpDown, ChevronDown, X, Split } from 'lucide-react';
+import { Card, CardContent, Badge, TagIcon, SplitBadge } from '../components/ui';
 import {
   getTransactionsWithDetails,
-  CATEGORIES,
+  TAGS,
+  getPendingSplitTotal,
 } from '../data/mock';
 import { formatCurrency, formatDate, cn } from '../lib/utils';
 import type { TransactionWithDetails, TransactionType } from '../types';
@@ -13,11 +14,12 @@ type SortDirection = 'asc' | 'desc';
 
 export function Transactions() {
   const allTransactions = getTransactionsWithDetails();
+  const pendingSplitTotal = getPendingSplitTotal();
 
   // Filters
   const [searchQuery, setSearchQuery] = useState('');
   const [typeFilter, setTypeFilter] = useState<TransactionType | 'all'>('all');
-  const [categoryFilter, setCategoryFilter] = useState<string>('all');
+  const [selectedTagIds, setSelectedTagIds] = useState<string[]>([]);
   const [sortField, setSortField] = useState<SortField>('date');
   const [sortDirection, setSortDirection] = useState<SortDirection>('desc');
 
@@ -31,7 +33,7 @@ export function Transactions() {
       result = result.filter(
         (t) =>
           t.description.toLowerCase().includes(query) ||
-          t.category.name.toLowerCase().includes(query)
+          t.tags.some((tag) => tag.name.toLowerCase().includes(query))
       );
     }
 
@@ -40,9 +42,11 @@ export function Transactions() {
       result = result.filter((t) => t.type === typeFilter);
     }
 
-    // Category filter
-    if (categoryFilter !== 'all') {
-      result = result.filter((t) => t.categoryId === categoryFilter);
+    // Tag filter (multi-select - transaction must have ANY of the selected tags)
+    if (selectedTagIds.length > 0) {
+      result = result.filter((t) =>
+        t.tagIds.some((tagId) => selectedTagIds.includes(tagId))
+      );
     }
 
     // Sort
@@ -57,7 +61,7 @@ export function Transactions() {
     });
 
     return result;
-  }, [allTransactions, searchQuery, typeFilter, categoryFilter, sortField, sortDirection]);
+  }, [allTransactions, searchQuery, typeFilter, selectedTagIds, sortField, sortDirection]);
 
   const toggleSort = (field: SortField) => {
     if (sortField === field) {
@@ -66,6 +70,18 @@ export function Transactions() {
       setSortField(field);
       setSortDirection('desc');
     }
+  };
+
+  const toggleTagFilter = (tagId: string) => {
+    setSelectedTagIds((prev) =>
+      prev.includes(tagId)
+        ? prev.filter((id) => id !== tagId)
+        : [...prev, tagId]
+    );
+  };
+
+  const clearTagFilters = () => {
+    setSelectedTagIds([]);
   };
 
   const totalIncome = filteredTransactions
@@ -87,7 +103,7 @@ export function Transactions() {
       </div>
 
       {/* Quick Stats */}
-      <div className="grid grid-cols-2 lg:grid-cols-3 gap-4">
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
         <Card>
           <CardContent className="p-4">
             <p className="text-muted">Transactions</p>
@@ -104,7 +120,7 @@ export function Transactions() {
             </p>
           </CardContent>
         </Card>
-        <Card className="col-span-2 lg:col-span-1">
+        <Card>
           <CardContent className="p-4">
             <p className="text-muted">Expenses</p>
             <p className="text-2xl font-bold text-expense">
@@ -112,11 +128,24 @@ export function Transactions() {
             </p>
           </CardContent>
         </Card>
+        {pendingSplitTotal > 0 && (
+          <Card>
+            <CardContent className="p-4">
+              <div className="flex items-center gap-2 text-muted">
+                <Split className="w-4 h-4" />
+                <p>Pending Split</p>
+              </div>
+              <p className="text-2xl font-bold text-amber-600 dark:text-amber-400">
+                {formatCurrency(pendingSplitTotal)}
+              </p>
+            </CardContent>
+          </Card>
+        )}
       </div>
 
       {/* Filters */}
       <Card>
-        <CardContent className="p-4">
+        <CardContent className="p-4 space-y-4">
           <div className="flex flex-col lg:flex-row gap-4">
             {/* Search */}
             <div className="flex-1 relative">
@@ -144,22 +173,44 @@ export function Transactions() {
               </select>
               <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-text-muted pointer-events-none" />
             </div>
+          </div>
 
-            {/* Category Filter */}
-            <div className="relative">
-              <select
-                value={categoryFilter}
-                onChange={(e) => setCategoryFilter(e.target.value)}
-                className="select"
-              >
-                <option value="all">All Categories</option>
-                {CATEGORIES.map((cat) => (
-                  <option key={cat.id} value={cat.id}>
-                    {cat.name}
-                  </option>
-                ))}
-              </select>
-              <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-text-muted pointer-events-none" />
+          {/* Tag Multi-Select */}
+          <div className="space-y-2">
+            <div className="flex items-center justify-between">
+              <p className="text-sm font-medium text-text-secondary">Filter by tags</p>
+              {selectedTagIds.length > 0 && (
+                <button
+                  onClick={clearTagFilters}
+                  className="text-xs text-accent hover:text-accent-dark transition-colors"
+                >
+                  Clear all
+                </button>
+              )}
+            </div>
+            <div className="flex flex-wrap gap-2">
+              {TAGS.filter((tag) => !tag.goalId).map((tag) => (
+                <button
+                  key={tag.id}
+                  onClick={() => toggleTagFilter(tag.id)}
+                  className={cn(
+                    'inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-medium transition-all',
+                    selectedTagIds.includes(tag.id)
+                      ? 'ring-2 ring-offset-2 ring-offset-bg-primary'
+                      : 'opacity-60 hover:opacity-100'
+                  )}
+                  style={{
+                    backgroundColor: `${tag.color}20`,
+                    color: tag.color,
+                    ...(selectedTagIds.includes(tag.id) && { ringColor: tag.color }),
+                  }}
+                >
+                  {tag.name}
+                  {selectedTagIds.includes(tag.id) && (
+                    <X className="w-3 h-3" />
+                  )}
+                </button>
+              ))}
             </div>
           </div>
         </CardContent>
@@ -180,8 +231,8 @@ export function Transactions() {
             Date
             <ArrowUpDown className="w-3 h-3" />
           </button>
-          <div className="text-sm font-medium text-text-muted w-28">
-            Category
+          <div className="text-sm font-medium text-text-muted w-40">
+            Tags
           </div>
           <button
             onClick={() => toggleSort('amount')}
@@ -212,30 +263,43 @@ export function Transactions() {
 }
 
 function TransactionRow({ transaction }: { transaction: TransactionWithDetails }) {
+  const primaryTag = transaction.tags[0];
+
   return (
     <div className="flex flex-col lg:flex-row lg:items-center gap-2 lg:gap-4 px-5 py-4 hover:bg-bg-hover transition-colors">
-      <CategoryIcon
-        icon={transaction.category.icon}
-        color={transaction.category.color}
-        size="sm"
-        className="hidden lg:flex"
-      />
+      {primaryTag && (
+        <TagIcon
+          icon={primaryTag.icon}
+          color={primaryTag.color}
+          size="sm"
+          className="hidden lg:flex"
+        />
+      )}
 
       {/* Mobile layout */}
       <div className="flex items-start gap-3 lg:hidden">
-        <CategoryIcon
-          icon={transaction.category.icon}
-          color={transaction.category.color}
-          size="sm"
-        />
+        {primaryTag && (
+          <TagIcon
+            icon={primaryTag.icon}
+            color={primaryTag.color}
+            size="sm"
+          />
+        )}
         <div className="flex-1 min-w-0">
-          <p className="text-sm font-medium text-text-primary truncate">
-            {transaction.description}
-          </p>
-          <div className="flex items-center gap-2 mt-1">
-            <Badge color={transaction.category.color} className="text-[10px]">
-              {transaction.category.name}
-            </Badge>
+          <div className="flex items-center gap-2">
+            <p className="text-sm font-medium text-text-primary truncate">
+              {transaction.description}
+            </p>
+            {transaction.split && (
+              <SplitBadge status={transaction.split.status} />
+            )}
+          </div>
+          <div className="flex items-center gap-2 mt-1 flex-wrap">
+            {transaction.tags.map((tag) => (
+              <Badge key={tag.id} color={tag.color} className="text-[10px]">
+                {tag.name}
+              </Badge>
+            ))}
             <span className="text-xs text-text-muted">
               {formatDate(transaction.date)}
             </span>
@@ -255,9 +319,14 @@ function TransactionRow({ transaction }: { transaction: TransactionWithDetails }
       {/* Desktop layout */}
       <div className="hidden lg:flex lg:items-center lg:gap-4 lg:flex-1">
         <div className="flex-1 min-w-0">
-          <p className="text-sm font-medium text-text-primary truncate">
-            {transaction.description}
-          </p>
+          <div className="flex items-center gap-2">
+            <p className="text-sm font-medium text-text-primary truncate">
+              {transaction.description}
+            </p>
+            {transaction.split && (
+              <SplitBadge status={transaction.split.status} />
+            )}
+          </div>
           <p className="text-xs text-text-muted">
             {transaction.account.name}
           </p>
@@ -265,10 +334,12 @@ function TransactionRow({ transaction }: { transaction: TransactionWithDetails }
         <div className="w-28 text-sm text-text-secondary">
           {formatDate(transaction.date)}
         </div>
-        <div className="w-28">
-          <Badge color={transaction.category.color} className="text-xs">
-            {transaction.category.name}
-          </Badge>
+        <div className="w-40 flex flex-wrap gap-1">
+          {transaction.tags.map((tag) => (
+            <Badge key={tag.id} color={tag.color} className="text-xs">
+              {tag.name}
+            </Badge>
+          ))}
         </div>
         <p
           className={cn(
