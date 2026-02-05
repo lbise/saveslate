@@ -107,7 +107,7 @@ export function Transactions() {
         <Card>
           <CardContent className="p-4">
             <p className="text-muted">Transactions</p>
-            <p className="text-2xl font-bold text-text-primary">
+            <p className="text-2xl font-bold text-text">
               {filteredTransactions.length}
             </p>
           </CardContent>
@@ -182,7 +182,7 @@ export function Transactions() {
               {selectedTagIds.length > 0 && (
                 <button
                   onClick={clearTagFilters}
-                  className="text-xs text-accent hover:text-accent-dark transition-colors"
+                  className="text-xs text-accent hover:opacity-80 transition-opacity"
                 >
                   Clear all
                 </button>
@@ -196,7 +196,7 @@ export function Transactions() {
                   className={cn(
                     'inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-medium transition-all',
                     selectedTagIds.includes(tag.id)
-                      ? 'ring-2 ring-offset-2 ring-offset-bg-primary'
+                      ? 'ring-2 ring-offset-2 ring-offset-bg'
                       : 'opacity-60 hover:opacity-100'
                   )}
                   style={{
@@ -219,14 +219,14 @@ export function Transactions() {
       {/* Transactions List */}
       <Card>
         {/* Table Header */}
-        <div className="hidden lg:flex items-center gap-4 px-5 py-3 border-b border-border bg-bg-secondary">
+        <div className="hidden lg:flex items-center gap-4 px-5 py-3 border-b border-border bg-bg">
           <div className="w-10" /> {/* Icon space */}
           <div className="flex-1 text-sm font-medium text-text-muted">
             Description
           </div>
           <button
             onClick={() => toggleSort('date')}
-            className="flex items-center gap-1 text-sm font-medium text-text-muted hover:text-text-primary transition-colors w-28"
+            className="flex items-center gap-1 text-sm font-medium text-text-muted hover:text-text transition-colors w-28"
           >
             Date
             <ArrowUpDown className="w-3 h-3" />
@@ -236,7 +236,7 @@ export function Transactions() {
           </div>
           <button
             onClick={() => toggleSort('amount')}
-            className="flex items-center gap-1 text-sm font-medium text-text-muted hover:text-text-primary transition-colors w-28 justify-end"
+            className="flex items-center gap-1 text-sm font-medium text-text-muted hover:text-text transition-colors w-28 justify-end"
           >
             Amount
             <ArrowUpDown className="w-3 h-3" />
@@ -244,7 +244,7 @@ export function Transactions() {
         </div>
 
         {/* Transaction Rows */}
-        <div className="divide-y divide-border-light">
+        <div className="divide-y divide-border">
           {filteredTransactions.length === 0 ? (
             <div className="px-5 py-12 text-center">
               <p className="text-text-muted">
@@ -266,7 +266,7 @@ function TransactionRow({ transaction }: { transaction: TransactionWithDetails }
   const primaryTag = transaction.tags[0];
 
   return (
-    <div className="flex flex-col lg:flex-row lg:items-center gap-2 lg:gap-4 px-5 py-4 hover:bg-bg-hover transition-colors">
+    <div className="flex flex-col lg:flex-row lg:items-center gap-2 lg:gap-4 px-5 py-4 hover:bg-surface/50 transition-colors">
       {primaryTag && (
         <TagIcon
           icon={primaryTag.icon}
@@ -287,7 +287,7 @@ function TransactionRow({ transaction }: { transaction: TransactionWithDetails }
         )}
         <div className="flex-1 min-w-0">
           <div className="flex items-center gap-2">
-            <p className="text-sm font-medium text-text-primary truncate">
+            <p className="text-sm font-medium text-text truncate">
               {transaction.description}
             </p>
             {transaction.split && (
@@ -320,7 +320,7 @@ function TransactionRow({ transaction }: { transaction: TransactionWithDetails }
       <div className="hidden lg:flex lg:items-center lg:gap-4 lg:flex-1">
         <div className="flex-1 min-w-0">
           <div className="flex items-center gap-2">
-            <p className="text-sm font-medium text-text-primary truncate">
+            <p className="text-sm font-medium text-text truncate">
               {transaction.description}
             </p>
             {transaction.split && (

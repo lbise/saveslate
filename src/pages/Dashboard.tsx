@@ -27,7 +27,7 @@ export function Dashboard() {
             Let's see how your money is vibing today
           </p>
         </div>
-        <div className="hidden sm:flex items-center gap-2 px-4 py-2 bg-accent-bg rounded-full">
+        <div className="hidden sm:flex items-center gap-2 px-4 py-2 bg-accent/15 rounded-full">
           <Sparkles className="w-4 h-4 text-accent" />
           <span className="text-sm font-medium text-accent">
             Looking good!
@@ -37,7 +37,7 @@ export function Dashboard() {
 
       {/* Net Worth Card - The Star of the Show */}
       <Card className="overflow-hidden">
-        <div className="bg-gradient-to-br from-accent to-accent-dark p-6 lg:p-8">
+        <div className="bg-gradient-to-br from-accent to-accent/80 p-6 lg:p-8">
           <p className="text-white/80 text-sm font-medium mb-2">Total Balance</p>
           <p className="text-3xl lg:text-4xl font-bold text-white mb-4">
             {formatCurrency(netWorth)}
@@ -94,7 +94,7 @@ export function Dashboard() {
               <p
                 className={cn(
                   'text-xl font-bold',
-                  account.balance >= 0 ? 'text-text-primary' : 'text-expense'
+                  account.balance >= 0 ? 'text-text' : 'text-expense'
                 )}
               >
                 {formatCurrency(account.balance, account.currency)}
@@ -116,14 +116,14 @@ export function Dashboard() {
             </Link>
           </CardHeader>
           <CardContent className="p-0">
-            <div className="divide-y divide-border-light">
+            <div className="divide-y divide-border">
               {recentTransactions.map((transaction) => {
                 // Use first tag for display
                 const primaryTag = transaction.tags[0];
                 return (
                   <div
                     key={transaction.id}
-                    className="flex items-center gap-4 px-5 py-4 hover:bg-bg-hover transition-colors"
+                    className="flex items-center gap-4 px-5 py-4 hover:bg-surface/50 transition-colors"
                   >
                     {primaryTag && (
                       <TagIcon
@@ -133,7 +133,7 @@ export function Dashboard() {
                       />
                     )}
                     <div className="flex-1 min-w-0">
-                      <p className="text-sm font-medium text-text-primary truncate">
+                      <p className="text-sm font-medium text-text truncate">
                         {transaction.description}
                       </p>
                       <p className="text-xs text-text-muted">
@@ -171,16 +171,16 @@ export function Dashboard() {
                       color={item.tag.color}
                       size="sm"
                     />
-                    <span className="text-sm font-medium text-text-primary">
+                    <span className="text-sm font-medium text-text">
                       {item.tag.name}
                     </span>
                   </div>
-                  <span className="text-sm font-semibold text-text-primary">
+                  <span className="text-sm font-semibold text-text">
                     {formatCurrency(item.amount)}
                   </span>
                 </div>
                 {/* Progress bar */}
-                <div className="h-2 bg-bg-tertiary rounded-full overflow-hidden">
+                <div className="h-2 bg-border rounded-full overflow-hidden">
                   <div
                     className="h-full rounded-full transition-all duration-500"
                     style={{
@@ -216,7 +216,7 @@ export function Dashboard() {
               <p
                 className={cn(
                   'text-xl font-bold',
-                  stats.netSavings >= 0 ? 'text-savings' : 'text-expense'
+                  stats.netSavings >= 0 ? 'text-income' : 'text-expense'
                 )}
               >
                 {formatCurrency(stats.netSavings)}
