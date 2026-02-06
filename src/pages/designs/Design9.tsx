@@ -7,8 +7,10 @@
  * - Geometric patterns, subtle lines
  * - Symmetry, refined borders
  * - Gatsby-era financial sophistication
+ * - Collapsible sidebar navigation
  */
 
+import { useState } from 'react';
 import {
   Upload,
   Target,
@@ -18,6 +20,14 @@ import {
   Plus,
   Diamond,
   ChevronRight,
+  LayoutDashboard,
+  Receipt,
+  Wallet,
+  Tags,
+  Settings,
+  HelpCircle,
+  LogOut,
+  ChevronLeft,
 } from 'lucide-react';
 import {
   getTransactionsWithDetails,
@@ -28,10 +38,25 @@ import {
 import { formatCurrency } from '../../lib/utils';
 
 export function Design9() {
+  const [activeNav, setActiveNav] = useState('dashboard');
+  const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
   const transactions = getTransactionsWithDetails().slice(0, 5);
   const stats = getMonthlyStats();
   const goals = getGoalProgress();
   const netWorth = getNetWorth();
+
+  const navItems = [
+    { id: 'dashboard', label: 'Dashboard', icon: LayoutDashboard },
+    { id: 'transactions', label: 'Transactions', icon: Receipt },
+    { id: 'accounts', label: 'Accounts', icon: Wallet },
+    { id: 'goals', label: 'Goals', icon: Target },
+    { id: 'categories', label: 'Categories', icon: Tags },
+  ];
+
+  const bottomNavItems = [
+    { id: 'settings', label: 'Settings', icon: Settings },
+    { id: 'help', label: 'Help', icon: HelpCircle },
+  ];
 
   return (
     <div className="design9-root">
@@ -52,6 +77,8 @@ export function Design9() {
           --d9-gold-dark: #a68a2a;
           --d9-income: #7eb88a;
           --d9-expense: #c97878;
+          --d9-sidebar-width: 260px;
+          --d9-sidebar-collapsed: 72px;
           
           font-family: 'Raleway', sans-serif;
           background: var(--d9-bg);
@@ -59,6 +86,7 @@ export function Design9() {
           min-height: 100vh;
           font-weight: 400;
           letter-spacing: 0.02em;
+          display: flex;
         }
         
         /* Subtle geometric pattern overlay */
@@ -78,12 +106,264 @@ export function Design9() {
           background-position: 0 0, 0 0, 40px 70px, 40px 70px;
           opacity: 0.03;
           pointer-events: none;
+          z-index: 0;
+        }
+        
+        /* Sidebar */
+        .d9-sidebar {
+          width: var(--d9-sidebar-width);
+          min-height: 100vh;
+          background: var(--d9-surface);
+          border-right: 1px solid var(--d9-border);
+          display: flex;
+          flex-direction: column;
+          position: fixed;
+          left: 0;
+          top: 0;
+          bottom: 0;
+          transition: width 0.25s ease;
+          z-index: 100;
+        }
+        
+        .d9-sidebar.collapsed {
+          width: var(--d9-sidebar-collapsed);
+        }
+        
+        .d9-sidebar-header {
+          padding: 24px;
+          display: flex;
+          align-items: center;
+          justify-content: space-between;
+          border-bottom: 1px solid var(--d9-border);
+          position: relative;
+        }
+        
+        .d9-sidebar-header::after {
+          content: '';
+          position: absolute;
+          bottom: -1px;
+          left: 50%;
+          transform: translateX(-50%);
+          width: 40px;
+          height: 1px;
+          background: var(--d9-gold);
+        }
+        
+        .d9-sidebar.collapsed .d9-sidebar-header {
+          padding: 24px 16px;
+          justify-content: center;
+        }
+        
+        .d9-sidebar-logo {
+          display: flex;
+          align-items: center;
+          gap: 12px;
+          overflow: hidden;
+        }
+        
+        .d9-sidebar.collapsed .d9-sidebar-logo-text {
+          display: none;
+        }
+        
+        .d9-sidebar-logo-icon {
+          color: var(--d9-gold);
+          flex-shrink: 0;
+        }
+        
+        .d9-sidebar-logo-text {
+          font-family: 'Bodoni Moda', serif;
+          font-size: 18px;
+          font-weight: 500;
+          letter-spacing: 0.08em;
+          text-transform: uppercase;
+          white-space: nowrap;
+        }
+        
+        .d9-collapse-btn {
+          width: 28px;
+          height: 28px;
+          border-radius: 0;
+          background: transparent;
+          border: 1px solid var(--d9-gold-dark);
+          color: var(--d9-text-muted);
+          cursor: pointer;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          transition: all 0.25s;
+          flex-shrink: 0;
+        }
+        
+        .d9-collapse-btn:hover {
+          color: var(--d9-gold);
+          border-color: var(--d9-gold);
+        }
+        
+        .d9-sidebar.collapsed .d9-collapse-btn {
+          transform: rotate(180deg);
+        }
+        
+        .d9-nav {
+          flex: 1;
+          padding: 16px 12px;
+          display: flex;
+          flex-direction: column;
+          gap: 2px;
+        }
+        
+        .d9-nav-item {
+          display: flex;
+          align-items: center;
+          gap: 12px;
+          padding: 12px 16px;
+          border-radius: 0;
+          color: var(--d9-text-secondary);
+          font-size: 11px;
+          font-weight: 500;
+          letter-spacing: 0.1em;
+          text-transform: uppercase;
+          cursor: pointer;
+          transition: all 0.25s;
+          border: none;
+          background: transparent;
+          width: 100%;
+          text-align: left;
+          border-left: 2px solid transparent;
+        }
+        
+        .d9-sidebar.collapsed .d9-nav-item {
+          padding: 12px;
+          justify-content: center;
+          border-left: none;
+        }
+        
+        .d9-nav-item:hover {
+          background: rgba(212, 175, 55, 0.05);
+          color: var(--d9-text);
+        }
+        
+        .d9-nav-item.active {
+          background: rgba(212, 175, 55, 0.08);
+          color: var(--d9-gold);
+          border-left-color: var(--d9-gold);
+        }
+        
+        .d9-sidebar.collapsed .d9-nav-item.active {
+          border-left: none;
+        }
+        
+        .d9-nav-label {
+          white-space: nowrap;
+          overflow: hidden;
+        }
+        
+        .d9-sidebar.collapsed .d9-nav-label {
+          display: none;
+        }
+        
+        .d9-nav-icon {
+          flex-shrink: 0;
+        }
+        
+        .d9-nav-section {
+          margin-top: auto;
+          padding-top: 16px;
+          border-top: 1px solid var(--d9-border);
+        }
+        
+        .d9-user {
+          padding: 16px;
+          border-top: 1px solid var(--d9-border);
+          display: flex;
+          align-items: center;
+          gap: 12px;
+        }
+        
+        .d9-sidebar.collapsed .d9-user {
+          padding: 16px 12px;
+          justify-content: center;
+        }
+        
+        .d9-avatar {
+          width: 36px;
+          height: 36px;
+          border-radius: 0;
+          border: 1px solid var(--d9-gold-dark);
+          background: transparent;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          font-family: 'Bodoni Moda', serif;
+          font-size: 14px;
+          font-weight: 500;
+          color: var(--d9-gold);
+          flex-shrink: 0;
+        }
+        
+        .d9-user-info {
+          flex: 1;
+          min-width: 0;
+        }
+        
+        .d9-sidebar.collapsed .d9-user-info {
+          display: none;
+        }
+        
+        .d9-user-name {
+          font-size: 12px;
+          font-weight: 500;
+          letter-spacing: 0.05em;
+          white-space: nowrap;
+          overflow: hidden;
+          text-overflow: ellipsis;
+        }
+        
+        .d9-user-email {
+          font-size: 11px;
+          color: var(--d9-text-muted);
+          white-space: nowrap;
+          overflow: hidden;
+          text-overflow: ellipsis;
+        }
+        
+        .d9-logout-btn {
+          width: 32px;
+          height: 32px;
+          border-radius: 0;
+          background: transparent;
+          border: none;
+          color: var(--d9-text-muted);
+          cursor: pointer;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          transition: all 0.25s;
+        }
+        
+        .d9-sidebar.collapsed .d9-logout-btn {
+          display: none;
+        }
+        
+        .d9-logout-btn:hover {
+          color: var(--d9-expense);
+        }
+        
+        /* Main content */
+        .d9-main-wrapper {
+          flex: 1;
+          margin-left: var(--d9-sidebar-width);
+          transition: margin-left 0.25s ease;
+          position: relative;
+        }
+        
+        .d9-sidebar.collapsed ~ .d9-main-wrapper {
+          margin-left: var(--d9-sidebar-collapsed);
         }
         
         .d9-container {
-          max-width: 1120px;
+          max-width: 1060px;
           margin: 0 auto;
-          padding: 56px 48px;
+          padding: 48px 40px;
           position: relative;
         }
         
@@ -91,7 +371,7 @@ export function Design9() {
           display: flex;
           align-items: center;
           justify-content: space-between;
-          margin-bottom: 64px;
+          margin-bottom: 56px;
           padding-bottom: 24px;
           border-bottom: 1px solid var(--d9-border);
           position: relative;
@@ -108,17 +388,7 @@ export function Design9() {
           background: var(--d9-gold);
         }
         
-        .d9-logo {
-          display: flex;
-          align-items: center;
-          gap: 12px;
-        }
-        
-        .d9-logo-mark {
-          color: var(--d9-gold);
-        }
-        
-        .d9-logo-text {
+        .d9-page-title {
           font-family: 'Bodoni Moda', serif;
           font-size: 24px;
           font-weight: 500;
@@ -490,123 +760,205 @@ export function Design9() {
             gap: 32px;
           }
         }
+        
+        @media (max-width: 900px) {
+          .d9-sidebar {
+            width: var(--d9-sidebar-collapsed);
+          }
+          .d9-sidebar .d9-sidebar-logo-text,
+          .d9-sidebar .d9-nav-label,
+          .d9-sidebar .d9-user-info {
+            display: none;
+          }
+          .d9-sidebar .d9-nav-item {
+            padding: 12px;
+            justify-content: center;
+            border-left: none;
+          }
+          .d9-sidebar .d9-user {
+            justify-content: center;
+          }
+          .d9-sidebar .d9-collapse-btn,
+          .d9-sidebar .d9-logout-btn {
+            display: none;
+          }
+          .d9-main-wrapper {
+            margin-left: var(--d9-sidebar-collapsed) !important;
+          }
+          .d9-hero-amount {
+            font-size: 42px;
+          }
+        }
       `}</style>
 
-      <div className="d9-container">
-        {/* Header */}
-        <header className="d9-header">
-          <div className="d9-logo">
-            <Diamond className="d9-logo-mark" size={20} />
-            <span className="d9-logo-text">MeloMoney</span>
+      {/* Sidebar */}
+      <aside className={`d9-sidebar ${sidebarCollapsed ? 'collapsed' : ''}`}>
+        <div className="d9-sidebar-header">
+          <div className="d9-sidebar-logo">
+            <Diamond className="d9-sidebar-logo-icon" size={18} />
+            <span className="d9-sidebar-logo-text">MeloMoney</span>
           </div>
-          <div className="d9-header-actions">
-            <button className="d9-btn d9-btn-outline">
-              <Target size={14} />
-              New Goal
+          <button 
+            className="d9-collapse-btn"
+            onClick={() => setSidebarCollapsed(!sidebarCollapsed)}
+          >
+            <ChevronLeft size={14} />
+          </button>
+        </div>
+        
+        <nav className="d9-nav">
+          {navItems.map((item) => (
+            <button
+              key={item.id}
+              className={`d9-nav-item ${activeNav === item.id ? 'active' : ''}`}
+              onClick={() => setActiveNav(item.id)}
+            >
+              <item.icon size={18} className="d9-nav-icon" />
+              <span className="d9-nav-label">{item.label}</span>
             </button>
-            <button className="d9-btn d9-btn-primary">
-              <Upload size={14} />
-              Import CSV
-            </button>
+          ))}
+          
+          <div className="d9-nav-section">
+            {bottomNavItems.map((item) => (
+              <button
+                key={item.id}
+                className={`d9-nav-item ${activeNav === item.id ? 'active' : ''}`}
+                onClick={() => setActiveNav(item.id)}
+              >
+                <item.icon size={18} className="d9-nav-icon" />
+                <span className="d9-nav-label">{item.label}</span>
+              </button>
+            ))}
           </div>
-        </header>
-
-        {/* Hero */}
-        <section className="d9-hero">
-          <div className="d9-hero-label">Portfolio Value</div>
-          <div className="d9-hero-amount">{formatCurrency(netWorth)}</div>
-          <div className="d9-hero-divider" />
-          <div className="d9-hero-stats">
-            <div className="d9-hero-stat">
-              <div className="d9-hero-stat-value income">{formatCurrency(stats.totalIncome)}</div>
-              <div className="d9-hero-stat-label">Monthly Income</div>
-            </div>
-            <div className="d9-hero-stat">
-              <div className="d9-hero-stat-value expense">{formatCurrency(stats.totalExpenses)}</div>
-              <div className="d9-hero-stat-label">Monthly Expenses</div>
-            </div>
-            <div className="d9-hero-stat">
-              <div className="d9-hero-stat-value rate">{stats.savingsRate.toFixed(1)}%</div>
-              <div className="d9-hero-stat-label">Savings Rate</div>
-            </div>
+        </nav>
+        
+        <div className="d9-user">
+          <div className="d9-avatar">JD</div>
+          <div className="d9-user-info">
+            <div className="d9-user-name">John Doe</div>
+            <div className="d9-user-email">john@example.com</div>
           </div>
-        </section>
+          <button className="d9-logout-btn">
+            <LogOut size={16} />
+          </button>
+        </div>
+      </aside>
 
-        {/* Content */}
-        <div className="d9-content">
-          {/* Transactions */}
-          <div className="d9-card">
-            <div className="d9-card-header">
-              <h2 className="d9-card-title">Transactions</h2>
-              <a href="#" className="d9-card-link">
-                View All <ChevronRight size={12} />
-              </a>
+      {/* Main Content */}
+      <div className="d9-main-wrapper">
+        <div className="d9-container">
+          {/* Header */}
+          <header className="d9-header">
+            <h1 className="d9-page-title">Dashboard</h1>
+            <div className="d9-header-actions">
+              <button className="d9-btn d9-btn-outline">
+                <Target size={14} />
+                New Goal
+              </button>
+              <button className="d9-btn d9-btn-primary">
+                <Upload size={14} />
+                Import CSV
+              </button>
             </div>
-            <div className="d9-tx-list">
-              {transactions.map((tx) => (
-                <div key={tx.id} className="d9-tx">
-                  <div className={`d9-tx-icon ${tx.type}`}>
-                    {tx.type === 'income' ? <ArrowUpRight size={16} /> : <ArrowDownRight size={16} />}
-                  </div>
-                  <div className="d9-tx-info">
-                    <div className="d9-tx-desc">{tx.description}</div>
-                    <div className="d9-tx-meta">
-                      <span>{tx.date}</span>
-                      <span className="d9-tx-tag">{tx.tags[0]?.name || 'Uncategorized'}</span>
-                      {tx.split && (
-                        <span className="d9-tx-split">
-                          <Users size={10} />
-                          Split
-                        </span>
-                      )}
+          </header>
+
+          {/* Hero */}
+          <section className="d9-hero">
+            <div className="d9-hero-label">Portfolio Value</div>
+            <div className="d9-hero-amount">{formatCurrency(netWorth)}</div>
+            <div className="d9-hero-divider" />
+            <div className="d9-hero-stats">
+              <div className="d9-hero-stat">
+                <div className="d9-hero-stat-value income">{formatCurrency(stats.totalIncome)}</div>
+                <div className="d9-hero-stat-label">Monthly Income</div>
+              </div>
+              <div className="d9-hero-stat">
+                <div className="d9-hero-stat-value expense">{formatCurrency(stats.totalExpenses)}</div>
+                <div className="d9-hero-stat-label">Monthly Expenses</div>
+              </div>
+              <div className="d9-hero-stat">
+                <div className="d9-hero-stat-value rate">{stats.savingsRate.toFixed(1)}%</div>
+                <div className="d9-hero-stat-label">Savings Rate</div>
+              </div>
+            </div>
+          </section>
+
+          {/* Content */}
+          <div className="d9-content">
+            {/* Transactions */}
+            <div className="d9-card">
+              <div className="d9-card-header">
+                <h2 className="d9-card-title">Transactions</h2>
+                <a href="#" className="d9-card-link">
+                  View All <ChevronRight size={12} />
+                </a>
+              </div>
+              <div className="d9-tx-list">
+                {transactions.map((tx) => (
+                  <div key={tx.id} className="d9-tx">
+                    <div className={`d9-tx-icon ${tx.type}`}>
+                      {tx.type === 'income' ? <ArrowUpRight size={16} /> : <ArrowDownRight size={16} />}
+                    </div>
+                    <div className="d9-tx-info">
+                      <div className="d9-tx-desc">{tx.description}</div>
+                      <div className="d9-tx-meta">
+                        <span>{tx.date}</span>
+                        <span className="d9-tx-tag">{tx.tags[0]?.name || 'Uncategorized'}</span>
+                        {tx.split && (
+                          <span className="d9-tx-split">
+                            <Users size={10} />
+                            Split
+                          </span>
+                        )}
+                      </div>
+                    </div>
+                    <div className={`d9-tx-amount ${tx.type}`}>
+                      {tx.type === 'income' ? '+' : '-'}{formatCurrency(tx.amount)}
                     </div>
                   </div>
-                  <div className={`d9-tx-amount ${tx.type}`}>
-                    {tx.type === 'income' ? '+' : '-'}{formatCurrency(tx.amount)}
-                  </div>
-                </div>
-              ))}
+                ))}
+              </div>
             </div>
-          </div>
 
-          {/* Goals */}
-          <div className="d9-card">
-            <div className="d9-card-header">
-              <h2 className="d9-card-title">Goals</h2>
-              <a href="#" className="d9-card-link">
-                <Plus size={12} /> Add
-              </a>
-            </div>
-            <div className="d9-goals">
-              {goals.map((g) => (
-                <div key={g.goal.id} className="d9-goal">
-                  <div className="d9-goal-header">
-                    <span className="d9-goal-name">{g.goal.name}</span>
-                    <span className="d9-goal-percent">{g.percentage.toFixed(0)}%</span>
+            {/* Goals */}
+            <div className="d9-card">
+              <div className="d9-card-header">
+                <h2 className="d9-card-title">Goals</h2>
+                <a href="#" className="d9-card-link">
+                  <Plus size={12} /> Add
+                </a>
+              </div>
+              <div className="d9-goals">
+                {goals.map((g) => (
+                  <div key={g.goal.id} className="d9-goal">
+                    <div className="d9-goal-header">
+                      <span className="d9-goal-name">{g.goal.name}</span>
+                      <span className="d9-goal-percent">{g.percentage.toFixed(0)}%</span>
+                    </div>
+                    <div className="d9-goal-bar">
+                      <div className="d9-goal-fill" style={{ width: `${g.percentage}%` }} />
+                    </div>
+                    <div className="d9-goal-amounts">
+                      <span>{formatCurrency(g.currentAmount)}</span>
+                      <span>{formatCurrency(g.goal.targetAmount)}</span>
+                    </div>
                   </div>
-                  <div className="d9-goal-bar">
-                    <div className="d9-goal-fill" style={{ width: `${g.percentage}%` }} />
-                  </div>
-                  <div className="d9-goal-amounts">
-                    <span>{formatCurrency(g.currentAmount)}</span>
-                    <span>{formatCurrency(g.goal.targetAmount)}</span>
-                  </div>
-                </div>
-              ))}
-            </div>
-            <div className="d9-actions">
-              <button className="d9-action">
-                <Upload size={16} />
-                <span className="d9-action-label">Import</span>
-              </button>
-              <button className="d9-action">
-                <Target size={16} />
-                <span className="d9-action-label">Goal</span>
-              </button>
-              <button className="d9-action">
-                <Users size={16} />
-                <span className="d9-action-label">Split</span>
-              </button>
+                ))}
+              </div>
+              <div className="d9-actions">
+                <button className="d9-action">
+                  <Upload size={16} />
+                  <span className="d9-action-label">Import</span>
+                </button>
+                <button className="d9-action">
+                  <Target size={16} />
+                  <span className="d9-action-label">Goal</span>
+                </button>
+                <button className="d9-action">
+                  <Users size={16} />
+                  <span className="d9-action-label">Split</span>
+                </button>
+              </div>
             </div>
           </div>
         </div>

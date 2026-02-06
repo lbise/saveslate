@@ -7,8 +7,10 @@
  * - Asymmetric balance, intentional imperfection
  * - Stone, sand, bamboo color palette
  * - Restful, meditative finance experience
+ * - Collapsible sidebar navigation
  */
 
+import { useState } from 'react';
 import {
   Upload,
   Target,
@@ -16,6 +18,14 @@ import {
   ArrowUpRight,
   Plus,
   Circle,
+  LayoutDashboard,
+  Receipt,
+  Wallet,
+  Tags,
+  Settings,
+  HelpCircle,
+  LogOut,
+  ChevronLeft,
 } from 'lucide-react';
 import {
   getTransactionsWithDetails,
@@ -26,10 +36,25 @@ import {
 import { formatCurrency } from '../../lib/utils';
 
 export function Design10() {
+  const [activeNav, setActiveNav] = useState('dashboard');
+  const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
   const transactions = getTransactionsWithDetails().slice(0, 6);
   const stats = getMonthlyStats();
   const goals = getGoalProgress();
   const netWorth = getNetWorth();
+
+  const navItems = [
+    { id: 'dashboard', label: 'Dashboard', icon: LayoutDashboard },
+    { id: 'transactions', label: 'Transactions', icon: Receipt },
+    { id: 'accounts', label: 'Accounts', icon: Wallet },
+    { id: 'goals', label: 'Goals', icon: Target },
+    { id: 'categories', label: 'Categories', icon: Tags },
+  ];
+
+  const bottomNavItems = [
+    { id: 'settings', label: 'Settings', icon: Settings },
+    { id: 'help', label: 'Help', icon: HelpCircle },
+  ];
 
   return (
     <div className="design10-root">
@@ -50,39 +75,267 @@ export function Design10() {
           --d10-rust: #a67c5b;
           --d10-income: #95a88a;
           --d10-expense: #b08080;
+          --d10-sidebar-width: 250px;
+          --d10-sidebar-collapsed: 68px;
           
           font-family: 'Zen Kaku Gothic New', sans-serif;
           background: var(--d10-bg);
           color: var(--d10-text);
           min-height: 100vh;
           font-weight: 400;
+          display: flex;
+        }
+        
+        /* Sidebar */
+        .d10-sidebar {
+          width: var(--d10-sidebar-width);
+          min-height: 100vh;
+          background: var(--d10-surface);
+          border-right: 1px solid var(--d10-border);
+          display: flex;
+          flex-direction: column;
+          position: fixed;
+          left: 0;
+          top: 0;
+          bottom: 0;
+          transition: width 0.3s ease;
+          z-index: 100;
+        }
+        
+        .d10-sidebar.collapsed {
+          width: var(--d10-sidebar-collapsed);
+        }
+        
+        .d10-sidebar-header {
+          padding: 24px;
+          display: flex;
+          align-items: center;
+          justify-content: space-between;
+          border-bottom: 1px solid var(--d10-border);
+        }
+        
+        .d10-sidebar.collapsed .d10-sidebar-header {
+          padding: 24px 14px;
+          justify-content: center;
+        }
+        
+        .d10-sidebar-logo {
+          display: flex;
+          align-items: center;
+          gap: 10px;
+          overflow: hidden;
+        }
+        
+        .d10-sidebar-logo-icon {
+          color: var(--d10-sand);
+          opacity: 0.8;
+          flex-shrink: 0;
+        }
+        
+        .d10-sidebar-logo-text {
+          font-family: 'Noto Serif', serif;
+          font-size: 19px;
+          font-weight: 500;
+          letter-spacing: 0.02em;
+          white-space: nowrap;
+        }
+        
+        .d10-sidebar.collapsed .d10-sidebar-logo-text {
+          display: none;
+        }
+        
+        .d10-collapse-btn {
+          width: 28px;
+          height: 28px;
+          border-radius: 2px;
+          background: transparent;
+          border: 1px solid var(--d10-border);
+          color: var(--d10-text-muted);
+          cursor: pointer;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          transition: all 0.3s;
+          flex-shrink: 0;
+        }
+        
+        .d10-collapse-btn:hover {
+          color: var(--d10-text);
+          border-color: var(--d10-sand);
+        }
+        
+        .d10-sidebar.collapsed .d10-collapse-btn {
+          transform: rotate(180deg);
+        }
+        
+        .d10-nav {
+          flex: 1;
+          padding: 16px 10px;
+          display: flex;
+          flex-direction: column;
+          gap: 2px;
+        }
+        
+        .d10-nav-item {
+          display: flex;
+          align-items: center;
+          gap: 12px;
+          padding: 11px 14px;
+          border-radius: 2px;
+          color: var(--d10-text-secondary);
+          font-size: 13px;
+          cursor: pointer;
+          transition: all 0.3s;
+          border: none;
+          background: transparent;
+          width: 100%;
+          text-align: left;
+          border-left: 2px solid transparent;
+        }
+        
+        .d10-sidebar.collapsed .d10-nav-item {
+          padding: 11px;
+          justify-content: center;
+          border-left: none;
+        }
+        
+        .d10-nav-item:hover {
+          background: var(--d10-surface-warm);
+          color: var(--d10-text);
+        }
+        
+        .d10-nav-item.active {
+          border-left-color: var(--d10-sand);
+          color: var(--d10-text);
+          background: var(--d10-surface-warm);
+        }
+        
+        .d10-sidebar.collapsed .d10-nav-item.active {
+          border-left: none;
+          background: var(--d10-surface-warm);
+        }
+        
+        .d10-nav-label {
+          white-space: nowrap;
+          overflow: hidden;
+        }
+        
+        .d10-sidebar.collapsed .d10-nav-label {
+          display: none;
+        }
+        
+        .d10-nav-icon {
+          flex-shrink: 0;
+        }
+        
+        .d10-nav-section {
+          margin-top: auto;
+          padding-top: 16px;
+          border-top: 1px solid var(--d10-border);
+        }
+        
+        .d10-user {
+          padding: 16px;
+          border-top: 1px solid var(--d10-border);
+          display: flex;
+          align-items: center;
+          gap: 12px;
+        }
+        
+        .d10-sidebar.collapsed .d10-user {
+          padding: 16px 10px;
+          justify-content: center;
+        }
+        
+        .d10-avatar {
+          width: 34px;
+          height: 34px;
+          border-radius: 2px;
+          background: var(--d10-surface-warm);
+          border: 1px solid var(--d10-border);
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          font-family: 'Noto Serif', serif;
+          font-size: 13px;
+          font-weight: 500;
+          color: var(--d10-sand);
+          flex-shrink: 0;
+        }
+        
+        .d10-user-info {
+          flex: 1;
+          min-width: 0;
+        }
+        
+        .d10-sidebar.collapsed .d10-user-info {
+          display: none;
+        }
+        
+        .d10-user-name {
+          font-size: 13px;
+          font-weight: 500;
+          white-space: nowrap;
+          overflow: hidden;
+          text-overflow: ellipsis;
+        }
+        
+        .d10-user-email {
+          font-size: 11px;
+          color: var(--d10-text-muted);
+          white-space: nowrap;
+          overflow: hidden;
+          text-overflow: ellipsis;
+        }
+        
+        .d10-logout-btn {
+          width: 30px;
+          height: 30px;
+          border-radius: 2px;
+          background: transparent;
+          border: none;
+          color: var(--d10-text-muted);
+          cursor: pointer;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          transition: all 0.3s;
+        }
+        
+        .d10-sidebar.collapsed .d10-logout-btn {
+          display: none;
+        }
+        
+        .d10-logout-btn:hover {
+          color: var(--d10-expense);
+          background: rgba(176, 128, 128, 0.1);
+        }
+        
+        /* Main content */
+        .d10-main-wrapper {
+          flex: 1;
+          margin-left: var(--d10-sidebar-width);
+          transition: margin-left 0.3s ease;
+        }
+        
+        .d10-sidebar.collapsed ~ .d10-main-wrapper {
+          margin-left: var(--d10-sidebar-collapsed);
         }
         
         .d10-container {
-          max-width: 1100px;
+          max-width: 1040px;
           margin: 0 auto;
-          padding: 56px 48px;
+          padding: 48px 40px;
         }
         
         .d10-header {
           display: flex;
           align-items: center;
           justify-content: space-between;
-          margin-bottom: 72px;
+          margin-bottom: 56px;
         }
         
-        .d10-logo {
-          display: flex;
-          align-items: center;
-          gap: 12px;
-        }
-        
-        .d10-logo-mark {
-          color: var(--d10-sand);
-          opacity: 0.8;
-        }
-        
-        .d10-logo-text {
+        .d10-page-title {
           font-family: 'Noto Serif', serif;
           font-size: 22px;
           font-weight: 500;
@@ -423,128 +676,210 @@ export function Design10() {
             grid-template-columns: 1fr;
           }
         }
+        
+        @media (max-width: 900px) {
+          .d10-sidebar {
+            width: var(--d10-sidebar-collapsed);
+          }
+          .d10-sidebar .d10-sidebar-logo-text,
+          .d10-sidebar .d10-nav-label,
+          .d10-sidebar .d10-user-info {
+            display: none;
+          }
+          .d10-sidebar .d10-nav-item {
+            padding: 11px;
+            justify-content: center;
+            border-left: none;
+          }
+          .d10-sidebar .d10-user {
+            justify-content: center;
+          }
+          .d10-sidebar .d10-collapse-btn,
+          .d10-sidebar .d10-logout-btn {
+            display: none;
+          }
+          .d10-main-wrapper {
+            margin-left: var(--d10-sidebar-collapsed) !important;
+          }
+          .d10-hero-amount {
+            font-size: 38px;
+          }
+        }
       `}</style>
 
-      <div className="d10-container">
-        {/* Header */}
-        <header className="d10-header">
-          <div className="d10-logo">
-            <Circle className="d10-logo-mark" size={16} strokeWidth={1.5} />
-            <span className="d10-logo-text">MeloMoney</span>
+      {/* Sidebar */}
+      <aside className={`d10-sidebar ${sidebarCollapsed ? 'collapsed' : ''}`}>
+        <div className="d10-sidebar-header">
+          <div className="d10-sidebar-logo">
+            <Circle className="d10-sidebar-logo-icon" size={16} strokeWidth={1.5} />
+            <span className="d10-sidebar-logo-text">MeloMoney</span>
           </div>
-          <div className="d10-header-actions">
-            <button className="d10-btn d10-btn-ghost">
-              <Target size={15} />
-              New Goal
+          <button 
+            className="d10-collapse-btn"
+            onClick={() => setSidebarCollapsed(!sidebarCollapsed)}
+          >
+            <ChevronLeft size={14} />
+          </button>
+        </div>
+        
+        <nav className="d10-nav">
+          {navItems.map((item) => (
+            <button
+              key={item.id}
+              className={`d10-nav-item ${activeNav === item.id ? 'active' : ''}`}
+              onClick={() => setActiveNav(item.id)}
+            >
+              <item.icon size={18} className="d10-nav-icon" />
+              <span className="d10-nav-label">{item.label}</span>
             </button>
-            <button className="d10-btn d10-btn-primary">
-              <Upload size={15} />
-              Import
-            </button>
+          ))}
+          
+          <div className="d10-nav-section">
+            {bottomNavItems.map((item) => (
+              <button
+                key={item.id}
+                className={`d10-nav-item ${activeNav === item.id ? 'active' : ''}`}
+                onClick={() => setActiveNav(item.id)}
+              >
+                <item.icon size={18} className="d10-nav-icon" />
+                <span className="d10-nav-label">{item.label}</span>
+              </button>
+            ))}
           </div>
-        </header>
+        </nav>
+        
+        <div className="d10-user">
+          <div className="d10-avatar">JD</div>
+          <div className="d10-user-info">
+            <div className="d10-user-name">John Doe</div>
+            <div className="d10-user-email">john@example.com</div>
+          </div>
+          <button className="d10-logout-btn">
+            <LogOut size={16} />
+          </button>
+        </div>
+      </aside>
 
-        {/* Hero */}
-        <section className="d10-hero">
-          <div className="d10-hero-main">
-            <div className="d10-hero-label">Total Balance</div>
-            <div className="d10-hero-amount">{formatCurrency(netWorth)}</div>
-            <p className="d10-hero-note">
-              "Wealth is not about having a lot of money; it's about having a lot of options."
-            </p>
-          </div>
-          <div className="d10-hero-stats">
-            <div className="d10-stat">
-              <div className="d10-stat-label">Income</div>
-              <div className="d10-stat-value income">{formatCurrency(stats.totalIncome)}</div>
-            </div>
-            <div className="d10-stat">
-              <div className="d10-stat-label">Expenses</div>
-              <div className="d10-stat-value expense">{formatCurrency(stats.totalExpenses)}</div>
-            </div>
-            <div className="d10-stat">
-              <div className="d10-stat-label">Savings</div>
-              <div className="d10-stat-value rate">{stats.savingsRate.toFixed(1)}%</div>
-            </div>
-          </div>
-        </section>
-
-        {/* Main */}
-        <div className="d10-main">
-          {/* Transactions */}
-          <div className="d10-section">
-            <div className="d10-section-header">
-              <h2 className="d10-section-title">Recent Activity</h2>
-              <button className="d10-section-action">
-                View all <ArrowUpRight size={12} />
+      {/* Main Content */}
+      <div className="d10-main-wrapper">
+        <div className="d10-container">
+          {/* Header */}
+          <header className="d10-header">
+            <h1 className="d10-page-title">Dashboard</h1>
+            <div className="d10-header-actions">
+              <button className="d10-btn d10-btn-ghost">
+                <Target size={15} />
+                New Goal
+              </button>
+              <button className="d10-btn d10-btn-primary">
+                <Upload size={15} />
+                Import
               </button>
             </div>
-            <div className="d10-tx-list">
-              {transactions.map((tx) => (
-                <div key={tx.id} className="d10-tx">
-                  <div className={`d10-tx-dot ${tx.type}`} />
-                  <div className="d10-tx-info">
-                    <div className="d10-tx-desc">{tx.description}</div>
-                    <div className="d10-tx-meta">
-                      <span>{tx.date}</span>
-                      <span className="d10-tx-tag">{tx.tags[0]?.name || 'Uncategorized'}</span>
-                      {tx.split && (
-                        <span className="d10-tx-split">
-                          <Users size={11} />
-                          Split
-                        </span>
-                      )}
-                    </div>
-                  </div>
-                  <div className={`d10-tx-amount ${tx.type}`}>
-                    {tx.type === 'income' ? '+' : '-'}{formatCurrency(tx.amount)}
-                  </div>
-                </div>
-              ))}
-            </div>
-          </div>
+          </header>
 
-          {/* Sidebar */}
-          <div>
+          {/* Hero */}
+          <section className="d10-hero">
+            <div className="d10-hero-main">
+              <div className="d10-hero-label">Total Balance</div>
+              <div className="d10-hero-amount">{formatCurrency(netWorth)}</div>
+              <p className="d10-hero-note">
+                "Wealth is not about having a lot of money; it's about having a lot of options."
+              </p>
+            </div>
+            <div className="d10-hero-stats">
+              <div className="d10-stat">
+                <div className="d10-stat-label">Income</div>
+                <div className="d10-stat-value income">{formatCurrency(stats.totalIncome)}</div>
+              </div>
+              <div className="d10-stat">
+                <div className="d10-stat-label">Expenses</div>
+                <div className="d10-stat-value expense">{formatCurrency(stats.totalExpenses)}</div>
+              </div>
+              <div className="d10-stat">
+                <div className="d10-stat-label">Savings</div>
+                <div className="d10-stat-value rate">{stats.savingsRate.toFixed(1)}%</div>
+              </div>
+            </div>
+          </section>
+
+          {/* Main */}
+          <div className="d10-main">
+            {/* Transactions */}
             <div className="d10-section">
               <div className="d10-section-header">
-                <h2 className="d10-section-title">Goals</h2>
+                <h2 className="d10-section-title">Recent Activity</h2>
                 <button className="d10-section-action">
-                  <Plus size={12} /> Add
+                  View all <ArrowUpRight size={12} />
                 </button>
               </div>
-              <div className="d10-goals">
-                {goals.map((g) => (
-                  <div key={g.goal.id} className="d10-goal">
-                    <div className="d10-goal-header">
-                      <span className="d10-goal-name">{g.goal.name}</span>
-                      <span className="d10-goal-percent">{g.percentage.toFixed(0)}%</span>
+              <div className="d10-tx-list">
+                {transactions.map((tx) => (
+                  <div key={tx.id} className="d10-tx">
+                    <div className={`d10-tx-dot ${tx.type}`} />
+                    <div className="d10-tx-info">
+                      <div className="d10-tx-desc">{tx.description}</div>
+                      <div className="d10-tx-meta">
+                        <span>{tx.date}</span>
+                        <span className="d10-tx-tag">{tx.tags[0]?.name || 'Uncategorized'}</span>
+                        {tx.split && (
+                          <span className="d10-tx-split">
+                            <Users size={11} />
+                            Split
+                          </span>
+                        )}
+                      </div>
                     </div>
-                    <div className="d10-goal-bar">
-                      <div className="d10-goal-fill" style={{ width: `${g.percentage}%` }} />
-                    </div>
-                    <div className="d10-goal-amounts">
-                      <span>{formatCurrency(g.currentAmount)}</span>
-                      <span>{formatCurrency(g.goal.targetAmount)}</span>
+                    <div className={`d10-tx-amount ${tx.type}`}>
+                      {tx.type === 'income' ? '+' : '-'}{formatCurrency(tx.amount)}
                     </div>
                   </div>
                 ))}
               </div>
+            </div>
 
-              {/* Actions */}
-              <div className="d10-actions">
-                <button className="d10-action">
-                  <Upload size={16} className="d10-action-icon" />
-                  Import transactions
-                </button>
-                <button className="d10-action">
-                  <Target size={16} className="d10-action-icon" />
-                  Create new goal
-                </button>
-                <button className="d10-action">
-                  <Users size={16} className="d10-action-icon" />
-                  Split expense
-                </button>
+            {/* Sidebar */}
+            <div>
+              <div className="d10-section">
+                <div className="d10-section-header">
+                  <h2 className="d10-section-title">Goals</h2>
+                  <button className="d10-section-action">
+                    <Plus size={12} /> Add
+                  </button>
+                </div>
+                <div className="d10-goals">
+                  {goals.map((g) => (
+                    <div key={g.goal.id} className="d10-goal">
+                      <div className="d10-goal-header">
+                        <span className="d10-goal-name">{g.goal.name}</span>
+                        <span className="d10-goal-percent">{g.percentage.toFixed(0)}%</span>
+                      </div>
+                      <div className="d10-goal-bar">
+                        <div className="d10-goal-fill" style={{ width: `${g.percentage}%` }} />
+                      </div>
+                      <div className="d10-goal-amounts">
+                        <span>{formatCurrency(g.currentAmount)}</span>
+                        <span>{formatCurrency(g.goal.targetAmount)}</span>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+
+                {/* Actions */}
+                <div className="d10-actions">
+                  <button className="d10-action">
+                    <Upload size={16} className="d10-action-icon" />
+                    Import transactions
+                  </button>
+                  <button className="d10-action">
+                    <Target size={16} className="d10-action-icon" />
+                    Create new goal
+                  </button>
+                  <button className="d10-action">
+                    <Users size={16} className="d10-action-icon" />
+                    Split expense
+                  </button>
+                </div>
               </div>
             </div>
           </div>

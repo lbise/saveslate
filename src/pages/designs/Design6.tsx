@@ -9,6 +9,7 @@
  * - Warm, inviting but sophisticated
  */
 
+import { useState } from 'react';
 import {
   Upload,
   Target,
@@ -19,6 +20,13 @@ import {
   Plus,
   TrendingUp,
   Wallet,
+  LayoutDashboard,
+  Receipt,
+  Tags,
+  Settings,
+  HelpCircle,
+  LogOut,
+  ChevronLeft,
 } from 'lucide-react';
 import {
   getTransactionsWithDetails,
@@ -29,10 +37,25 @@ import {
 import { formatCurrency } from '../../lib/utils';
 
 export function Design6() {
+  const [activeNav, setActiveNav] = useState('dashboard');
+  const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
   const transactions = getTransactionsWithDetails().slice(0, 6);
   const stats = getMonthlyStats();
   const goals = getGoalProgress();
   const netWorth = getNetWorth();
+
+  const navItems = [
+    { id: 'dashboard', label: 'Dashboard', icon: LayoutDashboard },
+    { id: 'transactions', label: 'Transactions', icon: Receipt },
+    { id: 'accounts', label: 'Accounts', icon: Wallet },
+    { id: 'goals', label: 'Goals', icon: Target },
+    { id: 'categories', label: 'Categories', icon: Tags },
+  ];
+
+  const bottomNavItems = [
+    { id: 'settings', label: 'Settings', icon: Settings },
+    { id: 'help', label: 'Help', icon: HelpCircle },
+  ];
 
   return (
     <div className="design6-root">
@@ -53,6 +76,8 @@ export function Design6() {
           --d6-amber-muted: #b8956a;
           --d6-income: #7cb587;
           --d6-expense: #c47a7a;
+          --d6-sidebar-width: 260px;
+          --d6-sidebar-collapsed: 72px;
           
           font-family: 'Source Sans 3', sans-serif;
           background: var(--d6-bg);
@@ -60,10 +85,244 @@ export function Design6() {
           min-height: 100vh;
           font-weight: 400;
           letter-spacing: 0.01em;
+          display: flex;
+        }
+        
+        /* Sidebar */
+        .d6-sidebar {
+          width: var(--d6-sidebar-width);
+          min-height: 100vh;
+          background: var(--d6-surface);
+          border-right: 1px solid var(--d6-border);
+          display: flex;
+          flex-direction: column;
+          position: fixed;
+          left: 0;
+          top: 0;
+          bottom: 0;
+          transition: width 0.25s ease;
+          z-index: 100;
+        }
+        
+        .d6-sidebar.collapsed {
+          width: var(--d6-sidebar-collapsed);
+        }
+        
+        .d6-sidebar-header {
+          padding: 24px;
+          display: flex;
+          align-items: center;
+          justify-content: space-between;
+          border-bottom: 1px solid var(--d6-border);
+        }
+        
+        .d6-sidebar.collapsed .d6-sidebar-header {
+          padding: 24px 16px;
+          justify-content: center;
+        }
+        
+        .d6-sidebar-logo {
+          display: flex;
+          align-items: center;
+          gap: 12px;
+        }
+        
+        .d6-sidebar.collapsed .d6-sidebar-logo-text {
+          display: none;
+        }
+        
+        .d6-sidebar-logo-mark {
+          width: 38px;
+          height: 38px;
+          background: linear-gradient(135deg, var(--d6-forest), var(--d6-forest-light));
+          border-radius: 10px;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          color: var(--d6-text);
+          flex-shrink: 0;
+        }
+        
+        .d6-sidebar-logo-text {
+          font-family: 'Cormorant Garamond', serif;
+          font-size: 22px;
+          font-weight: 600;
+          letter-spacing: -0.02em;
+          white-space: nowrap;
+        }
+        
+        .d6-collapse-btn {
+          width: 28px;
+          height: 28px;
+          border-radius: 8px;
+          background: transparent;
+          border: 1px solid var(--d6-border);
+          color: var(--d6-text-muted);
+          cursor: pointer;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          transition: all 0.2s;
+          flex-shrink: 0;
+        }
+        
+        .d6-collapse-btn:hover {
+          color: var(--d6-text);
+          border-color: var(--d6-forest);
+          background: var(--d6-surface-light);
+        }
+        
+        .d6-sidebar.collapsed .d6-collapse-btn {
+          transform: rotate(180deg);
+        }
+        
+        .d6-nav {
+          flex: 1;
+          padding: 16px 12px;
+          display: flex;
+          flex-direction: column;
+          gap: 4px;
+        }
+        
+        .d6-nav-item {
+          display: flex;
+          align-items: center;
+          gap: 12px;
+          padding: 12px 16px;
+          border-radius: 10px;
+          color: var(--d6-text-secondary);
+          font-size: 14px;
+          cursor: pointer;
+          transition: all 0.2s;
+          border: none;
+          background: transparent;
+          width: 100%;
+          text-align: left;
+        }
+        
+        .d6-sidebar.collapsed .d6-nav-item {
+          padding: 12px;
+          justify-content: center;
+        }
+        
+        .d6-nav-item:hover {
+          background: var(--d6-surface-light);
+          color: var(--d6-text);
+        }
+        
+        .d6-nav-item.active {
+          background: linear-gradient(135deg, rgba(61, 90, 69, 0.3), rgba(74, 107, 82, 0.2));
+          color: var(--d6-text);
+          border: 1px solid rgba(74, 107, 82, 0.3);
+        }
+        
+        .d6-nav-label {
+          white-space: nowrap;
+          overflow: hidden;
+        }
+        
+        .d6-sidebar.collapsed .d6-nav-label {
+          display: none;
+        }
+        
+        .d6-nav-icon {
+          flex-shrink: 0;
+        }
+        
+        .d6-nav-section {
+          margin-top: auto;
+          padding-top: 16px;
+          border-top: 1px solid var(--d6-border);
+        }
+        
+        .d6-user {
+          padding: 16px;
+          border-top: 1px solid var(--d6-border);
+          display: flex;
+          align-items: center;
+          gap: 12px;
+        }
+        
+        .d6-sidebar.collapsed .d6-user {
+          padding: 16px 12px;
+          justify-content: center;
+        }
+        
+        .d6-avatar {
+          width: 36px;
+          height: 36px;
+          border-radius: 10px;
+          background: linear-gradient(135deg, var(--d6-forest), var(--d6-forest-light));
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          font-family: 'Cormorant Garamond', serif;
+          font-size: 15px;
+          font-weight: 600;
+          flex-shrink: 0;
+        }
+        
+        .d6-user-info {
+          flex: 1;
+          min-width: 0;
+        }
+        
+        .d6-sidebar.collapsed .d6-user-info {
+          display: none;
+        }
+        
+        .d6-user-name {
+          font-size: 13px;
+          font-weight: 500;
+          white-space: nowrap;
+          overflow: hidden;
+          text-overflow: ellipsis;
+        }
+        
+        .d6-user-email {
+          font-size: 12px;
+          color: var(--d6-text-muted);
+          white-space: nowrap;
+          overflow: hidden;
+          text-overflow: ellipsis;
+        }
+        
+        .d6-logout-btn {
+          width: 32px;
+          height: 32px;
+          border-radius: 8px;
+          background: transparent;
+          border: none;
+          color: var(--d6-text-muted);
+          cursor: pointer;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          transition: all 0.2s;
+        }
+        
+        .d6-sidebar.collapsed .d6-logout-btn {
+          display: none;
+        }
+        
+        .d6-logout-btn:hover {
+          color: var(--d6-expense);
+          background: rgba(196, 122, 122, 0.1);
+        }
+        
+        /* Main content */
+        .d6-main-wrapper {
+          flex: 1;
+          margin-left: var(--d6-sidebar-width);
+          transition: margin-left 0.25s ease;
+        }
+        
+        .d6-sidebar.collapsed ~ .d6-main-wrapper {
+          margin-left: var(--d6-sidebar-collapsed);
         }
         
         .d6-container {
-          max-width: 1180px;
+          max-width: 1060px;
           margin: 0 auto;
           padding: 48px 32px;
         }
@@ -72,29 +331,12 @@ export function Design6() {
           display: flex;
           align-items: center;
           justify-content: space-between;
-          margin-bottom: 56px;
+          margin-bottom: 48px;
         }
         
-        .d6-logo {
-          display: flex;
-          align-items: center;
-          gap: 14px;
-        }
-        
-        .d6-logo-mark {
-          width: 44px;
-          height: 44px;
-          background: linear-gradient(135deg, var(--d6-forest), var(--d6-forest-light));
-          border-radius: 12px;
-          display: flex;
-          align-items: center;
-          justify-content: center;
-          color: var(--d6-text);
-        }
-        
-        .d6-logo-text {
+        .d6-page-title {
           font-family: 'Cormorant Garamond', serif;
-          font-size: 26px;
+          font-size: 28px;
           font-weight: 600;
           letter-spacing: -0.02em;
         }
@@ -453,149 +695,230 @@ export function Design6() {
             grid-template-columns: 1fr;
           }
         }
+        
+        @media (max-width: 900px) {
+          .d6-sidebar {
+            width: var(--d6-sidebar-collapsed);
+          }
+          .d6-sidebar .d6-sidebar-logo-text,
+          .d6-sidebar .d6-nav-label,
+          .d6-sidebar .d6-user-info {
+            display: none;
+          }
+          .d6-sidebar .d6-nav-item {
+            padding: 12px;
+            justify-content: center;
+          }
+          .d6-sidebar .d6-user {
+            justify-content: center;
+          }
+          .d6-sidebar .d6-collapse-btn,
+          .d6-sidebar .d6-logout-btn {
+            display: none;
+          }
+          .d6-main-wrapper {
+            margin-left: var(--d6-sidebar-collapsed) !important;
+          }
+          .d6-hero-amount {
+            font-size: 38px;
+          }
+        }
       `}</style>
 
-      <div className="d6-container">
-        {/* Header */}
-        <header className="d6-header">
-          <div className="d6-logo">
-            <div className="d6-logo-mark">
-              <Leaf size={22} />
+      {/* Sidebar */}
+      <aside className={`d6-sidebar ${sidebarCollapsed ? 'collapsed' : ''}`}>
+        <div className="d6-sidebar-header">
+          <div className="d6-sidebar-logo">
+            <div className="d6-sidebar-logo-mark">
+              <Leaf size={18} />
             </div>
-            <span className="d6-logo-text">MeloMoney</span>
+            <span className="d6-sidebar-logo-text">MeloMoney</span>
           </div>
-          <div className="d6-header-actions">
-            <button className="d6-btn d6-btn-secondary">
-              <Target size={16} />
-              New Goal
+          <button 
+            className="d6-collapse-btn"
+            onClick={() => setSidebarCollapsed(!sidebarCollapsed)}
+          >
+            <ChevronLeft size={14} />
+          </button>
+        </div>
+        
+        <nav className="d6-nav">
+          {navItems.map((item) => (
+            <button
+              key={item.id}
+              className={`d6-nav-item ${activeNav === item.id ? 'active' : ''}`}
+              onClick={() => setActiveNav(item.id)}
+            >
+              <item.icon size={18} className="d6-nav-icon" />
+              <span className="d6-nav-label">{item.label}</span>
             </button>
-            <button className="d6-btn d6-btn-primary">
-              <Upload size={16} />
-              Import CSV
-            </button>
+          ))}
+          
+          <div className="d6-nav-section">
+            {bottomNavItems.map((item) => (
+              <button
+                key={item.id}
+                className={`d6-nav-item ${activeNav === item.id ? 'active' : ''}`}
+                onClick={() => setActiveNav(item.id)}
+              >
+                <item.icon size={18} className="d6-nav-icon" />
+                <span className="d6-nav-label">{item.label}</span>
+              </button>
+            ))}
           </div>
-        </header>
+        </nav>
+        
+        <div className="d6-user">
+          <div className="d6-avatar">JD</div>
+          <div className="d6-user-info">
+            <div className="d6-user-name">John Doe</div>
+            <div className="d6-user-email">john@example.com</div>
+          </div>
+          <button className="d6-logout-btn">
+            <LogOut size={16} />
+          </button>
+        </div>
+      </aside>
 
-        {/* Hero */}
-        <section className="d6-hero">
-          <div className="d6-hero-main">
-            <div className="d6-hero-label">
-              <Wallet size={14} />
-              Total Balance
+      {/* Main Content */}
+      <div className="d6-main-wrapper">
+        <div className="d6-container">
+          {/* Header */}
+          <header className="d6-header">
+            <h1 className="d6-page-title">Dashboard</h1>
+            <div className="d6-header-actions">
+              <button className="d6-btn d6-btn-secondary">
+                <Target size={16} />
+                New Goal
+              </button>
+              <button className="d6-btn d6-btn-primary">
+                <Upload size={16} />
+                Import CSV
+              </button>
             </div>
-            <div className="d6-hero-amount">{formatCurrency(netWorth)}</div>
-            <div className="d6-hero-change">
-              <TrendingUp size={16} />
-              <span>+{stats.savingsRate.toFixed(1)}% savings this month</span>
-            </div>
-          </div>
-          <div className="d6-hero-stats">
-            <div className="d6-stat">
-              <div className="d6-stat-icon income">
-                <ArrowUpRight size={18} />
-              </div>
-              <div className="d6-stat-value">{formatCurrency(stats.totalIncome)}</div>
-              <div className="d6-stat-label">Income</div>
-            </div>
-            <div className="d6-stat">
-              <div className="d6-stat-icon expense">
-                <ArrowDownRight size={18} />
-              </div>
-              <div className="d6-stat-value">{formatCurrency(stats.totalExpenses)}</div>
-              <div className="d6-stat-label">Expenses</div>
-            </div>
-            <div className="d6-stat">
-              <div className="d6-stat-icon rate">
-                <TrendingUp size={18} />
-              </div>
-              <div className="d6-stat-value">{stats.savingsRate.toFixed(0)}%</div>
-              <div className="d6-stat-label">Saved</div>
-            </div>
-          </div>
-        </section>
+          </header>
 
-        {/* Main */}
-        <div className="d6-main">
-          {/* Transactions */}
-          <div className="d6-card">
-            <div className="d6-card-header">
-              <h2 className="d6-card-title">
-                <Leaf size={18} />
-                Recent Transactions
-              </h2>
-              <a href="#" className="d6-view-link">
-                View all <ArrowUpRight size={14} />
-              </a>
+          {/* Hero */}
+          <section className="d6-hero">
+            <div className="d6-hero-main">
+              <div className="d6-hero-label">
+                <Wallet size={14} />
+                Total Balance
+              </div>
+              <div className="d6-hero-amount">{formatCurrency(netWorth)}</div>
+              <div className="d6-hero-change">
+                <TrendingUp size={16} />
+                <span>+{stats.savingsRate.toFixed(1)}% savings this month</span>
+              </div>
             </div>
-            <div className="d6-tx-list">
-              {transactions.map((tx) => (
-                <div key={tx.id} className="d6-tx">
-                  <div className={`d6-tx-indicator ${tx.type}`}>
-                    {tx.type === 'income' ? <ArrowUpRight size={18} /> : <ArrowDownRight size={18} />}
-                  </div>
-                  <div className="d6-tx-info">
-                    <div className="d6-tx-desc">{tx.description}</div>
-                    <div className="d6-tx-meta">
-                      <span>{tx.date}</span>
-                      <span className="d6-tx-tag">{tx.tags[0]?.name || 'Uncategorized'}</span>
-                      {tx.split && (
-                        <span className="d6-tx-split">
-                          <Users size={12} />
-                          Split
-                        </span>
-                      )}
+            <div className="d6-hero-stats">
+              <div className="d6-stat">
+                <div className="d6-stat-icon income">
+                  <ArrowUpRight size={18} />
+                </div>
+                <div className="d6-stat-value">{formatCurrency(stats.totalIncome)}</div>
+                <div className="d6-stat-label">Income</div>
+              </div>
+              <div className="d6-stat">
+                <div className="d6-stat-icon expense">
+                  <ArrowDownRight size={18} />
+                </div>
+                <div className="d6-stat-value">{formatCurrency(stats.totalExpenses)}</div>
+                <div className="d6-stat-label">Expenses</div>
+              </div>
+              <div className="d6-stat">
+                <div className="d6-stat-icon rate">
+                  <TrendingUp size={18} />
+                </div>
+                <div className="d6-stat-value">{stats.savingsRate.toFixed(0)}%</div>
+                <div className="d6-stat-label">Saved</div>
+              </div>
+            </div>
+          </section>
+
+          {/* Main */}
+          <div className="d6-main">
+            {/* Transactions */}
+            <div className="d6-card">
+              <div className="d6-card-header">
+                <h2 className="d6-card-title">
+                  <Leaf size={18} />
+                  Recent Transactions
+                </h2>
+                <a href="#" className="d6-view-link">
+                  View all <ArrowUpRight size={14} />
+                </a>
+              </div>
+              <div className="d6-tx-list">
+                {transactions.map((tx) => (
+                  <div key={tx.id} className="d6-tx">
+                    <div className={`d6-tx-indicator ${tx.type}`}>
+                      {tx.type === 'income' ? <ArrowUpRight size={18} /> : <ArrowDownRight size={18} />}
+                    </div>
+                    <div className="d6-tx-info">
+                      <div className="d6-tx-desc">{tx.description}</div>
+                      <div className="d6-tx-meta">
+                        <span>{tx.date}</span>
+                        <span className="d6-tx-tag">{tx.tags[0]?.name || 'Uncategorized'}</span>
+                        {tx.split && (
+                          <span className="d6-tx-split">
+                            <Users size={12} />
+                            Split
+                          </span>
+                        )}
+                      </div>
+                    </div>
+                    <div className={`d6-tx-amount ${tx.type}`}>
+                      {tx.type === 'income' ? '+' : '-'}{formatCurrency(tx.amount)}
                     </div>
                   </div>
-                  <div className={`d6-tx-amount ${tx.type}`}>
-                    {tx.type === 'income' ? '+' : '-'}{formatCurrency(tx.amount)}
-                  </div>
-                </div>
-              ))}
+                ))}
+              </div>
             </div>
-          </div>
 
-          {/* Goals */}
-          <div className="d6-card">
-            <div className="d6-card-header">
-              <h2 className="d6-card-title">
-                <Target size={18} />
-                Goals
-              </h2>
-              <button className="d6-btn d6-btn-secondary" style={{ padding: '8px 14px', fontSize: '12px' }}>
-                <Plus size={14} />
-                Add
-              </button>
-            </div>
-            <div className="d6-goals">
-              {goals.map((g) => (
-                <div key={g.goal.id} className="d6-goal">
-                  <div className="d6-goal-header">
-                    <span className="d6-goal-name">{g.goal.name}</span>
-                    <span className="d6-goal-percent">{g.percentage.toFixed(0)}%</span>
+            {/* Goals */}
+            <div className="d6-card">
+              <div className="d6-card-header">
+                <h2 className="d6-card-title">
+                  <Target size={18} />
+                  Goals
+                </h2>
+                <button className="d6-btn d6-btn-secondary" style={{ padding: '8px 14px', fontSize: '12px' }}>
+                  <Plus size={14} />
+                  Add
+                </button>
+              </div>
+              <div className="d6-goals">
+                {goals.map((g) => (
+                  <div key={g.goal.id} className="d6-goal">
+                    <div className="d6-goal-header">
+                      <span className="d6-goal-name">{g.goal.name}</span>
+                      <span className="d6-goal-percent">{g.percentage.toFixed(0)}%</span>
+                    </div>
+                    <div className="d6-goal-bar">
+                      <div className="d6-goal-fill" style={{ width: `${g.percentage}%` }} />
+                    </div>
+                    <div className="d6-goal-amounts">
+                      <span>{formatCurrency(g.currentAmount)}</span>
+                      <span>{formatCurrency(g.goal.targetAmount)}</span>
+                    </div>
                   </div>
-                  <div className="d6-goal-bar">
-                    <div className="d6-goal-fill" style={{ width: `${g.percentage}%` }} />
-                  </div>
-                  <div className="d6-goal-amounts">
-                    <span>{formatCurrency(g.currentAmount)}</span>
-                    <span>{formatCurrency(g.goal.targetAmount)}</span>
-                  </div>
-                </div>
-              ))}
-            </div>
-            <div className="d6-actions">
-              <button className="d6-action">
-                <Upload size={18} />
-                <span className="d6-action-label">Import</span>
-              </button>
-              <button className="d6-action">
-                <Target size={18} />
-                <span className="d6-action-label">Goal</span>
-              </button>
-              <button className="d6-action">
-                <Users size={18} />
-                <span className="d6-action-label">Split</span>
-              </button>
+                ))}
+              </div>
+              <div className="d6-actions">
+                <button className="d6-action">
+                  <Upload size={18} />
+                  <span className="d6-action-label">Import</span>
+                </button>
+                <button className="d6-action">
+                  <Target size={18} />
+                  <span className="d6-action-label">Goal</span>
+                </button>
+                <button className="d6-action">
+                  <Users size={18} />
+                  <span className="d6-action-label">Split</span>
+                </button>
+              </div>
             </div>
           </div>
         </div>
