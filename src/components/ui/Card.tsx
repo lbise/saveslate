@@ -32,7 +32,7 @@ export function CardHeader({ children, className }: CardHeaderProps) {
   return (
     <div
       className={cn(
-        'px-5 py-4 border-b border-border-light',
+        'px-5 py-4 border-b border-border',
         className
       )}
     >

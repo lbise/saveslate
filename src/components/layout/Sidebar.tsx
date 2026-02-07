@@ -1,15 +1,18 @@
-import { NavLink } from "react-router-dom";
+import { useState, useEffect } from 'react';
+import { NavLink } from 'react-router-dom';
 import {
   LayoutDashboard,
-  ArrowLeftRight,
+  Receipt,
   Wallet,
+  Target,
   Tags,
   Settings,
-  X,
+  HelpCircle,
+  LogOut,
+  ChevronLeft,
   type LucideIcon,
-} from "lucide-react";
-import { cn } from "../../lib/utils";
-import { ThemeToggle } from "../ui/ThemeToggle";
+} from 'lucide-react';
+import { cn } from '../../lib/utils';
 
 interface NavItem {
   label: string;
@@ -17,88 +20,159 @@ interface NavItem {
   icon: LucideIcon;
 }
 
-const navItems: NavItem[] = [
-  { label: "Dashboard", path: "/", icon: LayoutDashboard },
-  { label: "Transactions", path: "/transactions", icon: ArrowLeftRight },
-  { label: "Accounts", path: "/accounts", icon: Wallet },
-  { label: "Tags", path: "/tags", icon: Tags },
-  { label: "Settings", path: "/settings", icon: Settings },
+const mainNavItems: NavItem[] = [
+  { label: 'Dashboard', path: '/', icon: LayoutDashboard },
+  { label: 'Transactions', path: '/transactions', icon: Receipt },
+  { label: 'Accounts', path: '/accounts', icon: Wallet },
+  { label: 'Goals', path: '/goals', icon: Target },
+  { label: 'Categories', path: '/categories', icon: Tags },
+];
+
+const bottomNavItems: NavItem[] = [
+  { label: 'Settings', path: '/settings', icon: Settings },
+  { label: 'Help', path: '/help', icon: HelpCircle },
 ];
 
 interface SidebarProps {
-  isOpen: boolean;
-  onClose: () => void;
+  collapsed: boolean;
+  onToggleCollapse: () => void;
 }
 
-export function Sidebar({ isOpen, onClose }: SidebarProps) {
-  return (
-    <>
-      {/* Mobile overlay */}
-      {isOpen && (
-        <div
-          className="fixed inset-0 bg-black/50 z-40 lg:hidden"
-          onClick={onClose}
-        />
-      )}
+export function Sidebar({ collapsed, onToggleCollapse }: SidebarProps) {
+  const [isMobile, setIsMobile] = useState(false);
 
-      {/* Sidebar */}
-      <aside
+  useEffect(() => {
+    const mq = window.matchMedia('(max-width: 900px)');
+    const handler = (e: MediaQueryListEvent | MediaQueryList) => setIsMobile(e.matches);
+    handler(mq);
+    mq.addEventListener('change', handler);
+    return () => mq.removeEventListener('change', handler);
+  }, []);
+
+  // On mobile, always show as collapsed
+  const isCollapsed = isMobile || collapsed;
+
+  return (
+    <aside
+      className={cn(
+        'fixed left-0 top-0 bottom-0 z-100 flex flex-col',
+        'bg-surface border-r border-border',
+        'transition-[width] duration-200 ease-out',
+      )}
+      style={{ width: isCollapsed ? 'var(--sidebar-collapsed)' : 'var(--sidebar-width)' }}
+    >
+      {/* Header */}
+      <div
         className={cn(
-          "fixed top-0 left-0 z-50 h-full w-64 flex flex-col",
-          "bg-bg border-r border-border",
-          "transition-all duration-300 ease-in-out",
-          "lg:translate-x-0 lg:static lg:z-auto",
-          isOpen ? "translate-x-0" : "-translate-x-full",
+          'flex items-center border-b border-border',
+          isCollapsed ? 'justify-center px-4 py-6' : 'justify-between px-6 py-6',
         )}
       >
-        {/* Logo / Brand */}
-        <div className="flex items-center justify-between p-6 border-b border-border">
-          <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-xl bg-accent flex items-center justify-center">
-              <Wallet className="w-5 h-5 text-white" />
-            </div>
-            <div>
-              <h1 className="text-lg font-bold tracking-tight text-text">MeloMoney</h1>
-              <p className="text-xs text-text-muted">Money, but fun!</p>
-            </div>
-          </div>
-          <button
-            onClick={onClose}
-            className="lg:hidden p-2 rounded-lg hover:bg-surface/80 transition-colors text-text-muted"
+        {!isCollapsed && (
+          <span
+            className="text-lg font-semibold tracking-tight whitespace-nowrap overflow-hidden"
+            style={{ fontFamily: 'var(--font-display)', letterSpacing: '-0.03em' }}
           >
-            <X className="w-5 h-5" />
+            MeloMoney
+          </span>
+        )}
+        {isCollapsed && (
+          <span
+            className="text-lg font-semibold"
+            style={{ fontFamily: 'var(--font-display)' }}
+          >
+            M
+          </span>
+        )}
+        {!isMobile && (
+          <button
+            onClick={onToggleCollapse}
+            className={cn(
+              'w-7 h-7 rounded-(--radius-sm) bg-transparent border border-border',
+              'text-text-muted hover:text-text hover:border-text-muted',
+              'flex items-center justify-center transition-all duration-150',
+              isCollapsed && 'rotate-180',
+            )}
+          >
+            <ChevronLeft size={14} />
           </button>
-        </div>
+        )}
+      </div>
 
-        {/* Navigation */}
-        <nav className="flex-1 p-4 space-y-1">
-          {navItems.map((item) => (
+      {/* Main Nav */}
+      <nav className="flex-1 flex flex-col gap-1 px-3 py-4">
+        {mainNavItems.map((item) => (
+          <NavLink
+            key={item.path}
+            to={item.path}
+            end={item.path === '/'}
+            className={({ isActive }) =>
+              cn(
+                isActive ? 'nav-link-active' : 'nav-link',
+                isCollapsed && 'justify-center px-3',
+              )
+            }
+          >
+            <item.icon size={18} className="shrink-0" />
+            {!isCollapsed && (
+              <span className="whitespace-nowrap overflow-hidden">{item.label}</span>
+            )}
+          </NavLink>
+        ))}
+
+        {/* Bottom section */}
+        <div className="mt-auto pt-4 border-t border-border flex flex-col gap-1">
+          {bottomNavItems.map((item) => (
             <NavLink
               key={item.path}
               to={item.path}
-              onClick={onClose}
               className={({ isActive }) =>
-                isActive ? "nav-link-active" : "nav-link"
+                cn(
+                  isActive ? 'nav-link-active' : 'nav-link',
+                  isCollapsed && 'justify-center px-3',
+                )
               }
             >
-              <item.icon className="w-5 h-5" />
-              {item.label}
+              <item.icon size={18} className="shrink-0" />
+              {!isCollapsed && (
+                <span className="whitespace-nowrap overflow-hidden">{item.label}</span>
+              )}
             </NavLink>
           ))}
-        </nav>
-
-        {/* Theme toggle */}
-        <div className="p-4 border-t border-border">
-          <div className="flex items-center justify-between px-4 py-2">
-            <ThemeToggle />
-          </div>
         </div>
+      </nav>
 
-        {/* Footer */}
-        <div className="p-4 text-center">
-          <p className="text-xs text-text-muted">Money, made simple</p>
+      {/* User */}
+      <div
+        className={cn(
+          'flex items-center gap-3 border-t border-border',
+          isCollapsed ? 'justify-center px-3 py-4' : 'px-4 py-4',
+        )}
+      >
+        <div
+          className="w-9 h-9 rounded-(--radius-md) bg-border flex items-center justify-center shrink-0"
+          style={{ fontFamily: 'var(--font-display)', fontSize: '14px', fontWeight: 500 }}
+        >
+          JD
         </div>
-      </aside>
-    </>
+        {!isCollapsed && (
+          <>
+            <div className="flex-1 min-w-0">
+              <div className="text-[13px] font-medium truncate">John Doe</div>
+              <div className="text-xs text-text-muted truncate">john@example.com</div>
+            </div>
+            <button
+              className={cn(
+                'w-8 h-8 rounded-(--radius-sm) bg-transparent border-none',
+                'text-text-muted hover:text-expense hover:bg-expense/10',
+                'flex items-center justify-center transition-all duration-150',
+              )}
+            >
+              <LogOut size={16} />
+            </button>
+          </>
+        )}
+      </div>
+    </aside>
   );
 }

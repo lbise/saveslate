@@ -1,33 +1,38 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Outlet } from 'react-router-dom';
-import { Menu } from 'lucide-react';
 import { Sidebar } from './Sidebar';
 
 export function AppLayout() {
-  const [sidebarOpen, setSidebarOpen] = useState(false);
+  const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
+  const [isMobile, setIsMobile] = useState(false);
+
+  useEffect(() => {
+    const mq = window.matchMedia('(max-width: 900px)');
+    const handler = (e: MediaQueryListEvent | MediaQueryList) => setIsMobile(e.matches);
+    handler(mq);
+    mq.addEventListener('change', handler);
+    return () => mq.removeEventListener('change', handler);
+  }, []);
+
+  const effectiveCollapsed = isMobile || sidebarCollapsed;
 
   return (
     <div className="min-h-screen flex bg-bg">
-      {/* Sidebar */}
-      <Sidebar isOpen={sidebarOpen} onClose={() => setSidebarOpen(false)} />
+      <Sidebar
+        collapsed={sidebarCollapsed}
+        onToggleCollapse={() => setSidebarCollapsed((prev) => !prev)}
+      />
 
       {/* Main content */}
-      <div className="flex-1 flex flex-col min-h-screen lg:ml-0">
-        {/* Mobile header */}
-        <header className="lg:hidden sticky top-0 z-30 flex items-center gap-4 px-4 py-3 bg-surface border-b border-border">
-          <button
-            onClick={() => setSidebarOpen(true)}
-            className="btn-icon"
-          >
-            <Menu className="w-6 h-6" />
-          </button>
-          <h1 className="text-lg font-bold text-text">
-            MeloMoney
-          </h1>
-        </header>
-
-        {/* Page content */}
-        <main className="flex-1 p-4 lg:p-8 overflow-auto">
+      <div
+        className="flex-1 min-h-screen transition-[margin-left] duration-200 ease-out"
+        style={{
+          marginLeft: effectiveCollapsed
+            ? 'var(--sidebar-collapsed)'
+            : 'var(--sidebar-width)',
+        }}
+      >
+        <main className="overflow-auto">
           <Outlet />
         </main>
       </div>
