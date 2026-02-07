@@ -9,6 +9,12 @@ import { getTransactionsWithDetails, TAGS, } from '../data/mock';
 import { formatCurrency, formatDate, cn } from '../lib/utils';
 import type { TransactionType, TransactionWithDetails as TxDetails, Tag } from '../types';
 
+const TYPE_ICON_CLASS: Record<TransactionType, string> = {
+  income: 'text-income bg-income/10',
+  expense: 'text-expense bg-expense/10',
+  transfer: 'text-transfer bg-transfer/10',
+};
+
 type SortField = 'date' | 'amount';
 type SortDirection = 'asc' | 'desc';
 
@@ -366,23 +372,23 @@ function TransactionRow({
 
   return (
     <div className="group flex items-center gap-3.5 py-3.5 border-b border-border last:border-b-0 transition-colors duration-150 hover:bg-surface-hover/30 relative">
-      {/* Icon — category shape, neutral color */}
-      <div className="w-[34px] h-[34px] rounded-(--radius-md) bg-surface flex items-center justify-center shrink-0 hidden lg:flex">
+      {/* Icon — category shape, colored by transaction type */}
+      <div className={cn("w-[34px] h-[34px] rounded-(--radius-md) flex items-center justify-center shrink-0 hidden lg:flex", TYPE_ICON_CLASS[transaction.type])}>
         {primaryTag ? (
-          <Icon name={primaryTag.icon} size={16} className="text-text-secondary" />
+          <Icon name={primaryTag.icon} size={16} />
         ) : (
-          <div className="w-4 h-4 rounded-full bg-border" />
+          <div className="w-4 h-4 rounded-full bg-current opacity-40" />
         )}
       </div>
 
       {/* -------- Mobile layout -------- */}
       <div className="flex items-start gap-3 lg:hidden flex-1 min-w-0">
-        {/* Neutral icon */}
-        <div className="w-[34px] h-[34px] rounded-(--radius-md) bg-surface flex items-center justify-center shrink-0">
+        {/* Icon — colored by transaction type */}
+        <div className={cn("w-[34px] h-[34px] rounded-(--radius-md) flex items-center justify-center shrink-0", TYPE_ICON_CLASS[transaction.type])}>
           {primaryTag ? (
-            <Icon name={primaryTag.icon} size={16} className="text-text-secondary" />
+            <Icon name={primaryTag.icon} size={16} />
           ) : (
-            <div className="w-4 h-4 rounded-full bg-border" />
+            <div className="w-4 h-4 rounded-full bg-current opacity-40" />
           )}
         </div>
 

@@ -1,9 +1,22 @@
-import { ArrowUpRight, ArrowDownRight } from 'lucide-react';
+import { ArrowUpRight, ArrowDownRight, ArrowRightLeft } from 'lucide-react';
 import { cn } from '../../lib/utils';
+import type { TransactionType } from '../../types';
+
+const TYPE_ICON_CLASS: Record<TransactionType, string> = {
+  income: 'text-income bg-income/10',
+  expense: 'text-expense bg-expense/10',
+  transfer: 'text-transfer bg-transfer/10',
+};
+
+const TYPE_ICON: Record<TransactionType, React.ReactNode> = {
+  income: <ArrowUpRight size={16} />,
+  expense: <ArrowDownRight size={16} />,
+  transfer: <ArrowRightLeft size={16} />,
+};
 
 interface TransactionItemProps {
   description: string;
-  type: 'income' | 'expense';
+  type: TransactionType;
   amount: string;
   tagName: string;
   isSplit?: boolean;
@@ -14,9 +27,9 @@ export function TransactionItem({ description, type, amount, tagName, isSplit }:
     <div className="flex items-center gap-3.5 py-3.5 border-b border-border last:border-b-0 transition-opacity duration-150 hover:opacity-80">
       {/* Icon */}
       <div
-        className="w-[34px] h-[34px] rounded-(--radius-md) bg-surface flex items-center justify-center shrink-0 text-text-secondary"
+        className={cn("w-[34px] h-[34px] rounded-(--radius-md) flex items-center justify-center shrink-0", TYPE_ICON_CLASS[type])}
       >
-        {type === 'income' ? <ArrowUpRight size={16} /> : <ArrowDownRight size={16} />}
+        {TYPE_ICON[type]}
       </div>
 
       {/* Info */}
@@ -32,11 +45,11 @@ export function TransactionItem({ description, type, amount, tagName, isSplit }:
       <div
         className={cn(
           'text-[13px] font-medium shrink-0',
-          type === 'income' ? 'text-income' : 'text-expense',
+          type === 'income' ? 'text-income' : type === 'transfer' ? 'text-transfer' : 'text-expense',
         )}
         style={{ fontFamily: 'var(--font-display)' }}
       >
-        {type === 'income' ? '+' : '-'}{amount}
+        {type === 'income' ? '+' : type === 'transfer' ? '' : '-'}{amount}
       </div>
     </div>
   );

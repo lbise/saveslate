@@ -1,6 +1,6 @@
 // Core domain types for MeloMoney
 
-export type TransactionType = 'income' | 'expense';
+export type TransactionType = 'income' | 'expense' | 'transfer';
 
 export type AccountType = 'checking' | 'savings' | 'credit' | 'cash';
 

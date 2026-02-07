@@ -16,6 +16,7 @@
   --color-accent: #ffffff;
   --color-income: #6fcf97;
   --color-expense: #eb5757;
+  --color-transfer: #5b9cf6;
 
   /* Shadows */
   --shadow: none;
@@ -133,6 +134,10 @@
 
   .badge-expense {
     @apply bg-expense/15 text-expense;
+  }
+
+  .badge-transfer {
+    @apply bg-transfer/15 text-transfer;
   }
 
   .badge-muted {
