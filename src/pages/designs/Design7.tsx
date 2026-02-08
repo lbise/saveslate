@@ -878,7 +878,7 @@ export function Design7() {
                       <div className="d7-tx-desc">{tx.description}</div>
                       <div className="d7-tx-meta">
                         <span>{tx.account.name}</span>
-                        <span className="d7-tx-tag">{tx.tags[0]?.name || 'Uncategorized'}</span>
+                        <span className="d7-tx-tag">{tx.category.name}</span>
                         {tx.split && (
                           <span className="d7-tx-split">
                             <Users size={11} />
@@ -887,8 +887,8 @@ export function Design7() {
                         )}
                       </div>
                     </div>
-                    <div className={`d7-tx-amount ${tx.type}`}>
-                      {tx.type === 'income' ? <ArrowUpRight size={14} /> : <ArrowDownRight size={14} />}
+                    <div className={`d7-tx-amount ${tx.category.type}`}>
+                      {tx.category.type === 'income' ? <ArrowUpRight size={14} /> : <ArrowDownRight size={14} />}
                       {formatCurrency(tx.amount)}
                     </div>
                   </div>

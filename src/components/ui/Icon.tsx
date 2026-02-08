@@ -1,5 +1,4 @@
 import * as LucideIcons from 'lucide-react';
-import { cn } from '../../lib/utils';
 import type { CSSProperties } from 'react';
 
 interface IconProps {
@@ -18,7 +17,7 @@ export function Icon({ name, className, size = 20, style }: IconProps) {
     // Fallback to a circle if icon not found
     return (
       <div
-        className={cn('rounded-full bg-current opacity-50', className)}
+        className={`rounded-full bg-current opacity-50 ${className ?? ''}`}
         style={{ width: size, height: size, ...style }}
       />
     );
@@ -26,45 +25,3 @@ export function Icon({ name, className, size = 20, style }: IconProps) {
 
   return <IconComponent className={className} size={size} style={style} />;
 }
-
-interface TagIconProps {
-  icon: string;
-  color: string;
-  size?: 'sm' | 'md' | 'lg';
-  className?: string;
-}
-
-const sizeClasses = {
-  sm: 'w-8 h-8',
-  md: 'w-10 h-10',
-  lg: 'w-12 h-12',
-};
-
-const iconSizes = {
-  sm: 16,
-  md: 20,
-  lg: 24,
-};
-
-export function TagIcon({
-  icon,
-  color,
-  size = 'md',
-  className,
-}: TagIconProps) {
-  return (
-    <div
-      className={cn(
-        'flex items-center justify-center rounded-xl',
-        sizeClasses[size],
-        className
-      )}
-      style={{ backgroundColor: `${color}20` }}
-    >
-      <Icon name={icon} size={iconSizes[size]} style={{ color }} className="flex-shrink-0" />
-    </div>
-  );
-}
-
-// Alias for backwards compatibility during migration
-export const CategoryIcon = TagIcon;

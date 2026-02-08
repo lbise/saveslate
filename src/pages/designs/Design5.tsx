@@ -617,14 +617,14 @@ export function Design5() {
             <div className="d5-tx-list">
               {transactions.map((tx) => (
                 <div key={tx.id} className="d5-tx">
-                  <div className={`d5-tx-emoji ${tx.type}`}>
-                    {tx.type === 'income' ? '💰' : '🛍️'}
+                  <div className={`d5-tx-emoji ${tx.category.type}`}>
+                    {tx.category.type === 'income' ? '\u{1F4B0}' : '\u{1F6CD}\uFE0F'}
                   </div>
                   <div className="d5-tx-info">
                     <div className="d5-tx-desc">{tx.description}</div>
                     <div className="d5-tx-meta">
                       <span>{tx.date}</span>
-                      <span className="d5-tx-tag">{tx.tags[0]?.name || 'Other'}</span>
+                      <span className="d5-tx-tag">{tx.category.name}</span>
                       {tx.split && (
                         <span className="d5-tx-split">
                           <Users size={12} />
@@ -633,8 +633,8 @@ export function Design5() {
                       )}
                     </div>
                   </div>
-                  <div className={`d5-tx-amount ${tx.type}`}>
-                    {tx.type === 'income' ? '+' : '-'}{formatCurrency(tx.amount)}
+                  <div className={`d5-tx-amount ${tx.category.type}`}>
+                    {tx.category.type === 'income' ? '+' : '-'}{formatCurrency(tx.amount)}
                   </div>
                 </div>
               ))}

@@ -1,6 +1,7 @@
 export { Card, CardHeader, CardTitle, CardContent } from './Card';
 export { Badge } from './Badge';
-export { Icon, TagIcon, CategoryIcon } from './Icon';
+export { CategoryPicker } from './CategoryPicker';
+export { Icon } from './Icon';
 export { SplitBadge } from './SplitBadge';
 export { StatCard } from './StatCard';
 export { TransactionItem } from './TransactionItem';

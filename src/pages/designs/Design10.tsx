@@ -816,12 +816,12 @@ export function Design10() {
               <div className="d10-tx-list">
                 {transactions.map((tx) => (
                   <div key={tx.id} className="d10-tx">
-                    <div className={`d10-tx-dot ${tx.type}`} />
+                    <div className={`d10-tx-dot ${tx.category.type}`} />
                     <div className="d10-tx-info">
                       <div className="d10-tx-desc">{tx.description}</div>
                       <div className="d10-tx-meta">
                         <span>{tx.date}</span>
-                        <span className="d10-tx-tag">{tx.tags[0]?.name || 'Uncategorized'}</span>
+                        <span className="d10-tx-tag">{tx.category.name}</span>
                         {tx.split && (
                           <span className="d10-tx-split">
                             <Users size={11} />
@@ -830,8 +830,8 @@ export function Design10() {
                         )}
                       </div>
                     </div>
-                    <div className={`d10-tx-amount ${tx.type}`}>
-                      {tx.type === 'income' ? '+' : '-'}{formatCurrency(tx.amount)}
+                    <div className={`d10-tx-amount ${tx.category.type}`}>
+                      {tx.category.type === 'income' ? '+' : '-'}{formatCurrency(tx.amount)}
                     </div>
                   </div>
                 ))}

@@ -582,14 +582,14 @@ export function Design4() {
                       <div className="d4-tx-desc">{tx.description}</div>
                       <div className="d4-tx-meta">
                         <span>{tx.account.name}</span>
-                        <span className="d4-tx-tag">{tx.tags[0]?.name || 'Uncategorized'}</span>
+                        <span className="d4-tx-tag">{tx.category.name}</span>
                         {tx.split && (
                           <span className="d4-tx-split">Split {tx.split.status}</span>
                         )}
                       </div>
                     </div>
-                    <div className={`d4-tx-amount ${tx.type}`}>
-                      {tx.type === 'income' ? <ArrowUpRight size={16} /> : <ArrowDownRight size={16} />}
+                    <div className={`d4-tx-amount ${tx.category.type}`}>
+                      {tx.category.type === 'income' ? <ArrowUpRight size={16} /> : <ArrowDownRight size={16} />}
                       {formatCurrency(tx.amount)}
                     </div>
                   </div>

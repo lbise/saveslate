@@ -6,14 +6,12 @@ export type AccountType = 'checking' | 'savings' | 'credit' | 'cash';
 
 export type SplitStatus = 'pending' | 'reimbursed';
 
-export interface Tag {
+export interface Category {
   id: string;
   name: string;
+  type: TransactionType;
   icon: string; // Lucide icon name
-  color: string;
-  type?: TransactionType; // Optional hint for filtering in dropdowns
   isDefault?: boolean; // System-provided vs user-created
-  goalId?: string; // If set, this tag is tied to a goal
 }
 
 export interface Goal {
@@ -23,12 +21,12 @@ export interface Goal {
   color: string;
   targetAmount: number;
   deadline?: string; // ISO date string
-  tagId: string; // The auto-created tag for this goal
   createdAt: string;
   isArchived?: boolean;
 }
 
 export interface SplitInfo {
+  withPerson: string;
   ratio: number; // 0.0-1.0, your portion (0.5 = 50%)
   status: SplitStatus;
 }
@@ -36,11 +34,11 @@ export interface SplitInfo {
 export interface Transaction {
   id: string;
   amount: number;
-  type: TransactionType;
-  tagIds: string[];
+  categoryId: string;
   description: string;
   date: string; // ISO date string
   accountId: string;
+  goalId?: string; // Direct link to a goal this transaction contributes to
   split?: SplitInfo;
 }
 
@@ -56,7 +54,7 @@ export interface Account {
 
 // Computed/derived types
 export interface TransactionWithDetails extends Transaction {
-  tags: Tag[];
+  category: Category;
   account: Account;
   goal?: Goal;
 }
@@ -68,8 +66,8 @@ export interface MonthlyStats {
   savingsRate: number; // percentage
 }
 
-export interface TagSpending {
-  tag: Tag;
+export interface CategorySpending {
+  category: Category;
   amount: number;
   percentage: number;
   transactionCount: number;

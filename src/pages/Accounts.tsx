@@ -1,7 +1,7 @@
 import { ArrowUpRight } from 'lucide-react';
 import { PageHeader } from '../components/layout/PageHeader';
 import { Icon } from '../components/ui';
-import { ACCOUNTS, getNetWorth, getTransactionsByAccount } from '../data/mock';
+import { ACCOUNTS, getNetWorth, getTransactionsByAccount, getCategoryById } from '../data/mock';
 import { formatCurrency, formatRelativeDate, cn } from '../lib/utils';
 
 export function Accounts() {
@@ -95,27 +95,31 @@ function AccountRow({ account }: AccountRowProps) {
             </span>
           </div>
           <div className="flex flex-col gap-2">
-            {recentTransactions.map((tx) => (
-              <div key={tx.id} className="flex items-center justify-between">
-                <div className="flex flex-col">
-                  <span className="text-[12px] text-text-secondary truncate max-w-[200px]">
-                    {tx.description}
-                  </span>
-                  <span className="text-[10px] text-text-muted">
-                    {formatRelativeDate(tx.date)}
+            {recentTransactions.map((tx) => {
+              const category = getCategoryById(tx.categoryId);
+              const txType = category?.type ?? 'expense';
+              return (
+                <div key={tx.id} className="flex items-center justify-between">
+                  <div className="flex flex-col">
+                    <span className="text-[12px] text-text-secondary truncate max-w-[200px]">
+                      {tx.description}
+                    </span>
+                    <span className="text-[10px] text-text-muted">
+                      {formatRelativeDate(tx.date)}
+                    </span>
+                  </div>
+                  <span
+                    className={cn(
+                      'text-[12px] font-medium',
+                      txType === 'income' ? 'text-income' : txType === 'transfer' ? 'text-text' : 'text-expense',
+                    )}
+                    style={{ fontFamily: 'var(--font-display)' }}
+                  >
+                    {txType === 'income' ? '+' : txType === 'transfer' ? '' : '-'}{formatCurrency(tx.amount)}
                   </span>
                 </div>
-                <span
-                  className={cn(
-                    'text-[12px] font-medium',
-                    tx.type === 'income' ? 'text-income' : 'text-expense',
-                  )}
-                  style={{ fontFamily: 'var(--font-display)' }}
-                >
-                  {tx.type === 'income' ? '+' : '-'}{formatCurrency(tx.amount)}
-                </span>
-              </div>
-            ))}
+              );
+            })}
           </div>
         </div>
       )}

@@ -63,8 +63,9 @@ export function Goals() {
       {/* Goal Cards */}
       <div className="flex flex-col gap-4">
         {goals.map((gp) => {
+          // Get transactions directly linked to this goal
           const goalTransactions = allTransactions
-            .filter((tx) => tx.tagIds.includes(gp.goal.tagId))
+            .filter((tx) => tx.goalId === gp.goal.id)
             .slice(0, 4);
 
           return (
@@ -130,9 +131,9 @@ export function Goals() {
                       <TransactionItem
                         key={tx.id}
                         description={tx.description}
-                        type={tx.type}
+                        type={tx.category.type}
                         amount={formatCurrency(tx.amount)}
-                        tagName={tx.tags[0]?.name || 'Uncategorized'}
+                        categoryName={tx.category.name}
                         isSplit={!!tx.split}
                       />
                     ))}

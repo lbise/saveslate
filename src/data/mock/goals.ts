@@ -22,7 +22,6 @@ export const GOALS: Goal[] = [
     color: '#0ea5e9', // sky
     targetAmount: 3000,
     deadline: monthsFromNow(6),
-    tagId: 'goal-summer-vacation',
     createdAt: daysAgo(60),
     isArchived: false,
   },
@@ -33,7 +32,6 @@ export const GOALS: Goal[] = [
     color: '#8b5cf6', // violet
     targetAmount: 2000,
     deadline: monthsFromNow(3),
-    tagId: 'goal-new-laptop',
     createdAt: daysAgo(30),
     isArchived: false,
   },
@@ -41,10 +39,6 @@ export const GOALS: Goal[] = [
 
 export const getGoalById = (id: string): Goal | undefined => {
   return GOALS.find((goal) => goal.id === id);
-};
-
-export const getGoalByTagId = (tagId: string): Goal | undefined => {
-  return GOALS.find((goal) => goal.tagId === tagId);
 };
 
 export const getActiveGoals = (): Goal[] => {

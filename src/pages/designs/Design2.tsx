@@ -563,14 +563,14 @@ export function Design2() {
             
             {transactions.map((tx) => (
               <div key={tx.id} className="d2-transaction">
-                <div className={`d2-tx-icon ${tx.type}`}>
-                  {tx.type === 'income' ? <ArrowUpRight size={20} /> : <ArrowDownRight size={20} />}
+                <div className={`d2-tx-icon ${tx.category.type}`}>
+                  {tx.category.type === 'income' ? <ArrowUpRight size={20} /> : <ArrowDownRight size={20} />}
                 </div>
                 <div className="d2-tx-info">
                   <div className="d2-tx-desc">{tx.description}</div>
                   <div className="d2-tx-meta">
                     <span>{tx.date}</span>
-                    <span className="d2-tx-tag">{tx.tags[0]?.name || 'Uncategorized'}</span>
+                    <span className="d2-tx-tag">{tx.category.name}</span>
                     {tx.split && (
                       <span className="d2-tx-tag" style={{ background: 'var(--d2-terracotta-light)' }}>
                         Split {tx.split.status}
@@ -578,8 +578,8 @@ export function Design2() {
                     )}
                   </div>
                 </div>
-                <div className={`d2-tx-amount ${tx.type}`}>
-                  {tx.type === 'income' ? '+' : '-'}{formatCurrency(tx.amount)}
+                <div className={`d2-tx-amount ${tx.category.type}`}>
+                  {tx.category.type === 'income' ? '+' : '-'}{formatCurrency(tx.amount)}
                 </div>
               </div>
             ))}

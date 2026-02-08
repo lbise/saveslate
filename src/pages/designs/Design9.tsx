@@ -896,14 +896,14 @@ export function Design9() {
               <div className="d9-tx-list">
                 {transactions.map((tx) => (
                   <div key={tx.id} className="d9-tx">
-                    <div className={`d9-tx-icon ${tx.type}`}>
-                      {tx.type === 'income' ? <ArrowUpRight size={16} /> : <ArrowDownRight size={16} />}
+                    <div className={`d9-tx-icon ${tx.category.type}`}>
+                      {tx.category.type === 'income' ? <ArrowUpRight size={16} /> : <ArrowDownRight size={16} />}
                     </div>
                     <div className="d9-tx-info">
                       <div className="d9-tx-desc">{tx.description}</div>
                       <div className="d9-tx-meta">
                         <span>{tx.date}</span>
-                        <span className="d9-tx-tag">{tx.tags[0]?.name || 'Uncategorized'}</span>
+                        <span className="d9-tx-tag">{tx.category.name}</span>
                         {tx.split && (
                           <span className="d9-tx-split">
                             <Users size={10} />
@@ -912,8 +912,8 @@ export function Design9() {
                         )}
                       </div>
                     </div>
-                    <div className={`d9-tx-amount ${tx.type}`}>
-                      {tx.type === 'income' ? '+' : '-'}{formatCurrency(tx.amount)}
+                    <div className={`d9-tx-amount ${tx.category.type}`}>
+                      {tx.category.type === 'income' ? '+' : '-'}{formatCurrency(tx.amount)}
                     </div>
                   </div>
                 ))}

@@ -1,26 +1,24 @@
 // Re-export all mock data
 export * from './accounts';
-export * from './tags';
+export * from './categories';
 export * from './goals';
 export * from './transactions';
 
 // Utility functions that combine data
-import type { TransactionWithDetails, MonthlyStats, TagSpending, GoalProgress } from '../../types';
+import type { TransactionWithDetails, MonthlyStats, CategorySpending, GoalProgress } from '../../types';
 import { TRANSACTIONS, getTransactionsSorted } from './transactions';
-import { getTagById, getTagsByIds, TAGS } from './tags';
+import { getCategoryById, CATEGORIES } from './categories';
 import { getAccountById } from './accounts';
-import { GOALS, getGoalByTagId } from './goals';
+import { GOALS, getGoalById } from './goals';
 
 export const getTransactionsWithDetails = (): TransactionWithDetails[] => {
   return getTransactionsSorted().map((t) => {
-    const tags = getTagsByIds(t.tagIds);
-    // Find if any tag is associated with a goal
-    const goalTag = tags.find((tag) => tag.goalId);
-    const goal = goalTag ? getGoalByTagId(goalTag.id) : undefined;
+    const category = getCategoryById(t.categoryId)!;
+    const goal = t.goalId ? getGoalById(t.goalId) : undefined;
 
     return {
       ...t,
-      tags,
+      category,
       account: getAccountById(t.accountId)!,
       goal,
     };
@@ -33,14 +31,16 @@ export const getMonthlyStats = (): MonthlyStats => {
     .toISOString()
     .split('T')[0];
 
-  const monthTransactions = TRANSACTIONS.filter((t) => t.date >= startOfMonth);
+  const monthTransactions = getTransactionsWithDetails().filter(
+    (t) => t.date >= startOfMonth
+  );
 
   const totalIncome = monthTransactions
-    .filter((t) => t.type === 'income')
+    .filter((t) => t.category.type === 'income')
     .reduce((sum, t) => sum + t.amount, 0);
 
   const totalExpenses = monthTransactions
-    .filter((t) => t.type === 'expense')
+    .filter((t) => t.category.type === 'expense')
     .reduce((sum, t) => sum + t.amount, 0);
 
   const netSavings = totalIncome - totalExpenses;
@@ -54,43 +54,39 @@ export const getMonthlyStats = (): MonthlyStats => {
   };
 };
 
-export const getTagSpending = (): TagSpending[] => {
+export const getCategorySpending = (): CategorySpending[] => {
   const now = new Date();
   const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1)
     .toISOString()
     .split('T')[0];
 
-  const monthExpenses = TRANSACTIONS.filter(
-    (t) => t.type === 'expense' && t.date >= startOfMonth
+  const monthExpenses = getTransactionsWithDetails().filter(
+    (t) => t.category.type === 'expense' && t.date >= startOfMonth
   );
 
   const totalExpenses = monthExpenses.reduce((sum, t) => sum + t.amount, 0);
 
-  // Track spending per tag (first tag is primary for analytics)
-  const spendingByTag = new Map<string, { amount: number; count: number }>();
+  // Track spending per category
+  const spendingByCategory = new Map<string, { amount: number; count: number }>();
 
   monthExpenses.forEach((t) => {
-    // Use the first tag as the primary tag for spending analytics
-    const primaryTagId = t.tagIds[0];
-    if (primaryTagId) {
-      const existing = spendingByTag.get(primaryTagId) || {
-        amount: 0,
-        count: 0,
-      };
-      spendingByTag.set(primaryTagId, {
-        amount: existing.amount + t.amount,
-        count: existing.count + 1,
-      });
-    }
+    const existing = spendingByCategory.get(t.categoryId) || {
+      amount: 0,
+      count: 0,
+    };
+    spendingByCategory.set(t.categoryId, {
+      amount: existing.amount + t.amount,
+      count: existing.count + 1,
+    });
   });
 
-  const result: TagSpending[] = [];
+  const result: CategorySpending[] = [];
 
-  spendingByTag.forEach((data, tagId) => {
-    const tag = getTagById(tagId);
-    if (tag) {
+  spendingByCategory.forEach((data, categoryId) => {
+    const category = getCategoryById(categoryId);
+    if (category) {
       result.push({
-        tag,
+        category,
         amount: data.amount,
         percentage: totalExpenses > 0 ? (data.amount / totalExpenses) * 100 : 0,
         transactionCount: data.count,
@@ -104,10 +100,8 @@ export const getTagSpending = (): TagSpending[] => {
 
 export const getGoalProgress = (): GoalProgress[] => {
   return GOALS.filter((goal) => !goal.isArchived).map((goal) => {
-    // Find all transactions with this goal's tag
-    const goalTransactions = TRANSACTIONS.filter((t) =>
-      t.tagIds.includes(goal.tagId)
-    );
+    // Find all transactions directly linked to this goal
+    const goalTransactions = TRANSACTIONS.filter((t) => t.goalId === goal.id);
 
     const currentAmount = goalTransactions.reduce((sum, t) => sum + t.amount, 0);
     const percentage = goal.targetAmount > 0 ? (currentAmount / goal.targetAmount) * 100 : 0;
@@ -128,4 +122,4 @@ export const getPendingSplitTotal = (): number => {
   );
 };
 
-export { TAGS, GOALS };
+export { CATEGORIES, GOALS };

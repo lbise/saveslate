@@ -13,8 +13,7 @@ export const TRANSACTIONS: Transaction[] = [
   {
     id: 't1',
     amount: 12.5,
-    type: 'expense',
-    tagIds: ['dining'],
+    categoryId: 'dining',
     description: 'Coffee & croissant at Starbucks',
     date: daysAgo(0),
     accountId: 'main-checking',
@@ -24,13 +23,12 @@ export const TRANSACTIONS: Transaction[] = [
   {
     id: 't2',
     amount: 87.3,
-    type: 'expense',
-    tagIds: ['groceries'],
+    categoryId: 'groceries',
     description: 'Weekly groceries at Migros',
     date: daysAgo(1),
     accountId: 'main-checking',
-    // Split expense example - pending reimbursement
     split: {
+      withPerson: 'Sarah',
       ratio: 0.5,
       status: 'pending',
     },
@@ -38,8 +36,7 @@ export const TRANSACTIONS: Transaction[] = [
   {
     id: 't3',
     amount: 25.0,
-    type: 'expense',
-    tagIds: ['entertainment'],
+    categoryId: 'entertainment',
     description: 'Cinema tickets',
     date: daysAgo(1),
     accountId: 'credit-card',
@@ -49,8 +46,7 @@ export const TRANSACTIONS: Transaction[] = [
   {
     id: 't4',
     amount: 45.0,
-    type: 'expense',
-    tagIds: ['transport'],
+    categoryId: 'transport',
     description: 'SBB monthly pass top-up',
     date: daysAgo(2),
     accountId: 'main-checking',
@@ -60,8 +56,7 @@ export const TRANSACTIONS: Transaction[] = [
   {
     id: 't5',
     amount: 7200.0,
-    type: 'income',
-    tagIds: ['salary'],
+    categoryId: 'salary',
     description: 'Monthly salary',
     date: daysAgo(3),
     accountId: 'main-checking',
@@ -69,8 +64,7 @@ export const TRANSACTIONS: Transaction[] = [
   {
     id: 't6',
     amount: 156.8,
-    type: 'expense',
-    tagIds: ['shopping', 'health'], // Multiple tags example
+    categoryId: 'shopping',
     description: 'New running shoes at Ochsner Sport',
     date: daysAgo(3),
     accountId: 'credit-card',
@@ -80,13 +74,12 @@ export const TRANSACTIONS: Transaction[] = [
   {
     id: 't7',
     amount: 32.5,
-    type: 'expense',
-    tagIds: ['dining'],
+    categoryId: 'dining',
     description: 'Lunch with friends at Holy Cow',
     date: daysAgo(4),
     accountId: 'cash',
-    // Split expense - already reimbursed
     split: {
+      withPerson: 'Marco',
       ratio: 0.5,
       status: 'reimbursed',
     },
@@ -96,8 +89,7 @@ export const TRANSACTIONS: Transaction[] = [
   {
     id: 't8',
     amount: 15.9,
-    type: 'expense',
-    tagIds: ['subscriptions'],
+    categoryId: 'subscriptions',
     description: 'Spotify Premium',
     date: daysAgo(5),
     accountId: 'credit-card',
@@ -105,8 +97,7 @@ export const TRANSACTIONS: Transaction[] = [
   {
     id: 't9',
     amount: 23.9,
-    type: 'expense',
-    tagIds: ['subscriptions'],
+    categoryId: 'subscriptions',
     description: 'Netflix',
     date: daysAgo(5),
     accountId: 'credit-card',
@@ -116,8 +107,7 @@ export const TRANSACTIONS: Transaction[] = [
   {
     id: 't10',
     amount: 65.0,
-    type: 'expense',
-    tagIds: ['health'],
+    categoryId: 'health',
     description: 'Pharmacy - vitamins & supplements',
     date: daysAgo(6),
     accountId: 'main-checking',
@@ -127,8 +117,7 @@ export const TRANSACTIONS: Transaction[] = [
   {
     id: 't11',
     amount: 42.3,
-    type: 'expense',
-    tagIds: ['groceries'],
+    categoryId: 'groceries',
     description: 'Coop Pronto snacks',
     date: daysAgo(7),
     accountId: 'cash',
@@ -136,8 +125,7 @@ export const TRANSACTIONS: Transaction[] = [
   {
     id: 't12',
     amount: 350.0,
-    type: 'income',
-    tagIds: ['freelance'],
+    categoryId: 'freelance',
     description: 'Freelance web design project',
     date: daysAgo(7),
     accountId: 'main-checking',
@@ -147,8 +135,7 @@ export const TRANSACTIONS: Transaction[] = [
   {
     id: 't13',
     amount: 89.0,
-    type: 'expense',
-    tagIds: ['dining', 'gifts'], // Multiple tags - dinner was also a birthday treat
+    categoryId: 'dining',
     description: 'Birthday dinner at Clouds',
     date: daysAgo(8),
     accountId: 'credit-card',
@@ -158,13 +145,12 @@ export const TRANSACTIONS: Transaction[] = [
   {
     id: 't14',
     amount: 1450.0,
-    type: 'expense',
-    tagIds: ['home'],
+    categoryId: 'housing',
     description: 'Monthly rent',
     date: daysAgo(10),
     accountId: 'main-checking',
-    // Split expense - pending
     split: {
+      withPerson: 'Sarah',
       ratio: 0.5,
       status: 'pending',
     },
@@ -172,19 +158,17 @@ export const TRANSACTIONS: Transaction[] = [
   {
     id: 't15',
     amount: 78.5,
-    type: 'expense',
-    tagIds: ['groceries'],
+    categoryId: 'groceries',
     description: 'Aldi weekly shop',
     date: daysAgo(10),
     accountId: 'main-checking',
   },
 
-  // 12 days ago - Vacation saving transactions
+  // 12 days ago
   {
     id: 't16',
     amount: 200.0,
-    type: 'expense',
-    tagIds: ['travel', 'goal-summer-vacation'], // Tagged for vacation goal
+    categoryId: 'travel',
     description: 'Weekend trip to Lucerne - train tickets',
     date: daysAgo(12),
     accountId: 'main-checking',
@@ -192,19 +176,28 @@ export const TRANSACTIONS: Transaction[] = [
   {
     id: 't17',
     amount: 145.0,
-    type: 'expense',
-    tagIds: ['travel', 'goal-summer-vacation'], // Tagged for vacation goal
+    categoryId: 'travel',
     description: 'Hotel in Lucerne',
     date: daysAgo(12),
     accountId: 'credit-card',
+  },
+
+  // 13 days ago - Transfer to savings for vacation goal
+  {
+    id: 't31',
+    amount: 500.0,
+    categoryId: 'savings',
+    description: 'Transfer to Dream Fund',
+    date: daysAgo(13),
+    accountId: 'savings',
+    goalId: 'goal-1',
   },
 
   // 14 days ago
   {
     id: 't18',
     amount: 55.0,
-    type: 'expense',
-    tagIds: ['gifts'],
+    categoryId: 'gifts',
     description: 'Birthday gift for Maria',
     date: daysAgo(14),
     accountId: 'main-checking',
@@ -214,8 +207,7 @@ export const TRANSACTIONS: Transaction[] = [
   {
     id: 't19',
     amount: 92.6,
-    type: 'expense',
-    tagIds: ['groceries'],
+    categoryId: 'groceries',
     description: 'Big Migros haul',
     date: daysAgo(15),
     accountId: 'main-checking',
@@ -225,8 +217,7 @@ export const TRANSACTIONS: Transaction[] = [
   {
     id: 't20',
     amount: 39.9,
-    type: 'expense',
-    tagIds: ['entertainment'],
+    categoryId: 'entertainment',
     description: 'Steam game sale',
     date: daysAgo(17),
     accountId: 'credit-card',
@@ -236,19 +227,28 @@ export const TRANSACTIONS: Transaction[] = [
   {
     id: 't21',
     amount: 100.0,
-    type: 'income',
-    tagIds: ['gifts-received'],
+    categoryId: 'gifts-received',
     description: 'Birthday money from grandma',
     date: daysAgo(18),
     accountId: 'cash',
+  },
+
+  // 20 days ago - Transfer for laptop goal
+  {
+    id: 't32',
+    amount: 300.0,
+    categoryId: 'savings',
+    description: 'Transfer to Dream Fund',
+    date: daysAgo(20),
+    accountId: 'savings',
+    goalId: 'goal-2',
   },
 
   // 20 days ago
   {
     id: 't22',
     amount: 28.5,
-    type: 'expense',
-    tagIds: ['transport'],
+    categoryId: 'transport',
     description: 'Uber ride home',
     date: daysAgo(20),
     accountId: 'main-checking',
@@ -258,8 +258,7 @@ export const TRANSACTIONS: Transaction[] = [
   {
     id: 't23',
     amount: 120.0,
-    type: 'expense',
-    tagIds: ['health'],
+    categoryId: 'health',
     description: 'Gym membership monthly',
     date: daysAgo(21),
     accountId: 'main-checking',
@@ -269,19 +268,28 @@ export const TRANSACTIONS: Transaction[] = [
   {
     id: 't24',
     amount: 67.8,
-    type: 'expense',
-    tagIds: ['groceries'],
+    categoryId: 'groceries',
     description: 'Lidl groceries',
     date: daysAgo(23),
     accountId: 'main-checking',
+  },
+
+  // 25 days ago - Another vacation savings transfer
+  {
+    id: 't33',
+    amount: 800.0,
+    categoryId: 'savings',
+    description: 'Transfer to Dream Fund',
+    date: daysAgo(25),
+    accountId: 'savings',
+    goalId: 'goal-1',
   },
 
   // 25 days ago
   {
     id: 't25',
     amount: 245.0,
-    type: 'expense',
-    tagIds: ['shopping'],
+    categoryId: 'shopping',
     description: 'Winter jacket at Manor',
     date: daysAgo(25),
     accountId: 'credit-card',
@@ -291,19 +299,28 @@ export const TRANSACTIONS: Transaction[] = [
   {
     id: 't26',
     amount: 18.9,
-    type: 'expense',
-    tagIds: ['dining'],
+    categoryId: 'dining',
     description: 'Takeaway sushi',
     date: daysAgo(27),
     accountId: 'main-checking',
   },
 
-  // 28 days ago - Laptop saving
+  // 28 days ago - Another laptop savings transfer
+  {
+    id: 't34',
+    amount: 200.0,
+    categoryId: 'savings',
+    description: 'Transfer to Dream Fund',
+    date: daysAgo(28),
+    accountId: 'savings',
+    goalId: 'goal-2',
+  },
+
+  // 28 days ago
   {
     id: 't27',
     amount: 500.0,
-    type: 'expense',
-    tagIds: ['home', 'goal-new-laptop'], // Tagged for laptop goal
+    categoryId: 'housing',
     description: 'New desk chair',
     date: daysAgo(28),
     accountId: 'credit-card',
@@ -313,8 +330,7 @@ export const TRANSACTIONS: Transaction[] = [
   {
     id: 't28',
     amount: 7200.0,
-    type: 'income',
-    tagIds: ['salary'],
+    categoryId: 'salary',
     description: 'Monthly salary',
     date: daysAgo(30),
     accountId: 'main-checking',
@@ -322,8 +338,7 @@ export const TRANSACTIONS: Transaction[] = [
   {
     id: 't29',
     amount: 85.0,
-    type: 'expense',
-    tagIds: ['subscriptions'],
+    categoryId: 'subscriptions',
     description: 'Mobile phone plan',
     date: daysAgo(30),
     accountId: 'main-checking',
@@ -331,8 +346,7 @@ export const TRANSACTIONS: Transaction[] = [
   {
     id: 't30',
     amount: 45.5,
-    type: 'expense',
-    tagIds: ['groceries'],
+    categoryId: 'groceries',
     description: 'Quick Denner run',
     date: daysAgo(30),
     accountId: 'cash',
@@ -359,8 +373,12 @@ export const getTransactionsByDateRange = (
   });
 };
 
-export const getTransactionsByTag = (tagId: string): Transaction[] => {
-  return getTransactionsSorted().filter((t) => t.tagIds.includes(tagId));
+export const getTransactionsByCategory = (categoryId: string): Transaction[] => {
+  return getTransactionsSorted().filter((t) => t.categoryId === categoryId);
+};
+
+export const getTransactionsByGoal = (goalId: string): Transaction[] => {
+  return getTransactionsSorted().filter((t) => t.goalId === goalId);
 };
 
 export const getTransactionsByAccount = (accountId: string): Transaction[] => {

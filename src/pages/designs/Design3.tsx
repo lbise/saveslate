@@ -547,14 +547,14 @@ export function Design3() {
                   className={`d3-tx ${selectedTx === tx.id ? 'selected' : ''}`}
                   onClick={() => setSelectedTx(tx.id)}
                 >
-                  <div className={`d3-tx-icon ${tx.type}`}>
-                    {tx.type === 'income' ? <TrendingUp size={18} /> : <TrendingDown size={18} />}
+                  <div className={`d3-tx-icon ${tx.category.type}`}>
+                    {tx.category.type === 'income' ? <TrendingUp size={18} /> : <TrendingDown size={18} />}
                   </div>
                   <div className="d3-tx-info">
                     <div className="d3-tx-desc">{tx.description}</div>
                     <div className="d3-tx-meta">
                       <span>{tx.date}</span>
-                      <span className="d3-tx-tag">{tx.tags[0]?.name || 'uncategorized'}</span>
+                      <span className="d3-tx-tag">{tx.category.name}</span>
                       {tx.split && (
                         <span className="d3-tx-tag" style={{ borderColor: 'var(--d3-neon-yellow)', color: 'var(--d3-neon-yellow)' }}>
                           SPLIT
@@ -562,8 +562,8 @@ export function Design3() {
                       )}
                     </div>
                   </div>
-                  <div className={`d3-tx-amount ${tx.type}`}>
-                    {tx.type === 'income' ? '+' : '-'}{formatCurrency(tx.amount)}
+                  <div className={`d3-tx-amount ${tx.category.type}`}>
+                    {tx.category.type === 'income' ? '+' : '-'}{formatCurrency(tx.amount)}
                   </div>
                 </div>
               ))}

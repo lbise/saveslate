@@ -66,9 +66,10 @@ export function Dashboard() {
               <TransactionItem
                 key={tx.id}
                 description={tx.description}
-                type={tx.type}
+                type={tx.category.type}
                 amount={formatCurrency(tx.amount)}
-                tagName={tx.tags[0]?.name || 'Uncategorized'}
+                categoryName={tx.category.name}
+                goalName={tx.goal?.name}
                 isSplit={!!tx.split}
               />
             ))}
