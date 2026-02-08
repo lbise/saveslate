@@ -325,7 +325,6 @@ export function Transactions() {
           Date
           <ArrowUpDown className="w-3 h-3" />
         </button>
-        <div className="w-36">Category</div>
         <button
           onClick={() => toggleSort('amount')}
           className="flex items-center gap-1 w-28 justify-end bg-transparent border-none text-text-muted hover:text-text cursor-pointer transition-colors text-[11px] uppercase tracking-wider"
@@ -390,17 +389,23 @@ function TransactionRow({
 
   return (
     <div className="group flex items-center gap-3.5 py-3.5 border-b border-border last:border-b-0 transition-colors duration-150 hover:bg-surface-hover/30 relative">
-      {/* Icon — category shape, type-tinted (desktop) */}
-      <div className={cn('w-[34px] h-[34px] rounded-(--radius-md) flex items-center justify-center shrink-0 hidden lg:flex', iconBoxStyles[type])}>
+      {/* Icon — category shape, type-tinted (desktop), clickable to edit category */}
+      <button
+        onClick={(e) => { e.stopPropagation(); onToggleEditCategory(); }}
+        className={cn('w-[34px] h-[34px] rounded-(--radius-md) flex items-center justify-center shrink-0 hidden lg:flex cursor-pointer border-none transition-opacity hover:opacity-80', iconBoxStyles[type])}
+      >
         <Icon name={transaction.category.icon} size={16} />
-      </div>
+      </button>
 
       {/* -------- Mobile layout -------- */}
       <div className="flex items-start gap-3 lg:hidden flex-1 min-w-0">
-        {/* Icon */}
-        <div className={cn('w-[34px] h-[34px] rounded-(--radius-md) flex items-center justify-center shrink-0', iconBoxStyles[type])}>
+        {/* Icon — clickable to edit category */}
+        <button
+          onClick={(e) => { e.stopPropagation(); onToggleEditCategory(); }}
+          className={cn('w-[34px] h-[34px] rounded-(--radius-md) flex items-center justify-center shrink-0 cursor-pointer border-none transition-opacity hover:opacity-80', iconBoxStyles[type])}
+        >
           <Icon name={transaction.category.icon} size={16} />
-        </div>
+        </button>
 
         <div className="flex-1 min-w-0">
           <div className="flex items-center gap-2">
@@ -497,32 +502,29 @@ function TransactionRow({
               </span>
             )}
           </div>
-          <span className="text-[11px] text-text-muted">{transaction.account.name}</span>
+          <div className="flex items-center gap-1 text-[11px] text-text-muted relative">
+            <span>{transaction.account.name}</span>
+            <span>&middot;</span>
+            <button
+              onClick={(e) => { e.stopPropagation(); onToggleEditCategory(); }}
+              className="cursor-pointer bg-transparent border-none p-0 text-[11px] text-text-muted hover:text-text hover:underline transition-colors"
+            >
+              {transaction.category.name}
+            </button>
+            {isEditingCategory && (
+              <CategoryPicker
+                currentCategoryId={transaction.categoryId}
+                onSelect={onCategoryChange}
+                onClose={onToggleEditCategory}
+                className="top-full left-0 mt-1"
+              />
+            )}
+          </div>
         </div>
 
         {/* Date */}
         <div className="w-24 text-[13px] text-text-secondary">
           {formatDate(transaction.date)}
-        </div>
-
-        {/* Category */}
-        <div className="w-36 relative">
-          <button
-            onClick={(e) => { e.stopPropagation(); onToggleEditCategory(); }}
-            className="cursor-pointer bg-transparent border-none p-0 transition-opacity hover:opacity-80"
-          >
-            <Badge variant={type} className="text-[10px]">
-              {transaction.category.name}
-            </Badge>
-          </button>
-          {isEditingCategory && (
-            <CategoryPicker
-              currentCategoryId={transaction.categoryId}
-              onSelect={onCategoryChange}
-              onClose={onToggleEditCategory}
-              className="top-full left-0 mt-1"
-            />
-          )}
         </div>
 
         {/* Amount */}
