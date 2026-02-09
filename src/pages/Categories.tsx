@@ -12,6 +12,12 @@ const TYPE_SECTIONS: { type: TransactionType; label: string }[] = [
   { type: 'transfer', label: 'Transfer' },
 ];
 
+const TYPE_ICON_STYLES: Record<TransactionType, { bg: string; text: string }> = {
+  expense: { bg: 'bg-expense/10', text: 'text-expense' },
+  income: { bg: 'bg-income/10', text: 'text-income' },
+  transfer: { bg: 'bg-transfer/10', text: 'text-transfer' },
+};
+
 export function Categories() {
   const [categories, setCategories] = useState<Category[]>(DEFAULT_CATEGORIES);
   const categorySpending = getCategorySpending();
@@ -109,8 +115,8 @@ export function Categories() {
                     key={cat.id}
                     className="group flex items-center gap-3 p-3.5 bg-surface rounded-(--radius-md) transition-colors duration-150 hover:bg-surface-hover"
                   >
-                    <div className="w-8 h-8 rounded-(--radius-md) bg-bg flex items-center justify-center shrink-0">
-                      <Icon name={cat.icon} size={16} className="text-text-secondary" />
+                    <div className={cn('w-8 h-8 rounded-(--radius-md) flex items-center justify-center shrink-0', TYPE_ICON_STYLES[cat.type].bg)}>
+                      <Icon name={cat.icon} size={16} className={TYPE_ICON_STYLES[cat.type].text} />
                     </div>
                     <div className="flex-1 min-w-0">
                       <div className="text-[13px] text-text">{cat.name}</div>

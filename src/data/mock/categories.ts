@@ -13,6 +13,9 @@ export const CATEGORIES: Category[] = [
   { id: 'subscriptions', name: 'Subscriptions', type: 'expense', icon: 'Repeat', isDefault: true },
   { id: 'travel', name: 'Travel', type: 'expense', icon: 'Mountain', isDefault: true },
   { id: 'gifts', name: 'Gifts', type: 'expense', icon: 'Gift', isDefault: true },
+  { id: 'insurance', name: 'Insurance', type: 'expense', icon: 'Shield', isDefault: true },
+  { id: 'personal', name: 'Personal', type: 'expense', icon: 'User', isDefault: true },
+  { id: 'utilities', name: 'Utilities', type: 'expense', icon: 'Zap', isDefault: true },
 
   // Income categories
   { id: 'salary', name: 'Salary', type: 'income', icon: 'Briefcase', isDefault: true },
