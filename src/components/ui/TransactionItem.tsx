@@ -47,8 +47,8 @@ export function TransactionItem({ description, type, amount, categoryName, goalN
 
       {/* Info */}
       <div className="flex-1 min-w-0">
-        <div className="text-[13px] text-text truncate" title={description}>{description}</div>
-        <div className="text-[11px] text-text-muted flex items-center gap-2">
+        <div className="text-[15px] text-text truncate" title={description}>{description}</div>
+        <div className="text-xs text-text-muted flex items-center gap-2">
           <span>{categoryName}</span>
           {goalName && <span className="text-text-secondary">&middot; {goalName}</span>}
           {isSplit && <span className="text-text-secondary">&middot; Split</span>}
@@ -57,7 +57,7 @@ export function TransactionItem({ description, type, amount, categoryName, goalN
 
       {/* Amount */}
       <div
-        className={cn('text-[13px] font-medium shrink-0', amountColors[type])}
+        className={cn('text-[15px] font-medium shrink-0', amountColors[type])}
         style={{ fontFamily: 'var(--font-display)' }}
       >
         {amountPrefix[type]}{amount}

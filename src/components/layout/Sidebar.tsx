@@ -158,7 +158,7 @@ export function Sidebar({ collapsed, onToggleCollapse }: SidebarProps) {
         {!isCollapsed && (
           <>
             <div className="flex-1 min-w-0">
-              <div className="text-[13px] font-medium truncate">John Doe</div>
+              <div className="text-sm font-medium truncate">John Doe</div>
               <div className="text-xs text-text-muted truncate">john@example.com</div>
             </div>
             <button

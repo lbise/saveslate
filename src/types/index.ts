@@ -94,6 +94,19 @@ export interface GoalProgress {
 
 // ─── CSV Import Types ────────────────────────────────────────
 
+/** String-valued ParsedRow fields that can be source/target for transforms. */
+export type TransformableField = 'description' | 'category' | 'currency';
+
+/** A regex-based rule that transforms an extracted field value. */
+export interface FieldTransform {
+  label?: string;
+  sourceField: TransformableField;
+  targetField: TransformableField;
+  matchPattern: string;   // regex — does the source value match?
+  extractPattern: string; // regex with named capture groups
+  replacement: string;    // template using {{groupName}} syntax
+}
+
 export type AmountFormat = 'single' | 'debit-credit' | 'amount-type';
 
 export type CsvDelimiter = ',' | ';' | '\t' | '|';
@@ -138,6 +151,9 @@ export interface CsvParser {
   amountFormat: AmountFormat;
   dateFormat: string; // e.g. "DD.MM.YYYY", "YYYY-MM-DD"
   decimalSeparator: '.' | ',';
+  /** Separator used when concatenating multiple CSV columns into one field. Defaults to ' '. */
+  multiColumnSeparator?: string;
+  transforms?: FieldTransform[];
   createdAt: string;
   updatedAt: string;
 }

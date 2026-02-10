@@ -1,5 +1,5 @@
 import { useMemo, useState } from 'react';
-import { Check, ChevronDown, Plus, Zap } from 'lucide-react';
+import { Check, ChevronDown, FileQuestion, Plus, Zap } from 'lucide-react';
 import { cn } from '../../lib/utils';
 import { findBestParser } from '../../lib/csv';
 import { loadParsers } from '../../lib/parser-storage';
@@ -96,8 +96,8 @@ export function ParserMatcher({ headers, onSelectParser, onCreateNew }: ParserMa
   return (
     <div className="card p-5">
       <div className="flex items-start gap-4">
-        <div className="w-10 h-10 rounded-(--radius-md) bg-surface-hover flex items-center justify-center shrink-0">
-          <Plus size={18} className="text-text-muted" />
+        <div className="w-10 h-10 rounded-(--radius-md) bg-expense/10 flex items-center justify-center shrink-0">
+          <FileQuestion size={18} className="text-expense" />
         </div>
         <div className="flex-1">
           <p className="text-sm text-text font-medium">
@@ -175,7 +175,7 @@ function ParserDropdown({ parsers, excludeId, onSelect, onCreateNew, onClose }: 
             )}
           >
             <span className="text-xs text-text font-medium">{parser.name}</span>
-            <span className="text-[10px] text-text-muted mt-0.5">
+            <span className="text-xs text-text-muted mt-0.5">
               {parser.columnMappings.filter((m) => m.field !== 'ignore').length} columns
               &middot; delimiter: {parser.delimiter === '\t' ? 'tab' : `"${parser.delimiter}"`}
             </span>

@@ -94,14 +94,14 @@ export function CategoryPicker({
       {/* Category list */}
       <div className="max-h-64 overflow-y-auto py-1">
         {grouped.length === 0 ? (
-          <div className="px-3 py-3 text-[11px] text-text-muted text-center">
+          <div className="px-3 py-3 text-xs text-text-muted text-center">
             No categories found
           </div>
         ) : (
           grouped.map(({ type, categories }) => (
             <div key={type}>
               {/* Section header */}
-              <div className="px-3 pt-2.5 pb-1 text-[10px] font-medium uppercase tracking-wider text-text-muted">
+              <div className="px-3 pt-2.5 pb-1 text-xs font-medium uppercase tracking-wider text-text-muted">
                 {TYPE_LABELS[type]}
               </div>
 

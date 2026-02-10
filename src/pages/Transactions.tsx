@@ -283,7 +283,7 @@ export function Transactions() {
           {/* Category filter pills (contextual — show categories for selected type) */}
           {availableCategories.length > 0 && (
             <div className="flex items-center gap-2 flex-wrap">
-              <span className="text-[11px] text-text-muted uppercase tracking-wider mr-1">Category</span>
+              <span className="text-xs text-text-muted uppercase tracking-wider mr-1">Category</span>
               {categoryFilter && (
                 <button
                   onClick={() => setCategoryFilter(null)}
@@ -299,7 +299,7 @@ export function Transactions() {
                     key={cat.id}
                     onClick={() => setCategoryFilter(isActive ? null : cat.id)}
                     className={cn(
-                      'inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[11px] font-medium transition-all duration-150 border cursor-pointer',
+                      'inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium transition-all duration-150 border cursor-pointer',
                       isActive
                         ? 'bg-text/10 text-text border-text/20'
                         : 'bg-surface text-text-secondary border-border opacity-60 hover:opacity-100',
@@ -317,19 +317,19 @@ export function Transactions() {
       </div>
 
       {/* Table Header */}
-      <div className="hidden lg:flex items-center gap-4 px-1 text-[11px] text-text-muted uppercase tracking-wider">
+      <div className="hidden lg:flex items-center gap-4 px-1 text-xs text-text-muted uppercase tracking-wider">
         <div className="w-[34px]" />
         <div className="flex-1">Description</div>
         <button
           onClick={() => toggleSort('date')}
-          className="flex items-center gap-1 w-24 bg-transparent border-none text-text-muted hover:text-text cursor-pointer transition-colors text-[11px] uppercase tracking-wider"
+          className="flex items-center gap-1 w-24 bg-transparent border-none text-text-muted hover:text-text cursor-pointer transition-colors text-xs uppercase tracking-wider"
         >
           Date
           <ArrowUpDown className="w-3 h-3" />
         </button>
         <button
           onClick={() => toggleSort('amount')}
-          className="flex items-center gap-1 w-28 justify-end bg-transparent border-none text-text-muted hover:text-text cursor-pointer transition-colors text-[11px] uppercase tracking-wider"
+          className="flex items-center gap-1 w-28 justify-end bg-transparent border-none text-text-muted hover:text-text cursor-pointer transition-colors text-xs uppercase tracking-wider"
         >
           Amount
           <ArrowUpDown className="w-3 h-3" />
@@ -411,7 +411,7 @@ function TransactionRow({
 
         <div className="flex-1 min-w-0">
           <div className="flex items-center gap-2">
-            <span className="text-[13px] text-text line-clamp-2" title={transaction.description}>{transaction.description}</span>
+            <span className="text-[15px] text-text line-clamp-2" title={transaction.description}>{transaction.description}</span>
           </div>
           <div className="flex items-center gap-2 mt-1 flex-wrap">
             <div className="relative">
@@ -419,7 +419,7 @@ function TransactionRow({
                 onClick={(e) => { e.stopPropagation(); onToggleEditCategory(); }}
                 className="cursor-pointer bg-transparent border-none p-0 transition-opacity hover:opacity-80"
               >
-                <Badge variant={type} className="text-[10px]">
+                <Badge variant={type} className="text-xs">
                   {transaction.category.name}
                 </Badge>
               </button>
@@ -433,13 +433,13 @@ function TransactionRow({
               )}
             </div>
             {transaction.goal && (
-              <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-full bg-surface text-[10px] text-text-secondary border border-border">
+              <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-full bg-surface text-xs text-text-secondary border border-border">
                 <Target size={9} />
                 {transaction.goal.name}
               </span>
             )}
             {transaction.split && (
-              <span className="inline-flex items-center gap-1 text-[10px] text-text-muted">
+              <span className="inline-flex items-center gap-1 text-xs text-text-muted">
                 <Users size={9} />
                 {transaction.split.withPerson}
                 {transaction.split.status === 'pending' && (
@@ -450,13 +450,13 @@ function TransactionRow({
                 )}
               </span>
             )}
-            <span className="text-[11px] text-text-muted">{formatDate(transaction.date)}</span>
+            <span className="text-xs text-text-muted">{formatDate(transaction.date)}</span>
           </div>
         </div>
 
         <div className="flex items-center gap-1 shrink-0">
           <span
-            className={cn('text-[13px] font-medium', amountColors[type])}
+            className={cn('text-[15px] font-medium', amountColors[type])}
             style={{ fontFamily: 'var(--font-display)' }}
           >
             {amountPrefix[type]}
@@ -484,15 +484,15 @@ function TransactionRow({
         {/* Description + meta */}
         <div className="flex-1 min-w-0">
           <div className="flex items-center gap-2">
-            <span className="text-[13px] text-text line-clamp-2" title={transaction.description}>{transaction.description}</span>
+            <span className="text-[15px] text-text line-clamp-2" title={transaction.description}>{transaction.description}</span>
             {transaction.goal && (
-              <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-full bg-surface text-[10px] text-text-secondary border border-border shrink-0">
+              <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-full bg-surface text-xs text-text-secondary border border-border shrink-0">
                 <Target size={9} />
                 {transaction.goal.name}
               </span>
             )}
             {transaction.split && (
-              <span className="inline-flex items-center gap-1 text-[10px] text-text-muted shrink-0">
+              <span className="inline-flex items-center gap-1 text-xs text-text-muted shrink-0">
                 <Users size={9} />
                 {transaction.split.withPerson}
                 {transaction.split.status === 'pending' && (
@@ -504,12 +504,12 @@ function TransactionRow({
               </span>
             )}
           </div>
-          <div className="flex items-center gap-1 text-[11px] text-text-muted relative">
+          <div className="flex items-center gap-1 text-xs text-text-muted relative">
             <span>{transaction.account.name}</span>
             <span>&middot;</span>
             <button
               onClick={(e) => { e.stopPropagation(); onToggleEditCategory(); }}
-              className="cursor-pointer bg-transparent border-none p-0 text-[11px] text-text-muted hover:text-text hover:underline transition-colors"
+              className="cursor-pointer bg-transparent border-none p-0 text-xs text-text-muted hover:text-text hover:underline transition-colors"
             >
               {transaction.category.name}
             </button>
@@ -525,13 +525,13 @@ function TransactionRow({
         </div>
 
         {/* Date */}
-        <div className="w-24 text-[13px] text-text-secondary">
+        <div className="w-24 text-sm text-text-secondary">
           {formatDate(transaction.date)}
         </div>
 
         {/* Amount */}
         <span
-          className={cn('w-28 text-right text-[13px] font-medium', amountColors[type])}
+          className={cn('w-28 text-right text-[15px] font-medium', amountColors[type])}
           style={{ fontFamily: 'var(--font-display)' }}
         >
           {amountPrefix[type]}

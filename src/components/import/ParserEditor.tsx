@@ -1,5 +1,5 @@
 import { useState, useMemo, useCallback, useRef, useEffect } from 'react';
-import { Save, RotateCcw, X, ChevronDown, AlertTriangle, Check } from 'lucide-react';
+import { Save, RotateCcw, X, ChevronDown, ChevronUp, Plus, AlertTriangle, Check } from 'lucide-react';
 import { cn, formatCurrency, formatDate } from '../../lib/utils';
 import {
   detectDelimiter,
@@ -18,6 +18,8 @@ import type {
   ColumnMapping,
   CsvParser,
   ParsedRow,
+  FieldTransform,
+  TransformableField,
 } from '../../types';
 import { TRANSACTION_FIELD_LABELS } from '../../types';
 
@@ -34,6 +36,14 @@ const DELIMITER_OPTIONS: { value: CsvDelimiter; label: string }[] = [
   { value: ';', label: 'Semicolon (;)' },
   { value: '\t', label: 'Tab' },
   { value: '|', label: 'Pipe (|)' },
+];
+
+const SEPARATOR_OPTIONS: { value: string; label: string }[] = [
+  { value: ' ', label: 'Space' },
+  { value: ', ', label: 'Comma + space' },
+  { value: ' - ', label: 'Dash' },
+  { value: ' / ', label: 'Slash' },
+  { value: '', label: 'None (concat)' },
 ];
 
 /** Fields that support mapping to multiple CSV columns (string concatenation). */
@@ -81,6 +91,7 @@ export function ParserEditor({
   const [amountFormat, setAmountFormat] = useState<AmountFormat>(existingParser?.amountFormat ?? 'single');
   const [dateFormat, setDateFormat] = useState(existingParser?.dateFormat ?? 'DD.MM.YYYY');
   const [decimalSeparator, setDecimalSeparator] = useState<'.' | ','>(existingParser?.decimalSeparator ?? '.');
+  const [multiColumnSeparator, setMultiColumnSeparator] = useState(existingParser?.multiColumnSeparator ?? ' ');
 
   // ─── Parse raw CSV with current settings ───────────────────
   const rawRows = useMemo(() => parseRawCsv(rawContent, delimiter), [rawContent, delimiter]);
@@ -102,6 +113,36 @@ export function ParserEditor({
     }
     return new Map();
   });
+
+  // ─── Field transforms ──────────────────────────────────────
+  const [transforms, setTransforms] = useState<FieldTransform[]>(
+    existingParser?.transforms ?? [],
+  );
+
+  const addTransform = useCallback(() => {
+    setTransforms((prev) => [
+      ...prev,
+      { sourceField: 'description', targetField: 'description', matchPattern: '', extractPattern: '', replacement: '' },
+    ]);
+  }, []);
+
+  const updateTransform = useCallback((index: number, update: Partial<FieldTransform>) => {
+    setTransforms((prev) => prev.map((t, i) => (i === index ? { ...t, ...update } : t)));
+  }, []);
+
+  const removeTransform = useCallback((index: number) => {
+    setTransforms((prev) => prev.filter((_, i) => i !== index));
+  }, []);
+
+  const moveTransform = useCallback((index: number, direction: 'up' | 'down') => {
+    setTransforms((prev) => {
+      const next = [...prev];
+      const target = direction === 'up' ? index - 1 : index + 1;
+      if (target < 0 || target >= next.length) return prev;
+      [next[index], next[target]] = [next[target], next[index]];
+      return next;
+    });
+  }, []);
 
   const addColumnToField = useCallback((field: AssignableField, colIdx: number) => {
     setFieldMappings((prev) => {
@@ -158,10 +199,11 @@ export function ParserEditor({
   }, [fieldMappings]);
 
   // ─── Validation ────────────────────────────────────────────
-  const validationErrors = useMemo(
+  const fieldErrors = useMemo(
     () => validateMappings(columnMappings, amountFormat),
     [columnMappings, amountFormat],
   );
+  const hasValidationErrors = fieldErrors.size > 0;
 
   const nameError = !name.trim() ? 'Parser name is required' : '';
 
@@ -192,7 +234,7 @@ export function ParserEditor({
 
   // ─── Parsed transaction preview ────────────────────────────
   const parsedRows: ParsedRow[] = useMemo(() => {
-    if (validationErrors.length > 0 || columnMappings.length === 0) return [];
+    if (hasValidationErrors || columnMappings.length === 0) return [];
 
     // Build a temporary parser config from the current state
     const tempParser = {
@@ -206,16 +248,41 @@ export function ParserEditor({
       amountFormat,
       dateFormat,
       decimalSeparator,
+      multiColumnSeparator,
+      transforms: transforms.filter((t) => t.matchPattern && t.extractPattern && t.replacement),
       createdAt: '',
       updatedAt: '',
     } satisfies CsvParser;
 
     return applyParser(dataRows, headers, tempParser);
-  }, [validationErrors, columnMappings, dataRows, headers, delimiter, hasHeaderRow, skipRows, amountFormat, dateFormat, decimalSeparator]);
+  }, [hasValidationErrors, columnMappings, dataRows, headers, delimiter, hasHeaderRow, skipRows, amountFormat, dateFormat, decimalSeparator, multiColumnSeparator, transforms]);
+
+  // ─── Pre-transform rows (for transform match previews) ─────
+  const preTransformRows: ParsedRow[] = useMemo(() => {
+    if (columnMappings.length === 0) return [];
+
+    const tempParser = {
+      id: '',
+      name: '',
+      delimiter,
+      hasHeaderRow,
+      skipRows,
+      headerPatterns: [],
+      columnMappings,
+      amountFormat,
+      dateFormat,
+      decimalSeparator,
+      multiColumnSeparator,
+      createdAt: '',
+      updatedAt: '',
+    } satisfies CsvParser;
+
+    return applyParser(dataRows, headers, tempParser);
+  }, [columnMappings, dataRows, headers, delimiter, hasHeaderRow, skipRows, amountFormat, dateFormat, decimalSeparator, multiColumnSeparator]);
 
   // ─── Save handler ──────────────────────────────────────────
   const handleSave = () => {
-    if (validationErrors.length > 0 || nameError) return;
+    if (hasValidationErrors || nameError) return;
 
     // Build header patterns from current headers + mapped columns
     const mappedColIndices = new Set<number>();
@@ -236,6 +303,8 @@ export function ParserEditor({
       amountFormat,
       dateFormat,
       decimalSeparator,
+      multiColumnSeparator,
+      transforms: transforms.filter((t) => t.matchPattern && t.extractPattern && t.replacement),
     };
 
     const parser = saveParser(parserData);
@@ -363,12 +432,33 @@ export function ParserEditor({
 
       {/* Field mapping (field-centric) */}
       <div>
-        <label className="label mb-3 block">
-          Column mapping
-          <span className="text-text-muted font-normal ml-2">
-            Assign CSV columns to each transaction field
-          </span>
-        </label>
+        <div className="flex items-center justify-between mb-3">
+          <label className="label">
+            Column mapping
+            <span className="text-text-muted font-normal ml-2">
+              Assign CSV columns to each transaction field
+            </span>
+          </label>
+          {/* Multi-column separator selector */}
+          {Array.from(fieldMappings.entries()).some(
+            ([f, indices]) => MULTI_COLUMN_FIELDS.has(f) && indices.length >= 2,
+          ) && (
+            <div className="flex items-center gap-2">
+              <span className="text-xs text-text-muted shrink-0">Merge separator</span>
+              <select
+                value={multiColumnSeparator}
+                onChange={(e) => setMultiColumnSeparator(e.target.value)}
+                className="select text-xs w-auto"
+              >
+                {SEPARATOR_OPTIONS.map((s) => (
+                  <option key={s.value} value={s.value}>
+                    {s.label}
+                  </option>
+                ))}
+              </select>
+            </div>
+          )}
+        </div>
 
         <div className="space-y-2 mb-4">
           {fieldRows.map(({ field, required }) => {
@@ -385,20 +475,51 @@ export function ParserEditor({
                 headers={headers}
                 dataRows={dataRows}
                 assignedSingleColumns={assignedSingleColumns}
+                error={fieldErrors.get(field)}
                 onAdd={(colIdx) => addColumnToField(field, colIdx)}
                 onRemove={(colIdx) => removeColumnFromField(field, colIdx)}
               />
             );
           })}
         </div>
+      </div>
 
-        {/* Validation errors */}
-        {validationErrors.length > 0 && (
-          <div className="flex flex-col gap-1 mb-4">
-            {validationErrors.map((err, i) => (
-              <p key={i} className="text-xs text-expense">{err}</p>
+      {/* Field transforms */}
+      <div>
+        <div className="flex items-center justify-between mb-3">
+          <label className="label">
+            Field transforms
+            <span className="text-text-muted font-normal ml-2">
+              Clean up or extract data using regex
+            </span>
+          </label>
+          <button onClick={addTransform} className="btn-ghost text-xs">
+            <Plus size={14} />
+            Add rule
+          </button>
+        </div>
+
+        {transforms.length > 0 && (
+          <div className="space-y-3">
+            {transforms.map((transform, idx) => (
+              <TransformRuleEditor
+                key={idx}
+                transform={transform}
+                index={idx}
+                total={transforms.length}
+                preTransformRows={preTransformRows}
+                onChange={(update) => updateTransform(idx, update)}
+                onRemove={() => removeTransform(idx)}
+                onMove={(dir) => moveTransform(idx, dir)}
+              />
             ))}
           </div>
+        )}
+
+        {transforms.length === 0 && (
+          <p className="text-xs text-text-muted">
+            No transforms configured. Use transforms to clean up descriptions or extract fields from messy CSV data.
+          </p>
         )}
       </div>
 
@@ -422,7 +543,7 @@ export function ParserEditor({
       <div className="flex gap-3">
         <button
           onClick={handleSave}
-          disabled={validationErrors.length > 0 || !name.trim()}
+          disabled={hasValidationErrors || !name.trim()}
           className="btn-primary"
         >
           <Save size={14} />
@@ -447,6 +568,8 @@ interface FieldMappingRowProps {
   dataRows: string[][];
   /** Column indices already used by single-value fields (for disabling in dropdown). */
   assignedSingleColumns: Set<number>;
+  /** Validation error for this field (shown inline). */
+  error?: string;
   onAdd: (colIdx: number) => void;
   onRemove: (colIdx: number) => void;
 }
@@ -459,6 +582,7 @@ function FieldMappingRow({
   headers,
   dataRows,
   assignedSingleColumns,
+  error,
   onAdd,
   onRemove,
 }: FieldMappingRowProps) {
@@ -506,7 +630,9 @@ function FieldMappingRow({
     <div
       className={cn(
         'flex items-center gap-4 p-3 rounded-(--radius-md) border',
-        hasValue ? 'border-text/15 bg-text/[0.03]' : 'border-border bg-surface',
+        error
+          ? 'border-expense/40 bg-expense/[0.03]'
+          : hasValue ? 'border-text/15 bg-text/[0.03]' : 'border-border bg-surface',
       )}
     >
       {/* Field label */}
@@ -517,10 +643,13 @@ function FieldMappingRow({
         {required ? (
           <span className="text-expense ml-0.5">*</span>
         ) : (
-          <span className="text-[10px] text-text-muted ml-1.5">optional</span>
+          <span className="text-xs text-text-muted ml-1.5">optional</span>
         )}
         {isMulti && (
-          <p className="text-[10px] text-text-muted mt-0.5">multi-column</p>
+          <p className="text-xs text-text-muted mt-0.5">multi-column</p>
+        )}
+        {error && (
+          <p className="text-xs text-expense mt-0.5">{error}</p>
         )}
       </div>
 
@@ -596,11 +725,11 @@ function FieldMappingRow({
                         {header}
                       </span>
                       {alreadyAssigned && isMulti && (
-                        <span className="text-[10px] text-income">selected</span>
+                        <span className="text-xs text-income">selected</span>
                       )}
                     </span>
                     {sampleValue && (
-                      <span className="text-[10px] text-text-muted truncate mt-0.5 max-w-full">
+                      <span className="text-xs text-text-muted truncate mt-0.5 max-w-full">
                         {sampleValue}
                       </span>
                     )}
@@ -639,11 +768,11 @@ function ParsedTransactionPreview({ rows, maxRows = 8 }: ParsedTransactionPrevie
     <div>
       <div className="flex items-center gap-3 mb-2">
         <label className="label">Parsed preview</label>
-        <span className="text-[11px] text-text-muted">
+        <span className="text-xs text-text-muted">
           {rows.length} row{rows.length !== 1 ? 's' : ''}
         </span>
         {errorCount > 0 && (
-          <span className="flex items-center gap-1 text-[11px] text-amber-400">
+          <span className="flex items-center gap-1 text-xs text-amber-400">
             <AlertTriangle size={11} />
             {errorCount} with warnings
           </span>
@@ -678,7 +807,7 @@ function ParsedTransactionPreview({ rows, maxRows = 8 }: ParsedTransactionPrevie
                     {row.date ? formatDate(row.date) : '\u2014'}
                   </td>
                   <td className="px-3 py-2.5 text-text">
-                    <span className="truncate block max-w-[300px]" title={row.description || undefined}>{row.description || '\u2014'}</span>
+                    <span className="break-words" title={row.description || undefined}>{row.description || '\u2014'}</span>
                   </td>
                   <td className="px-3 py-2.5 text-text-muted">
                     {row.category || '\u2014'}
@@ -712,11 +841,255 @@ function ParsedTransactionPreview({ rows, maxRows = 8 }: ParsedTransactionPrevie
           </tbody>
         </table>
         {rows.length > maxRows && (
-          <div className="px-3 py-2 text-[11px] text-text-muted bg-surface border-t border-border">
+          <div className="px-3 py-2 text-xs text-text-muted bg-surface border-t border-border">
             Showing {maxRows} of {rows.length} rows
           </div>
         )}
       </div>
+    </div>
+  );
+}
+
+// ─── Transform Rule Editor ───────────────────────────────────
+
+const TRANSFORMABLE_FIELDS: { value: TransformableField; label: string }[] = [
+  { value: 'description', label: 'Description' },
+  { value: 'category', label: 'Category' },
+  { value: 'currency', label: 'Currency' },
+];
+
+interface TransformRuleEditorProps {
+  transform: FieldTransform;
+  index: number;
+  total: number;
+  preTransformRows: ParsedRow[];
+  onChange: (update: Partial<FieldTransform>) => void;
+  onRemove: () => void;
+  onMove: (direction: 'up' | 'down') => void;
+}
+
+function TransformRuleEditor({
+  transform,
+  index,
+  total,
+  preTransformRows,
+  onChange,
+  onRemove,
+  onMove,
+}: TransformRuleEditorProps) {
+  const [showMatches, setShowMatches] = useState(false);
+  const [showAllMatches, setShowAllMatches] = useState(false);
+
+  // Compute match details from parsed field values (shows actual transaction data)
+  const matchDetails = useMemo(() => {
+    if (!transform.matchPattern) {
+      return { matched: 0, total: preTransformRows.length, valid: true, items: [] as { source: string; output?: string }[] };
+    }
+
+    const values = preTransformRows.map((row) => {
+      const val = row[transform.sourceField];
+      return typeof val === 'string' ? val : '';
+    });
+
+    try {
+      const re = new RegExp(transform.matchPattern, 'i');
+      const items: { source: string; output?: string }[] = [];
+
+      let extractRe: RegExp | null = null;
+      if (transform.extractPattern && transform.replacement) {
+        try { extractRe = new RegExp(transform.extractPattern); } catch { /* invalid */ }
+      }
+
+      for (const value of values) {
+        if (re.test(value)) {
+          let output: string | undefined;
+          if (extractRe) {
+            const m = value.match(extractRe);
+            if (m?.groups) {
+              output = transform.replacement.replace(
+                /\{\{(\w+)\}\}/g,
+                (_, name) => m.groups?.[name] ?? '',
+              );
+            }
+          }
+          items.push({ source: value, output });
+        }
+      }
+
+      return { matched: items.length, total: values.length, valid: true, items };
+    } catch {
+      return { matched: 0, total: values.length, valid: false, items: [] as { source: string; output?: string }[] };
+    }
+  }, [transform.sourceField, transform.matchPattern, transform.extractPattern, transform.replacement, preTransformRows]);
+
+  // Validate extract regex
+  const extractValid = useMemo(() => {
+    if (!transform.extractPattern) return true;
+    try {
+      new RegExp(transform.extractPattern);
+      return true;
+    } catch {
+      return false;
+    }
+  }, [transform.extractPattern]);
+
+  return (
+    <div className="p-3 rounded-(--radius-md) border border-border bg-surface space-y-2.5">
+      {/* Header row: label + actions */}
+      <div className="flex items-center gap-2">
+        <input
+          type="text"
+          value={transform.label ?? ''}
+          onChange={(e) => onChange({ label: e.target.value })}
+          placeholder={`Rule ${index + 1}`}
+          className="input text-xs flex-1"
+        />
+        <div className="flex items-center gap-1 shrink-0">
+          {total > 1 && (
+            <>
+              <button
+                onClick={() => onMove('up')}
+                disabled={index === 0}
+                className="btn-icon w-7 h-7 disabled:opacity-30"
+              >
+                <ChevronUp size={12} />
+              </button>
+              <button
+                onClick={() => onMove('down')}
+                disabled={index === total - 1}
+                className="btn-icon w-7 h-7 disabled:opacity-30"
+              >
+                <ChevronDown size={12} />
+              </button>
+            </>
+          )}
+          <button onClick={onRemove} className="btn-icon w-7 h-7 text-text-muted hover:text-expense">
+            <X size={12} />
+          </button>
+        </div>
+      </div>
+
+      {/* Source → Target */}
+      <div className="flex items-center gap-2">
+        <label className="text-xs text-text-muted w-14 shrink-0">Source</label>
+        <select
+          value={transform.sourceField}
+          onChange={(e) => onChange({ sourceField: e.target.value as TransformableField })}
+          className="select text-xs flex-1"
+        >
+          {TRANSFORMABLE_FIELDS.map((f) => (
+            <option key={f.value} value={f.value}>{f.label}</option>
+          ))}
+        </select>
+        <span className="text-text-muted text-xs">&rarr;</span>
+        <label className="text-xs text-text-muted w-14 shrink-0">Target</label>
+        <select
+          value={transform.targetField}
+          onChange={(e) => onChange({ targetField: e.target.value as TransformableField })}
+          className="select text-xs flex-1"
+        >
+          {TRANSFORMABLE_FIELDS.map((f) => (
+            <option key={f.value} value={f.value}>{f.label}</option>
+          ))}
+        </select>
+      </div>
+
+      {/* Match pattern */}
+      <div className="flex items-center gap-2">
+        <label className="text-xs text-text-muted w-14 shrink-0">Match</label>
+        <input
+          type="text"
+          value={transform.matchPattern}
+          onChange={(e) => onChange({ matchPattern: e.target.value })}
+          placeholder="Regex to test (e.g. ^TWINT)"
+          className={cn('input text-xs font-mono flex-1', !matchDetails.valid && 'border-expense')}
+        />
+        {transform.matchPattern && (
+          <>
+            <span
+              className={cn(
+                'text-xs shrink-0 tabular-nums whitespace-nowrap',
+                !matchDetails.valid
+                  ? 'text-expense'
+                  : matchDetails.matched > 0
+                    ? 'text-income'
+                    : 'text-text-muted',
+              )}
+            >
+              {!matchDetails.valid
+                ? 'invalid'
+                : `${matchDetails.matched}/${matchDetails.total}`}
+            </span>
+            {matchDetails.valid && matchDetails.matched > 0 && (
+              <button
+                type="button"
+                onClick={() => setShowMatches(!showMatches)}
+                className="text-xs text-text-muted hover:text-text transition-colors shrink-0 bg-transparent border-none cursor-pointer"
+              >
+                {showMatches ? 'Hide' : 'Show'}
+              </button>
+            )}
+          </>
+        )}
+      </div>
+
+      {/* Extract pattern */}
+      <div className="flex items-center gap-2">
+        <label className="text-xs text-text-muted w-14 shrink-0">Extract</label>
+        <input
+          type="text"
+          value={transform.extractPattern}
+          onChange={(e) => onChange({ extractPattern: e.target.value })}
+          placeholder="Regex with named groups: (?<merchant>.+)"
+          className={cn('input text-xs font-mono flex-1', !extractValid && 'border-expense')}
+        />
+        {!extractValid && (
+          <span className="text-xs text-expense shrink-0">invalid</span>
+        )}
+      </div>
+
+      {/* Replacement template */}
+      <div className="flex items-center gap-2">
+        <label className="text-xs text-text-muted w-14 shrink-0">Output</label>
+        <input
+          type="text"
+          value={transform.replacement}
+          onChange={(e) => onChange({ replacement: e.target.value })}
+          placeholder="Template: {{merchant}}"
+          className="input text-xs font-mono flex-1"
+        />
+      </div>
+
+      {/* Matched rows preview */}
+      {showMatches && matchDetails.items.length > 0 && (
+        <div className="rounded-(--radius-sm) border border-border overflow-hidden">
+          <div className="max-h-60 overflow-y-auto">
+            {matchDetails.items.slice(0, showAllMatches ? undefined : 5).map((item, i) => (
+              <div
+                key={i}
+                className="flex items-start gap-2 px-2.5 py-1.5 text-xs border-b border-border last:border-b-0 bg-bg/50"
+              >
+                <span className="text-text-secondary break-words min-w-0 flex-1 font-mono">{item.source}</span>
+                {item.output !== undefined && (
+                  <>
+                    <span className="text-text-muted shrink-0 mt-0.5">&rarr;</span>
+                    <span className="text-income break-words min-w-0 flex-1 font-mono">{item.output}</span>
+                  </>
+                )}
+              </div>
+            ))}
+          </div>
+          {matchDetails.items.length > 5 && (
+            <button
+              type="button"
+              onClick={() => setShowAllMatches(!showAllMatches)}
+              className="w-full px-2.5 py-1.5 text-xs text-text-muted hover:text-text bg-surface border-t border-border transition-colors cursor-pointer border-x-0 border-b-0"
+            >
+              {showAllMatches ? 'Show less' : `Show all ${matchDetails.items.length}`}
+            </button>
+          )}
+        </div>
+      )}
     </div>
   );
 }

@@ -85,7 +85,7 @@ export function Goals() {
                   <div>
                     <div className="text-[14px] font-medium text-text">{gp.goal.name}</div>
                     {gp.goal.deadline && (
-                      <div className="flex items-center gap-1 text-[11px] text-text-muted mt-0.5">
+                      <div className="flex items-center gap-1 text-xs text-text-muted mt-0.5">
                         <Calendar size={10} />
                         <span>Due {formatDate(gp.goal.deadline)}</span>
                       </div>
@@ -123,7 +123,7 @@ export function Goals() {
               {/* Linked Transactions */}
               {goalTransactions.length > 0 && (
                 <div className="border-t border-border pt-4">
-                  <div className="text-[11px] text-text-muted uppercase tracking-wider mb-3">
+                  <div className="text-xs text-text-muted uppercase tracking-wider mb-3">
                     Recent Contributions
                   </div>
                   <div className="flex flex-col">

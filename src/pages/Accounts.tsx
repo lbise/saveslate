@@ -13,7 +13,7 @@ export function Accounts() {
 
       {/* Net Worth */}
       <section style={{ marginBottom: '48px', marginTop: '-32px' }}>
-        <div className="text-[13px] text-text-muted mb-2">Net Worth</div>
+        <div className="text-sm text-text-muted mb-2">Net Worth</div>
         <div
           className="text-text"
           style={{
@@ -30,7 +30,7 @@ export function Accounts() {
       {/* Accounts List */}
       <div className="section-header">
         <h2 className="section-title">All Accounts</h2>
-        <span className="text-[11px] text-text-muted">{ACCOUNTS.length} accounts</span>
+        <span className="text-xs text-text-muted">{ACCOUNTS.length} accounts</span>
       </div>
 
       <div className="flex flex-col gap-3">
@@ -70,8 +70,8 @@ function AccountRow({ account }: AccountRowProps) {
             <Icon name={account.icon} size={18} style={{ color: account.color }} />
           </div>
           <div>
-            <div className="text-[13px] font-medium text-text">{account.name}</div>
-            <div className="text-[11px] text-text-muted capitalize">{account.type}</div>
+            <div className="text-[15px] font-medium text-text">{account.name}</div>
+            <div className="text-xs text-text-muted capitalize">{account.type}</div>
           </div>
         </div>
         <div
@@ -89,8 +89,8 @@ function AccountRow({ account }: AccountRowProps) {
       {recentTransactions.length > 0 && (
         <div className="border-t border-border pt-3 mt-1">
           <div className="flex items-center justify-between mb-2">
-            <span className="text-[11px] text-text-muted uppercase tracking-wider">Recent</span>
-            <span className="text-[11px] text-text-muted flex items-center gap-0.5 hover:text-text transition-colors cursor-pointer">
+            <span className="text-xs text-text-muted uppercase tracking-wider">Recent</span>
+            <span className="text-xs text-text-muted flex items-center gap-0.5 hover:text-text transition-colors cursor-pointer">
               View all <ArrowUpRight size={10} />
             </span>
           </div>
@@ -104,7 +104,7 @@ function AccountRow({ account }: AccountRowProps) {
                     <span className="text-[12px] text-text-secondary truncate max-w-[200px]">
                       {tx.description}
                     </span>
-                    <span className="text-[10px] text-text-muted">
+                    <span className="text-xs text-text-muted">
                       {formatRelativeDate(tx.date)}
                     </span>
                   </div>

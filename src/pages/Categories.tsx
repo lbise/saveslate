@@ -66,9 +66,9 @@ export function Categories() {
                 </div>
                 <div className="flex-1 min-w-0">
                   <div className="flex items-center justify-between mb-1">
-                    <span className="text-[13px] text-text">{cs.category.name}</span>
+                    <span className="text-[15px] text-text">{cs.category.name}</span>
                     <span
-                      className="text-[13px] text-text-secondary"
+                      className="text-[15px] text-text-secondary"
                       style={{ fontFamily: 'var(--font-display)' }}
                     >
                       {formatCurrency(cs.amount)}
@@ -81,7 +81,7 @@ export function Categories() {
                     />
                   </div>
                 </div>
-                <span className="text-[11px] text-text-muted w-10 text-right shrink-0">
+                <span className="text-xs text-text-muted w-10 text-right shrink-0">
                   {cs.percentage.toFixed(0)}%
                 </span>
               </div>
@@ -98,7 +98,7 @@ export function Categories() {
             <div className="section-header">
               <h2 className="section-title">{label}</h2>
               <div className="flex items-center gap-3">
-                <span className="text-[11px] text-text-muted">{typeCats.length} categories</span>
+                <span className="text-xs text-text-muted">{typeCats.length} categories</span>
                 <button
                   onClick={() => handleAdd(type)}
                   className="section-action"
@@ -119,13 +119,13 @@ export function Categories() {
                       <Icon name={cat.icon} size={16} className={TYPE_ICON_STYLES[cat.type].text} />
                     </div>
                     <div className="flex-1 min-w-0">
-                      <div className="text-[13px] text-text">{cat.name}</div>
+                      <div className="text-[15px] text-text">{cat.name}</div>
                       {spending ? (
-                        <div className="text-[11px] text-text-muted">
+                        <div className="text-xs text-text-muted">
                           {spending.transactionCount} transactions &middot; {formatCurrency(spending.amount)}
                         </div>
                       ) : (
-                        <div className="text-[11px] text-text-muted capitalize">{type}</div>
+                        <div className="text-xs text-text-muted capitalize">{type}</div>
                       )}
                     </div>
                     {!cat.isDefault && (

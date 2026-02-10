@@ -1,4 +1,4 @@
-import type { AmountFormat, CsvDelimiter, CsvParser, ColumnMapping, ParsedRow } from '../types';
+import type { AmountFormat, CsvDelimiter, CsvParser, ColumnMapping, FieldTransform, ParsedRow } from '../types';
 
 // ─── Raw CSV Parsing ─────────────────────────────────────────
 
@@ -247,18 +247,20 @@ export function applyParser(
     }
   }
 
+  const separator = parser.multiColumnSeparator ?? ' ';
+
   /** Read a single column value (first index). Used for numeric/date fields. */
   const readSingle = (row: string[], mapping: ColumnMapping): string =>
     (row[mapping.columnIndices[0]] ?? '').trim();
 
-  /** Read multiple columns and concatenate with space. Used for string fields. */
+  /** Read multiple columns and concatenate with separator. Used for string fields. */
   const readMulti = (row: string[], mapping: ColumnMapping): string =>
     mapping.columnIndices
       .map((i) => (row[i] ?? '').trim())
       .filter(Boolean)
-      .join(' ');
+      .join(separator);
 
-  return dataRows.map((row) => {
+  const rows = dataRows.map((row) => {
     const errors: string[] = [];
     const raw: Record<string, string> = {};
 
@@ -379,35 +381,89 @@ export function applyParser(
 
     return { description, amount, date, category, currency, raw, errors };
   });
+
+  // Apply field transforms if defined
+  if (parser.transforms?.length) {
+    for (const parsedRow of rows) {
+      applyTransforms(parsedRow, parser.transforms);
+    }
+  }
+
+  return rows;
+}
+
+// ─── Field Transforms ─────────────────────────────────────────
+
+/**
+ * Apply field transforms to a single parsed row (mutates in place).
+ * Transforms are evaluated in sequence; earlier transforms can affect later ones.
+ * Match regex is case-insensitive. Extract regex preserves original casing.
+ */
+export function applyTransforms(row: ParsedRow, transforms: FieldTransform[]): void {
+  for (const transform of transforms) {
+    // Skip incomplete transforms
+    if (!transform.matchPattern || !transform.extractPattern || !transform.replacement) continue;
+
+    const sourceValue = row[transform.sourceField] ?? '';
+    if (!sourceValue) continue;
+
+    try {
+      const matchRe = new RegExp(transform.matchPattern, 'i');
+      if (!matchRe.test(sourceValue)) continue;
+
+      const extractRe = new RegExp(transform.extractPattern);
+      const match = extractRe.exec(sourceValue);
+
+      if (match?.groups && Object.keys(match.groups).length > 0) {
+        const result = transform.replacement.replace(
+          /\{\{(\w+)\}\}/g,
+          (_, name: string) => match.groups?.[name] ?? '',
+        );
+
+        if (transform.targetField === 'description') {
+          row.description = result;
+        } else {
+          row[transform.targetField] = result || undefined;
+        }
+      } else {
+        const label = transform.label || 'unnamed';
+        row.errors.push(`Transform "${label}": extract pattern has no named group matches`);
+      }
+    } catch {
+      const label = transform.label || 'unnamed';
+      row.errors.push(`Transform "${label}": invalid regex`);
+    }
+  }
 }
 
 // ─── Validation Helpers ──────────────────────────────────────
 
 /**
  * Check if a set of column mappings has the required fields
- * for the given amount format.
+ * for the given amount format. Returns a map of field → error message.
  */
 export function validateMappings(
   mappings: ColumnMapping[],
   amountFormat: AmountFormat,
-): string[] {
-  const errors: string[] = [];
+): Map<string, string> {
+  const errors = new Map<string, string>();
 
   // Only consider mappings that actually have columns assigned
   const active = mappings.filter((m) => m.columnIndices.length > 0);
   const fields = new Set(active.map((m) => m.field));
 
-  if (!fields.has('description')) errors.push('Description column is required');
-  if (!fields.has('date')) errors.push('Date column is required');
+  if (!fields.has('description')) errors.set('description', 'Required');
+  if (!fields.has('date')) errors.set('date', 'Required');
 
   if (amountFormat === 'single') {
-    if (!fields.has('amount')) errors.push('Amount column is required');
+    if (!fields.has('amount')) errors.set('amount', 'Required');
   } else if (amountFormat === 'amount-type') {
-    if (!fields.has('amount')) errors.push('Amount column is required');
-    if (!fields.has('amountType')) errors.push('Debit/Credit indicator column is required');
+    if (!fields.has('amount')) errors.set('amount', 'Required');
+    if (!fields.has('amountType')) errors.set('amountType', 'Required');
   } else {
     if (!fields.has('debit') && !fields.has('credit')) {
-      errors.push('At least one of Debit or Credit column is required');
+      errors.set('debit', 'At least one of Debit/Credit required');
+      errors.set('credit', 'At least one of Debit/Credit required');
     }
   }
 

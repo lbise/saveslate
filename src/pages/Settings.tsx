@@ -16,8 +16,8 @@ function SettingRow({ icon: IconComp, label, description, children }: SettingRow
           <IconComp size={16} className="text-text-secondary" />
         </div>
         <div className="min-w-0">
-          <div className="text-[13px] font-medium text-text">{label}</div>
-          <div className="text-[11px] text-text-muted">{description}</div>
+          <div className="text-[15px] font-medium text-text">{label}</div>
+          <div className="text-xs text-text-muted">{description}</div>
         </div>
       </div>
       <div className="shrink-0">{children}</div>
@@ -41,7 +41,7 @@ export function Settings() {
             label="Language"
             description="Display language for the app"
           >
-            <select className="select w-auto text-[13px] py-2 px-3">
+            <select className="select w-auto text-sm py-2 px-3">
               <option>English</option>
               <option>Deutsch</option>
               <option>Fran&ccedil;ais</option>
@@ -52,7 +52,7 @@ export function Settings() {
             label="Currency"
             description="Default currency for transactions"
           >
-            <select className="select w-auto text-[13px] py-2 px-3">
+            <select className="select w-auto text-sm py-2 px-3">
               <option>CHF</option>
               <option>EUR</option>
               <option>USD</option>
@@ -81,7 +81,7 @@ export function Settings() {
             label="Data Privacy"
             description="All data is stored locally on your device"
           >
-            <span className="badge-income text-[11px]">Local Only</span>
+            <span className="badge-income text-xs">Local Only</span>
           </SettingRow>
         </div>
       </section>
@@ -97,8 +97,8 @@ export function Settings() {
               <Download size={16} className="text-text-secondary" />
             </div>
             <div>
-              <div className="text-[13px] text-text">Export Data</div>
-              <div className="text-[11px] text-text-muted">Download all transactions as CSV</div>
+              <div className="text-[15px] text-text">Export Data</div>
+              <div className="text-xs text-text-muted">Download all transactions as CSV</div>
             </div>
           </button>
           <button className="flex items-center gap-3 w-full p-3.5 bg-surface rounded-(--radius-md) text-left transition-colors duration-150 hover:bg-surface-hover cursor-pointer border-none">
@@ -106,8 +106,8 @@ export function Settings() {
               <Trash2 size={16} className="text-expense" />
             </div>
             <div>
-              <div className="text-[13px] text-expense">Clear All Data</div>
-              <div className="text-[11px] text-text-muted">Permanently delete all transactions and goals</div>
+              <div className="text-[15px] text-expense">Clear All Data</div>
+              <div className="text-xs text-text-muted">Permanently delete all transactions and goals</div>
             </div>
           </button>
         </div>
@@ -122,7 +122,7 @@ export function Settings() {
           >
             MeloMoney v0.1.0
           </div>
-          <div className="text-[11px] text-text-muted mt-1">
+          <div className="text-xs text-text-muted mt-1">
             Made with care in Switzerland
           </div>
         </div>
