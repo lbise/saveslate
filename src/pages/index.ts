@@ -5,3 +5,4 @@ export { Goals } from './Goals';
 export { Categories } from './Categories';
 export { Settings } from './Settings';
 export { Help } from './Help';
+export { Import } from './Import';

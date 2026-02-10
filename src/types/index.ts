@@ -79,3 +79,60 @@ export interface GoalProgress {
   percentage: number;
   transactionCount: number;
 }
+
+// ─── CSV Import Types ────────────────────────────────────────
+
+export type AmountFormat = 'single' | 'debit-credit';
+
+export type CsvDelimiter = ',' | ';' | '\t' | '|';
+
+export type TransactionField =
+  | 'description'
+  | 'amount'
+  | 'debit'
+  | 'credit'
+  | 'date'
+  | 'category'
+  | 'ignore';
+
+export const TRANSACTION_FIELD_LABELS: Record<TransactionField, string> = {
+  description: 'Description',
+  amount: 'Amount',
+  debit: 'Debit',
+  credit: 'Credit',
+  date: 'Date',
+  category: 'Category',
+  ignore: 'Ignore',
+};
+
+export interface ColumnMapping {
+  field: TransactionField;
+  /** Column indices from the CSV. String fields (description, category) support multiple. */
+  columnIndices: number[];
+}
+
+export interface CsvParser {
+  id: string;
+  name: string;
+  delimiter: CsvDelimiter;
+  hasHeaderRow: boolean;
+  skipRows: number;
+  headerPatterns: string[]; // regex patterns for matching headers (case-insensitive)
+  columnMappings: ColumnMapping[];
+  amountFormat: AmountFormat;
+  dateFormat: string; // e.g. "DD.MM.YYYY", "YYYY-MM-DD"
+  decimalSeparator: '.' | ',';
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface ParsedRow {
+  description: string;
+  amount: number;
+  date: string; // normalized to ISO
+  category?: string;
+  raw: Record<string, string>; // original row data
+  errors: string[]; // per-row parsing issues
+}
+
+export type ImportStep = 'upload' | 'parser' | 'preview' | 'complete';

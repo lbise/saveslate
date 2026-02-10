@@ -8,6 +8,7 @@ import {
   Categories,
   Settings,
   Help,
+  Import,
 } from "./pages";
 import {
   Design1,
@@ -42,6 +43,7 @@ function App() {
         <Route element={<AppLayout />}>
           <Route path="/" element={<Dashboard />} />
           <Route path="/transactions" element={<Transactions />} />
+          <Route path="/import" element={<Import />} />
           <Route path="/accounts" element={<Accounts />} />
           <Route path="/goals" element={<Goals />} />
           <Route path="/categories" element={<Categories />} />

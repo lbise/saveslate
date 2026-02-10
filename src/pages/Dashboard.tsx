@@ -1,5 +1,5 @@
 import { Upload, Target, Users, ArrowUpRight, Plus } from 'lucide-react';
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import { PageHeader } from '../components/layout/PageHeader';
 import { StatCard, TransactionItem, GoalCard, ActionCard } from '../components/ui';
 import {
@@ -11,6 +11,7 @@ import {
 import { formatCurrency } from '../lib/utils';
 
 export function Dashboard() {
+  const navigate = useNavigate();
   const transactions = getTransactionsWithDetails().slice(0, 6);
   const stats = getMonthlyStats();
   const goals = getGoalProgress();
@@ -24,7 +25,7 @@ export function Dashboard() {
           <Target size={16} />
           New Goal
         </button>
-        <button className="btn-primary">
+        <button className="btn-primary" onClick={() => navigate('/import')}>
           <Upload size={16} />
           Import
         </button>
@@ -98,7 +99,7 @@ export function Dashboard() {
 
           {/* Quick Actions */}
           <div className="flex flex-col gap-2 mt-5">
-            <ActionCard icon={Upload} label="Import transactions from CSV" />
+            <ActionCard icon={Upload} label="Import transactions from CSV" onClick={() => navigate('/import')} />
             <ActionCard icon={Target} label="Create a new savings goal" />
             <ActionCard icon={Users} label="Split an expense with others" />
           </div>

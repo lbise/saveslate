@@ -3,6 +3,7 @@ import {
   Search, ArrowUpDown, X, Upload, Plus, Target,
   MoreHorizontal, Pencil, Copy, Trash2, Users,
 } from 'lucide-react';
+import { useNavigate } from 'react-router-dom';
 import { PageHeader } from '../components/layout/PageHeader';
 import { Badge, CategoryPicker, Icon } from '../components/ui';
 import { getTransactionsWithDetails, getCategoryById, CATEGORIES } from '../data/mock';
@@ -38,6 +39,7 @@ const iconBoxStyles: Record<TransactionType, string> = {
 };
 
 export function Transactions() {
+  const navigate = useNavigate();
   // Mutable local state so inline actions (delete, duplicate) work
   const [transactions, setTransactions] = useState(() => getTransactionsWithDetails());
 
@@ -176,7 +178,7 @@ export function Transactions() {
           <Plus size={16} />
           New
         </button>
-        <button className="btn-primary">
+        <button className="btn-primary" onClick={() => navigate('/import')}>
           <Upload size={16} />
           Import
         </button>
