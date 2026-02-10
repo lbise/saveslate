@@ -34,12 +34,24 @@ export interface SplitInfo {
 export interface Transaction {
   id: string;
   amount: number;
+  currency: string;
   categoryId: string;
   description: string;
   date: string; // ISO date string
   accountId: string;
   goalId?: string; // Direct link to a goal this transaction contributes to
+  importBatchId?: string; // Links to an ImportBatch if imported from CSV
   split?: SplitInfo;
+}
+
+export interface ImportBatch {
+  id: string;
+  fileName: string;
+  importedAt: string; // ISO date string
+  parserName: string;
+  parserId: string;
+  rowCount: number;
+  accountId: string;
 }
 
 export interface Account {
@@ -82,7 +94,7 @@ export interface GoalProgress {
 
 // ─── CSV Import Types ────────────────────────────────────────
 
-export type AmountFormat = 'single' | 'debit-credit';
+export type AmountFormat = 'single' | 'debit-credit' | 'amount-type';
 
 export type CsvDelimiter = ',' | ';' | '\t' | '|';
 
@@ -91,8 +103,10 @@ export type TransactionField =
   | 'amount'
   | 'debit'
   | 'credit'
+  | 'amountType'
   | 'date'
   | 'category'
+  | 'currency'
   | 'ignore';
 
 export const TRANSACTION_FIELD_LABELS: Record<TransactionField, string> = {
@@ -100,8 +114,10 @@ export const TRANSACTION_FIELD_LABELS: Record<TransactionField, string> = {
   amount: 'Amount',
   debit: 'Debit',
   credit: 'Credit',
+  amountType: 'Debit/Credit indicator',
   date: 'Date',
   category: 'Category',
+  currency: 'Currency',
   ignore: 'Ignore',
 };
 
@@ -131,6 +147,7 @@ export interface ParsedRow {
   amount: number;
   date: string; // normalized to ISO
   category?: string;
+  currency?: string;
   raw: Record<string, string>; // original row data
   errors: string[]; // per-row parsing issues
 }

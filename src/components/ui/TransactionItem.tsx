@@ -47,7 +47,7 @@ export function TransactionItem({ description, type, amount, categoryName, goalN
 
       {/* Info */}
       <div className="flex-1 min-w-0">
-        <div className="text-[13px] text-text truncate">{description}</div>
+        <div className="text-[13px] text-text truncate" title={description}>{description}</div>
         <div className="text-[11px] text-text-muted flex items-center gap-2">
           <span>{categoryName}</span>
           {goalName && <span className="text-text-secondary">&middot; {goalName}</span>}

@@ -303,6 +303,39 @@ export function applyParser(
       } else {
         errors.push('No amount mapping');
       }
+    } else if (parser.amountFormat === 'amount-type') {
+      // Amount + indicator column (e.g. "Debit"/"Credit")
+      const amtMapping = mappingByField.get('amount');
+      const typeMapping = mappingByField.get('amountType');
+
+      if (amtMapping) {
+        const rawAmt = readSingle(row, amtMapping);
+        const parsed = parseAmount(rawAmt, parser.decimalSeparator);
+        if (parsed !== null) {
+          const absAmt = Math.abs(parsed);
+          if (typeMapping) {
+            const indicator = readSingle(row, typeMapping).toLowerCase();
+            const isCredit = /^(credit|cr|c|\+|income|in)$/.test(indicator);
+            const isDebit = /^(debit|db|d|-|expense|out)$/.test(indicator);
+            if (isCredit) {
+              amount = absAmt;
+            } else if (isDebit) {
+              amount = -absAmt;
+            } else {
+              // Unrecognized indicator — keep original sign, warn
+              amount = parsed;
+              errors.push(`Unknown indicator: "${readSingle(row, typeMapping)}"`);
+            }
+          } else {
+            amount = parsed;
+            errors.push('No debit/credit indicator mapping');
+          }
+        } else {
+          errors.push(`Invalid amount: "${rawAmt}"`);
+        }
+      } else {
+        errors.push('No amount mapping');
+      }
     } else {
       // debit-credit
       const debitMapping = mappingByField.get('debit');
@@ -340,7 +373,11 @@ export function applyParser(
     const catMapping = mappingByField.get('category');
     const category = catMapping ? readMulti(row, catMapping) || undefined : undefined;
 
-    return { description, amount, date, category, raw, errors };
+    // Extract currency (single column, optional)
+    const currMapping = mappingByField.get('currency');
+    const currency = currMapping ? readSingle(row, currMapping) || undefined : undefined;
+
+    return { description, amount, date, category, currency, raw, errors };
   });
 }
 
@@ -365,6 +402,9 @@ export function validateMappings(
 
   if (amountFormat === 'single') {
     if (!fields.has('amount')) errors.push('Amount column is required');
+  } else if (amountFormat === 'amount-type') {
+    if (!fields.has('amount')) errors.push('Amount column is required');
+    if (!fields.has('amountType')) errors.push('Debit/Credit indicator column is required');
   } else {
     if (!fields.has('debit') && !fields.has('credit')) {
       errors.push('At least one of Debit or Credit column is required');

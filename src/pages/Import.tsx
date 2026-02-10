@@ -15,8 +15,10 @@ import {
   extractHeadersAndData,
   applyParser,
 } from '../lib/csv';
+import { addTransactions, saveImportBatch } from '../lib/transaction-storage';
+import { getAccountById } from '../data/mock/accounts';
 import { formatCurrency } from '../lib/utils';
-import type { CsvParser, ImportStep, ParsedRow } from '../types';
+import type { CsvParser, ImportStep, ParsedRow, Transaction } from '../types';
 
 export function Import() {
   const navigate = useNavigate();
@@ -78,10 +80,40 @@ export function Import() {
   }, []);
 
   // ─── Step 3: Import confirmed ──────────────────────────────
-  // eslint-disable-next-line @typescript-eslint/no-unused-vars
-  const handleConfirmImport = useCallback((selectedRows: ParsedRow[], _accountId: string) => {
-    // In the future this will persist to database.
-    // For now, just calculate stats and show success.
+  const handleConfirmImport = useCallback((selectedRows: ParsedRow[], accountId: string) => {
+    if (!selectedParser) return;
+
+    // Resolve the account's currency for fallback
+    const account = getAccountById(accountId);
+    const fallbackCurrency = account?.currency ?? 'CHF';
+
+    // Create an import batch record
+    const batch = saveImportBatch({
+      fileName,
+      importedAt: new Date().toISOString(),
+      parserName: selectedParser.name,
+      parserId: selectedParser.id,
+      rowCount: selectedRows.length,
+      accountId,
+    });
+
+    // Convert parsed rows to Transaction objects
+    const now = Date.now();
+    const transactions: Transaction[] = selectedRows.map((row, idx) => ({
+      id: `txn-${now}-${idx}-${Math.random().toString(36).slice(2, 8)}`,
+      amount: row.amount,
+      currency: row.currency || fallbackCurrency,
+      categoryId: 'uncategorized',
+      description: row.description,
+      date: row.date,
+      accountId,
+      importBatchId: batch.id,
+    }));
+
+    // Persist to localStorage
+    addTransactions(transactions);
+
+    // Calculate stats for the success screen
     let income = 0;
     let expense = 0;
     for (const row of selectedRows) {
@@ -90,7 +122,7 @@ export function Import() {
     }
     setImportResult({ count: selectedRows.length, income, expense });
     setStep('complete');
-  }, []);
+  }, [selectedParser, fileName]);
 
   // ─── Navigation helpers ────────────────────────────────────
   const handleBackToUpload = useCallback(() => {

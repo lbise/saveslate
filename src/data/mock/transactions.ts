@@ -13,6 +13,7 @@ export const TRANSACTIONS: Transaction[] = [
   {
     id: 't1',
     amount: 12.5,
+    currency: 'CHF',
     categoryId: 'dining',
     description: 'Coffee & croissant at Starbucks',
     date: daysAgo(0),
@@ -23,6 +24,7 @@ export const TRANSACTIONS: Transaction[] = [
   {
     id: 't2',
     amount: 87.3,
+    currency: 'CHF',
     categoryId: 'groceries',
     description: 'Weekly groceries at Migros',
     date: daysAgo(1),
@@ -36,6 +38,7 @@ export const TRANSACTIONS: Transaction[] = [
   {
     id: 't3',
     amount: 25.0,
+    currency: 'CHF',
     categoryId: 'entertainment',
     description: 'Cinema tickets',
     date: daysAgo(1),
@@ -46,6 +49,7 @@ export const TRANSACTIONS: Transaction[] = [
   {
     id: 't4',
     amount: 45.0,
+    currency: 'CHF',
     categoryId: 'transport',
     description: 'SBB monthly pass top-up',
     date: daysAgo(2),
@@ -56,6 +60,7 @@ export const TRANSACTIONS: Transaction[] = [
   {
     id: 't5',
     amount: 7200.0,
+    currency: 'CHF',
     categoryId: 'salary',
     description: 'Monthly salary',
     date: daysAgo(3),
@@ -64,6 +69,7 @@ export const TRANSACTIONS: Transaction[] = [
   {
     id: 't6',
     amount: 156.8,
+    currency: 'CHF',
     categoryId: 'shopping',
     description: 'New running shoes at Ochsner Sport',
     date: daysAgo(3),
@@ -74,6 +80,7 @@ export const TRANSACTIONS: Transaction[] = [
   {
     id: 't7',
     amount: 32.5,
+    currency: 'CHF',
     categoryId: 'dining',
     description: 'Lunch with friends at Holy Cow',
     date: daysAgo(4),
@@ -89,6 +96,7 @@ export const TRANSACTIONS: Transaction[] = [
   {
     id: 't8',
     amount: 15.9,
+    currency: 'CHF',
     categoryId: 'subscriptions',
     description: 'Spotify Premium',
     date: daysAgo(5),
@@ -97,6 +105,7 @@ export const TRANSACTIONS: Transaction[] = [
   {
     id: 't9',
     amount: 23.9,
+    currency: 'CHF',
     categoryId: 'subscriptions',
     description: 'Netflix',
     date: daysAgo(5),
@@ -107,6 +116,7 @@ export const TRANSACTIONS: Transaction[] = [
   {
     id: 't10',
     amount: 65.0,
+    currency: 'CHF',
     categoryId: 'health',
     description: 'Pharmacy - vitamins & supplements',
     date: daysAgo(6),
@@ -117,6 +127,7 @@ export const TRANSACTIONS: Transaction[] = [
   {
     id: 't11',
     amount: 42.3,
+    currency: 'CHF',
     categoryId: 'groceries',
     description: 'Coop Pronto snacks',
     date: daysAgo(7),
@@ -125,6 +136,7 @@ export const TRANSACTIONS: Transaction[] = [
   {
     id: 't12',
     amount: 350.0,
+    currency: 'CHF',
     categoryId: 'freelance',
     description: 'Freelance web design project',
     date: daysAgo(7),
@@ -135,6 +147,7 @@ export const TRANSACTIONS: Transaction[] = [
   {
     id: 't13',
     amount: 89.0,
+    currency: 'CHF',
     categoryId: 'dining',
     description: 'Birthday dinner at Clouds',
     date: daysAgo(8),
@@ -145,6 +158,7 @@ export const TRANSACTIONS: Transaction[] = [
   {
     id: 't14',
     amount: 1450.0,
+    currency: 'CHF',
     categoryId: 'housing',
     description: 'Monthly rent',
     date: daysAgo(10),
@@ -158,6 +172,7 @@ export const TRANSACTIONS: Transaction[] = [
   {
     id: 't15',
     amount: 78.5,
+    currency: 'CHF',
     categoryId: 'groceries',
     description: 'Aldi weekly shop',
     date: daysAgo(10),
@@ -168,6 +183,7 @@ export const TRANSACTIONS: Transaction[] = [
   {
     id: 't16',
     amount: 200.0,
+    currency: 'CHF',
     categoryId: 'travel',
     description: 'Weekend trip to Lucerne - train tickets',
     date: daysAgo(12),
@@ -176,6 +192,7 @@ export const TRANSACTIONS: Transaction[] = [
   {
     id: 't17',
     amount: 145.0,
+    currency: 'CHF',
     categoryId: 'travel',
     description: 'Hotel in Lucerne',
     date: daysAgo(12),
@@ -186,6 +203,7 @@ export const TRANSACTIONS: Transaction[] = [
   {
     id: 't31',
     amount: 500.0,
+    currency: 'CHF',
     categoryId: 'savings',
     description: 'Transfer to Dream Fund',
     date: daysAgo(13),
@@ -197,6 +215,7 @@ export const TRANSACTIONS: Transaction[] = [
   {
     id: 't18',
     amount: 55.0,
+    currency: 'CHF',
     categoryId: 'gifts',
     description: 'Birthday gift for Maria',
     date: daysAgo(14),
@@ -207,6 +226,7 @@ export const TRANSACTIONS: Transaction[] = [
   {
     id: 't19',
     amount: 92.6,
+    currency: 'CHF',
     categoryId: 'groceries',
     description: 'Big Migros haul',
     date: daysAgo(15),
@@ -217,6 +237,7 @@ export const TRANSACTIONS: Transaction[] = [
   {
     id: 't20',
     amount: 39.9,
+    currency: 'CHF',
     categoryId: 'entertainment',
     description: 'Steam game sale',
     date: daysAgo(17),
@@ -227,6 +248,7 @@ export const TRANSACTIONS: Transaction[] = [
   {
     id: 't21',
     amount: 100.0,
+    currency: 'CHF',
     categoryId: 'gifts-received',
     description: 'Birthday money from grandma',
     date: daysAgo(18),
@@ -237,6 +259,7 @@ export const TRANSACTIONS: Transaction[] = [
   {
     id: 't32',
     amount: 300.0,
+    currency: 'CHF',
     categoryId: 'savings',
     description: 'Transfer to Dream Fund',
     date: daysAgo(20),
@@ -248,6 +271,7 @@ export const TRANSACTIONS: Transaction[] = [
   {
     id: 't22',
     amount: 28.5,
+    currency: 'CHF',
     categoryId: 'transport',
     description: 'Uber ride home',
     date: daysAgo(20),
@@ -258,6 +282,7 @@ export const TRANSACTIONS: Transaction[] = [
   {
     id: 't23',
     amount: 120.0,
+    currency: 'CHF',
     categoryId: 'health',
     description: 'Gym membership monthly',
     date: daysAgo(21),
@@ -268,6 +293,7 @@ export const TRANSACTIONS: Transaction[] = [
   {
     id: 't24',
     amount: 67.8,
+    currency: 'CHF',
     categoryId: 'groceries',
     description: 'Lidl groceries',
     date: daysAgo(23),
@@ -278,6 +304,7 @@ export const TRANSACTIONS: Transaction[] = [
   {
     id: 't33',
     amount: 800.0,
+    currency: 'CHF',
     categoryId: 'savings',
     description: 'Transfer to Dream Fund',
     date: daysAgo(25),
@@ -289,6 +316,7 @@ export const TRANSACTIONS: Transaction[] = [
   {
     id: 't25',
     amount: 245.0,
+    currency: 'CHF',
     categoryId: 'shopping',
     description: 'Winter jacket at Manor',
     date: daysAgo(25),
@@ -299,6 +327,7 @@ export const TRANSACTIONS: Transaction[] = [
   {
     id: 't26',
     amount: 18.9,
+    currency: 'CHF',
     categoryId: 'dining',
     description: 'Takeaway sushi',
     date: daysAgo(27),
@@ -309,6 +338,7 @@ export const TRANSACTIONS: Transaction[] = [
   {
     id: 't34',
     amount: 200.0,
+    currency: 'CHF',
     categoryId: 'savings',
     description: 'Transfer to Dream Fund',
     date: daysAgo(28),
@@ -320,6 +350,7 @@ export const TRANSACTIONS: Transaction[] = [
   {
     id: 't27',
     amount: 500.0,
+    currency: 'CHF',
     categoryId: 'housing',
     description: 'New desk chair',
     date: daysAgo(28),
@@ -330,6 +361,7 @@ export const TRANSACTIONS: Transaction[] = [
   {
     id: 't28',
     amount: 7200.0,
+    currency: 'CHF',
     categoryId: 'salary',
     description: 'Monthly salary',
     date: daysAgo(30),
@@ -338,6 +370,7 @@ export const TRANSACTIONS: Transaction[] = [
   {
     id: 't29',
     amount: 85.0,
+    currency: 'CHF',
     categoryId: 'subscriptions',
     description: 'Mobile phone plan',
     date: daysAgo(30),
@@ -346,6 +379,7 @@ export const TRANSACTIONS: Transaction[] = [
   {
     id: 't30',
     amount: 45.5,
+    currency: 'CHF',
     categoryId: 'groceries',
     description: 'Quick Denner run',
     date: daysAgo(30),

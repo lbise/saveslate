@@ -51,12 +51,16 @@ function getFieldRows(amountFormat: AmountFormat): { field: AssignableField; req
 
   if (amountFormat === 'single') {
     rows.push({ field: 'amount', required: true });
+  } else if (amountFormat === 'amount-type') {
+    rows.push({ field: 'amount', required: true });
+    rows.push({ field: 'amountType', required: true });
   } else {
     rows.push({ field: 'debit', required: true });
     rows.push({ field: 'credit', required: true });
   }
 
   rows.push({ field: 'category', required: false });
+  rows.push({ field: 'currency', required: false });
 
   return rows;
 }
@@ -322,6 +326,7 @@ export function ParserEditor({
             className="select text-xs"
           >
             <option value="single">Single column</option>
+            <option value="amount-type">Amount + indicator</option>
             <option value="debit-credit">Debit / Credit</option>
           </select>
         </div>
@@ -620,6 +625,11 @@ interface ParsedTransactionPreviewProps {
 function ParsedTransactionPreview({ rows, maxRows = 8 }: ParsedTransactionPreviewProps) {
   const displayRows = rows.slice(0, maxRows);
 
+  const hasCurrency = useMemo(
+    () => rows.some((r) => r.currency),
+    [rows],
+  );
+
   const errorCount = useMemo(
     () => rows.filter((r) => r.errors.length > 0).length,
     [rows],
@@ -646,6 +656,9 @@ function ParsedTransactionPreview({ rows, maxRows = 8 }: ParsedTransactionPrevie
               <th className="px-3 py-2.5 text-left text-text-muted font-medium">Date</th>
               <th className="px-3 py-2.5 text-left text-text-muted font-medium">Description</th>
               <th className="px-3 py-2.5 text-left text-text-muted font-medium">Category</th>
+              {hasCurrency && (
+                <th className="px-3 py-2.5 text-left text-text-muted font-medium">Currency</th>
+              )}
               <th className="px-3 py-2.5 text-right text-text-muted font-medium">Amount</th>
               <th className="px-3 py-2.5 text-center text-text-muted font-medium w-10">Status</th>
             </tr>
@@ -665,11 +678,16 @@ function ParsedTransactionPreview({ rows, maxRows = 8 }: ParsedTransactionPrevie
                     {row.date ? formatDate(row.date) : '\u2014'}
                   </td>
                   <td className="px-3 py-2.5 text-text">
-                    <span className="truncate block max-w-[300px]">{row.description || '\u2014'}</span>
+                    <span className="truncate block max-w-[300px]" title={row.description || undefined}>{row.description || '\u2014'}</span>
                   </td>
                   <td className="px-3 py-2.5 text-text-muted">
                     {row.category || '\u2014'}
                   </td>
+                  {hasCurrency && (
+                    <td className="px-3 py-2.5 text-text-muted">
+                      {row.currency || '\u2014'}
+                    </td>
+                  )}
                   <td
                     className={cn(
                       'px-3 py-2.5 text-right font-medium whitespace-nowrap',

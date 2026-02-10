@@ -411,7 +411,7 @@ function TransactionRow({
 
         <div className="flex-1 min-w-0">
           <div className="flex items-center gap-2">
-            <span className="text-[13px] text-text truncate">{transaction.description}</span>
+            <span className="text-[13px] text-text line-clamp-2" title={transaction.description}>{transaction.description}</span>
           </div>
           <div className="flex items-center gap-2 mt-1 flex-wrap">
             <div className="relative">
@@ -460,7 +460,7 @@ function TransactionRow({
             style={{ fontFamily: 'var(--font-display)' }}
           >
             {amountPrefix[type]}
-            {formatCurrency(transaction.amount)}
+            {formatCurrency(transaction.amount, transaction.currency)}
           </span>
 
           {/* Action button — mobile */}
@@ -484,7 +484,7 @@ function TransactionRow({
         {/* Description + meta */}
         <div className="flex-1 min-w-0">
           <div className="flex items-center gap-2">
-            <span className="text-[13px] text-text truncate">{transaction.description}</span>
+            <span className="text-[13px] text-text line-clamp-2" title={transaction.description}>{transaction.description}</span>
             {transaction.goal && (
               <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-full bg-surface text-[10px] text-text-secondary border border-border shrink-0">
                 <Target size={9} />

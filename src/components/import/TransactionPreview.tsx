@@ -21,6 +21,11 @@ export function TransactionPreview({ rows, onConfirm, onBack }: TransactionPrevi
   });
   const [accountId, setAccountId] = useState(ACCOUNTS[0]?.id ?? '');
 
+  const hasCurrency = useMemo(
+    () => rows.some((r) => r.currency),
+    [rows],
+  );
+
   const toggleRow = (idx: number) => {
     setSelected((prev) => {
       const next = new Set(prev);
@@ -124,6 +129,9 @@ export function TransactionPreview({ rows, onConfirm, onBack }: TransactionPrevi
               <th className="px-3 py-2.5 text-left text-text-muted font-medium">Date</th>
               <th className="px-3 py-2.5 text-left text-text-muted font-medium">Description</th>
               <th className="px-3 py-2.5 text-left text-text-muted font-medium">Category</th>
+              {hasCurrency && (
+                <th className="px-3 py-2.5 text-left text-text-muted font-medium">Currency</th>
+              )}
               <th className="px-3 py-2.5 text-right text-text-muted font-medium">Amount</th>
               <th className="px-3 py-2.5 text-center text-text-muted font-medium w-10">Status</th>
             </tr>
@@ -158,11 +166,16 @@ export function TransactionPreview({ rows, onConfirm, onBack }: TransactionPrevi
                     {row.date ? formatDate(row.date) : '—'}
                   </td>
                   <td className="px-3 py-2.5 text-text">
-                    <span className="truncate block max-w-[300px]">{row.description || '—'}</span>
+                    <span className="truncate block max-w-[300px]" title={row.description || undefined}>{row.description || '—'}</span>
                   </td>
                   <td className="px-3 py-2.5 text-text-muted">
                     {row.category || '—'}
                   </td>
+                  {hasCurrency && (
+                    <td className="px-3 py-2.5 text-text-muted">
+                      {row.currency || '—'}
+                    </td>
+                  )}
                   <td
                     className={cn(
                       'px-3 py-2.5 text-right font-medium whitespace-nowrap',

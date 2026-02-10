@@ -68,7 +68,7 @@ export function Dashboard() {
                 key={tx.id}
                 description={tx.description}
                 type={tx.category.type}
-                amount={formatCurrency(tx.amount)}
+                amount={formatCurrency(tx.amount, tx.currency)}
                 categoryName={tx.category.name}
                 goalName={tx.goal?.name}
                 isSplit={!!tx.split}
