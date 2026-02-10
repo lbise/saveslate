@@ -162,15 +162,15 @@ We use `@layer components` in `src/index.css` for reusable styles. **Prefer thes
 
 ### Available Classes
 
-| Category   | Classes                                                  |
-| ---------- | -------------------------------------------------------- |
-| Buttons    | `.btn`, `.btn-primary`, `.btn-secondary`, `.btn-ghost`, `.btn-icon` |
-| Forms      | `.input`, `.select`, `.label`                            |
-| Cards      | `.card`, `.card-hover`                                   |
-| Badges     | `.badge`, `.badge-accent`, `.badge-income`, `.badge-expense`, `.badge-muted` |
+| Category   | Classes                                                                             |
+| ---------- | ----------------------------------------------------------------------------------- |
+| Buttons    | `.btn`, `.btn-primary`, `.btn-secondary`, `.btn-ghost`, `.btn-icon`                 |
+| Forms      | `.input`, `.select`, `.label`                                                       |
+| Cards      | `.card`, `.card-hover`                                                              |
+| Badges     | `.badge`, `.badge-accent`, `.badge-income`, `.badge-expense`, `.badge-muted`        |
 | Typography | `.heading-1`, `.heading-2`, `.heading-3`, `.text-body`, `.text-muted`, `.text-link` |
-| Navigation | `.nav-link`, `.nav-link-active`                          |
-| Layout     | `.page-container`, `.divider`                            |
+| Navigation | `.nav-link`, `.nav-link-active`                                                     |
+| Layout     | `.page-container`, `.divider`                                                       |
 
 ### Tailwind v4 CSS Variable Syntax
 
@@ -182,11 +182,11 @@ Use the variable name directly without `var()`:
 
 ```tsx
 // ✅ CORRECT - Tailwind v4 syntax
-className="bg-bg-card text-text-primary border-accent"
-className="text-income bg-expense-bg"
+className = "bg-bg-card text-text-primary border-accent";
+className = "text-income bg-expense-bg";
 
 // ❌ WRONG - old var() syntax
-className="bg-[var(--color-bg-card)] text-[var(--color-text-primary)]"
+className = "bg-[var(--color-bg-card)] text-[var(--color-text-primary)]";
 ```
 
 #### Non-color values (shadows, radius, transitions)
@@ -195,10 +195,10 @@ Use `property-(--variable)` syntax:
 
 ```tsx
 // ✅ CORRECT
-className="rounded-(--radius-lg) shadow-(--shadow-md)"
+className = "rounded-lg shadow-(--shadow-md)";
 
 // ❌ WRONG
-className="rounded-[var(--radius-lg)]"
+className = "rounded-[var(--radius-lg)]";
 ```
 
 ### Adding New Styles

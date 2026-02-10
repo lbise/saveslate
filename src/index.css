@@ -37,8 +37,8 @@
   --sidebar-collapsed: 72px;
 
   /* Fonts */
-  --font-display: 'Sora', sans-serif;
-  --font-body: 'DM Sans', sans-serif;
+  --font-display: "Sora", sans-serif;
+  --font-body: "DM Sans", sans-serif;
 }
 
 /* ========================================
@@ -53,7 +53,7 @@
   .btn-ghost,
   .btn-icon {
     @apply inline-flex items-center justify-center gap-2
-           font-medium rounded-(--radius-sm) transition-all duration-150
+           font-medium rounded-sm transition-all duration-150
            focus:outline-none focus-visible:ring-2 focus-visible:ring-text focus-visible:ring-offset-2 focus-visible:ring-offset-bg
            disabled:opacity-50 disabled:cursor-not-allowed;
     font-size: 14px;
@@ -88,7 +88,7 @@
   /* ---------- Form Elements ---------- */
   .input,
   .select {
-    @apply w-full px-4 py-2.5 rounded-(--radius-md)
+    @apply w-full px-4 py-2.5 rounded-md
            bg-surface border border-border
            text-text placeholder:text-text-muted
            focus:outline-none focus:ring-1 focus:ring-text-muted focus:border-text-muted
@@ -106,7 +106,7 @@
   /* ---------- Cards ---------- */
   .card,
   .card-hover {
-    @apply bg-surface rounded-(--radius-lg) border border-border;
+    @apply bg-surface rounded-lg border border-border;
   }
 
   .card-hover {
@@ -182,7 +182,7 @@
   /* ---------- Navigation ---------- */
   .nav-link,
   .nav-link-active {
-    @apply flex items-center gap-3 rounded-(--radius-md)
+    @apply flex items-center gap-3 rounded-md
            text-sm transition-all duration-150;
     padding: 12px 16px;
   }
