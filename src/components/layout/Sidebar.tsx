@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { NavLink } from 'react-router-dom';
+import { NavLink, Link } from 'react-router-dom';
 import {
   LayoutDashboard,
   Receipt,
@@ -69,20 +69,22 @@ export function Sidebar({ collapsed, onToggleCollapse }: SidebarProps) {
         )}
       >
         {!isCollapsed && (
-          <span
-            className="text-lg font-semibold tracking-tight whitespace-nowrap overflow-hidden"
-            style={{ fontFamily: 'var(--font-display)', letterSpacing: '-0.03em' }}
+          <Link
+            to="/"
+            className="text-lg font-semibold tracking-tight whitespace-nowrap overflow-hidden text-text hover:text-text transition-colors"
+            style={{ fontFamily: 'var(--font-display)', letterSpacing: '-0.03em', textDecoration: 'none' }}
           >
             MeloMoney
-          </span>
+          </Link>
         )}
         {isCollapsed && (
-          <span
-            className="text-lg font-semibold"
-            style={{ fontFamily: 'var(--font-display)' }}
+          <Link
+            to="/"
+            className="text-lg font-semibold text-text hover:text-text transition-colors"
+            style={{ fontFamily: 'var(--font-display)', textDecoration: 'none' }}
           >
             M
-          </span>
+          </Link>
         )}
         {!isMobile && (
           <button
@@ -158,8 +160,8 @@ export function Sidebar({ collapsed, onToggleCollapse }: SidebarProps) {
         {!isCollapsed && (
           <>
             <div className="flex-1 min-w-0">
-              <div className="text-sm font-medium truncate">John Doe</div>
-              <div className="text-xs text-text-muted truncate">john@example.com</div>
+              <div className="text-body font-medium truncate">John Doe</div>
+              <div className="text-ui text-text-muted truncate">john@example.com</div>
             </div>
             <button
               className={cn(

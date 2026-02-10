@@ -33,7 +33,7 @@ export function Dashboard() {
 
       {/* Balance */}
       <section style={{ marginBottom: '56px' }}>
-        <div className="text-sm text-text-muted mb-2">Total Balance</div>
+        <div className="text-muted mb-2">Total Balance</div>
         <div
           className="text-text mb-7"
           style={{

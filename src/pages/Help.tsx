@@ -63,7 +63,7 @@ function FaqAccordion({ item }: { item: FaqItem }) {
         <div className="w-8 h-8 bg-surface rounded-(--radius-sm) flex items-center justify-center shrink-0 transition-colors duration-150 group-hover:bg-surface-hover">
           <item.icon size={14} className="text-text-secondary" />
         </div>
-        <span className="flex-1 text-[15px] font-medium text-text">
+        <span className="flex-1 text-body font-medium text-text">
           {item.question}
         </span>
         <ChevronDown
@@ -80,7 +80,7 @@ function FaqAccordion({ item }: { item: FaqItem }) {
           isOpen ? 'max-h-40 opacity-100 pb-4' : 'max-h-0 opacity-0',
         )}
       >
-        <p className="text-[15px] text-text-secondary leading-relaxed pl-11">
+        <p className="text-body leading-relaxed pl-11">
           {item.answer}
         </p>
       </div>
@@ -104,8 +104,8 @@ export function Help() {
               <BookOpen size={16} className="text-text-secondary" />
             </div>
             <div>
-              <div className="text-sm font-medium text-text">FAQ</div>
-              <div className="text-xs text-text-muted">Common questions answered</div>
+              <div className="text-body font-medium text-text">FAQ</div>
+              <div className="text-ui text-text-muted">Common questions answered</div>
             </div>
           </a>
           <a
@@ -116,8 +116,8 @@ export function Help() {
               <MessageCircle size={16} className="text-text-secondary" />
             </div>
             <div>
-              <div className="text-sm font-medium text-text">Contact Support</div>
-              <div className="text-xs text-text-muted">We usually reply within 24h</div>
+              <div className="text-body font-medium text-text">Contact Support</div>
+              <div className="text-ui text-text-muted">We usually reply within 24h</div>
             </div>
           </a>
         </div>
@@ -138,12 +138,12 @@ export function Help() {
       {/* Footer */}
       <section className="pt-4">
         <div className="text-center">
-          <div className="text-[12px] text-text-muted">
+          <div className="text-ui text-text-muted">
             Can&apos;t find what you need?
           </div>
           <a
             href="mailto:support@melomoney.ch"
-            className="text-[12px] text-text-secondary hover:text-text transition-colors mt-1 inline-block"
+            className="text-ui hover:text-text transition-colors mt-1 inline-block"
           >
             support@melomoney.ch
           </a>

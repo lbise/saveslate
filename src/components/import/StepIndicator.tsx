@@ -35,7 +35,7 @@ export function StepIndicator({ currentStep }: StepIndicatorProps) {
             <div className="flex items-center gap-2">
               <div
                 className={cn(
-                  'w-6 h-6 rounded-full flex items-center justify-center text-xs font-medium transition-colors duration-150',
+                  'w-6 h-6 rounded-full flex items-center justify-center text-ui font-medium transition-colors duration-150',
                   isCompleted && 'bg-text text-bg',
                   isCurrent && 'bg-text/15 text-text border border-text/30',
                   !isCompleted && !isCurrent && 'bg-surface text-text-muted border border-border',
@@ -45,7 +45,7 @@ export function StepIndicator({ currentStep }: StepIndicatorProps) {
               </div>
               <span
                 className={cn(
-                  'text-xs font-medium hidden sm:inline',
+                  'text-ui font-medium hidden sm:inline',
                   isCurrent ? 'text-text' : isCompleted ? 'text-text-secondary' : 'text-text-muted',
                 )}
               >

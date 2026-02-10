@@ -85,8 +85,8 @@ export function FileUpload({ onFileLoaded }: FileUploadProps) {
             <FileText size={20} className="text-income" />
           </div>
           <div className="flex-1 min-w-0">
-            <p className="text-sm text-text font-medium truncate">{fileName}</p>
-            <p className="text-xs text-text-muted mt-0.5">Ready to configure parser</p>
+            <p className="text-body text-text font-medium truncate">{fileName}</p>
+            <p className="text-ui text-text-muted mt-0.5">Ready to configure parser</p>
           </div>
           <button
             onClick={handleClear}
@@ -120,10 +120,10 @@ export function FileUpload({ onFileLoaded }: FileUploadProps) {
           <Upload size={20} className="text-text-muted" />
         </div>
         <div className="text-center">
-          <p className="text-sm text-text font-medium">
+          <p className="text-body text-text font-medium">
             Drop a CSV file here or click to browse
           </p>
-          <p className="text-xs text-text-muted mt-1">
+          <p className="text-ui text-text-muted mt-1">
             Supports .csv files up to 10 MB
           </p>
         </div>
@@ -136,7 +136,7 @@ export function FileUpload({ onFileLoaded }: FileUploadProps) {
         className="hidden"
       />
       {error && (
-        <p className="text-xs text-expense mt-3">{error}</p>
+        <p className="text-ui text-expense mt-3">{error}</p>
       )}
     </div>
   );

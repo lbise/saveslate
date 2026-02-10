@@ -168,9 +168,79 @@ We use `@layer components` in `src/index.css` for reusable styles. **Prefer thes
 | Forms      | `.input`, `.select`, `.label`                                                       |
 | Cards      | `.card`, `.card-hover`                                                              |
 | Badges     | `.badge`, `.badge-accent`, `.badge-income`, `.badge-expense`, `.badge-muted`        |
-| Typography | `.heading-1`, `.heading-2`, `.heading-3`, `.text-body`, `.text-muted`, `.text-link` |
+| Typography | `.heading-1`, `.heading-2`, `.heading-3`, `.section-title`, `.section-action`, `.text-body`, `.text-muted`, `.text-ui`, `.text-link`, `.label` |
 | Navigation | `.nav-link`, `.nav-link-active`                                                     |
 | Layout     | `.page-container`, `.divider`                                                       |
+
+### Typography System
+
+All text in TSX files **must** use semantic typography classes defined in `src/index.css`. This ensures font sizes are controlled from one place and never scattered across components.
+
+#### Semantic Classes
+
+| Class             | Size  | Color            | Use for                                           |
+| ----------------- | ----- | ---------------- | ------------------------------------------------- |
+| `.heading-1`      | 24px  | text-primary     | Page titles                                       |
+| `.heading-2`      | 18px  | text-primary     | Section headings                                  |
+| `.heading-3`      | 16px  | text-primary     | Sub-section headings                              |
+| `.section-title`  | 16px  | text-secondary   | Card/section titles (lighter weight than heading)  |
+| `.section-action` | 14px  | accent           | Section header action links                       |
+| `.text-body`      | 16px  | text-secondary   | Body content, descriptions, secondary values       |
+| `.text-muted`     | 16px  | text-muted       | Tertiary/muted content                            |
+| `.text-ui`        | 14px  | text-secondary   | Small UI: metadata, counts, timestamps, hints, table cells |
+| `.text-link`      | 14px  | accent           | Clickable link text                               |
+| `.label`          | 16px  | text-secondary   | Form labels                                       |
+| `.btn` (base)     | 15px  | (inherited)      | Button text (handled by btn classes)              |
+| `.badge` (base)   | 14px  | (inherited)      | Badge text (handled by badge classes)             |
+
+#### Banned Patterns in TSX Files
+
+**Never** use these inline Tailwind utilities for text sizing in TSX:
+
+```tsx
+// ❌ BANNED - raw size utilities on content text
+className="text-xs ..."        // banned entirely
+className="text-[12px] ..."    // banned - no custom px sizes
+className="text-[14px] ..."    // banned
+className="text-[15px] ..."    // banned
+className="text-sm text-text-secondary ..."  // use .text-ui or .text-body instead
+className="text-base text-text-muted ..."    // use .text-muted instead
+
+// ✅ CORRECT - semantic classes
+className="text-ui"                          // 14px secondary
+className="text-ui text-income"              // 14px with color override
+className="text-body"                        // 16px secondary
+className="text-body text-text-primary"      // 16px with color override
+className="text-muted"                       // 16px muted
+className="heading-2"                        // 18px heading
+```
+
+#### Allowed Overrides on Top of Semantic Classes
+
+You **may** combine semantic classes with:
+
+- **Color**: `text-ui text-income`, `text-body text-text-primary`
+- **Weight**: `text-ui font-medium`, `text-body font-semibold`
+- **Font**: `text-ui font-mono`
+- **Alignment**: `text-body text-right`
+
+You must **not** override the font size: no `text-sm`, `text-lg`, etc. alongside a semantic class.
+
+#### Exceptions
+
+- **Form `<input>` and `<select>` elements**: Use the `.input` / `.select` CSS classes, which handle their own sizing. If you need a raw size on a form element (e.g., inline filter), use `text-sm` directly — not `.text-ui`.
+- **Icon sizing**: `w-4 h-4`, `w-5 h-5` etc. on icons is fine.
+- **Tailwind responsive/state prefixes**: Not applicable to our typography classes since they are defined in CSS, not as Tailwind utilities.
+
+#### Verification Commands
+
+Run these to ensure no banned patterns exist:
+
+```bash
+rg 'text-xs' -g '*.tsx'              # must return zero results
+rg 'text-xs' -g '*.css'              # must return zero results
+rg 'text-\[1[0-9]px\]' -g '*.tsx'   # must return zero results
+```
 
 ### Tailwind v4 CSS Variable Syntax
 

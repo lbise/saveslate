@@ -14,6 +14,7 @@ import {
   parseRawCsv,
   extractHeadersAndData,
   applyParser,
+  extractIban,
 } from '../lib/csv';
 import { addTransactions, saveImportBatch } from '../lib/transaction-storage';
 import { getAccountById } from '../data/mock/accounts';
@@ -32,8 +33,8 @@ export function Import() {
   const [importResult, setImportResult] = useState<{ count: number; income: number; expense: number } | null>(null);
 
   // ─── Derived CSV data ──────────────────────────────────────
-  const { headers, dataRows } = useMemo(() => {
-    if (!rawContent) return { headers: [] as string[], dataRows: [] as string[][] };
+  const { headers, dataRows, skippedRows } = useMemo(() => {
+    if (!rawContent) return { headers: [] as string[], dataRows: [] as string[][], skippedRows: [] as string[][] };
 
     const delimiter = selectedParser?.delimiter ?? detectDelimiter(rawContent);
     const rawRows = parseRawCsv(rawContent, delimiter);
@@ -42,6 +43,12 @@ export function Import() {
 
     return extractHeadersAndData(rawRows, hasHeader, skip);
   }, [rawContent, selectedParser]);
+
+  // ─── Detected IBAN from skipped header rows ────────────────
+  const detectedIban = useMemo(() => {
+    if (!selectedParser?.ibanPattern || skippedRows.length === 0) return undefined;
+    return extractIban(skippedRows, selectedParser.ibanPattern) ?? undefined;
+  }, [skippedRows, selectedParser]);
 
   // ─── Parsed rows (only when parser is selected) ────────────
   const parsedRows: ParsedRow[] = useMemo(() => {
@@ -185,11 +192,11 @@ export function Import() {
           {/* File info */}
           <div className="flex items-center gap-3 px-1">
             <FileText size={16} className="text-text-muted" />
-            <span className="text-xs text-text-secondary">{fileName}</span>
-            <span className="text-xs text-text-muted">&middot; {dataRows.length} rows</span>
+            <span className="text-ui">{fileName}</span>
+            <span className="text-ui text-text-muted">&middot; {dataRows.length} rows</span>
             <button
               onClick={handleBackToUpload}
-              className="text-xs text-text-muted hover:text-text transition-colors ml-auto bg-transparent border-none cursor-pointer"
+              className="text-ui text-text-muted hover:text-text transition-colors ml-auto bg-transparent border-none cursor-pointer"
             >
               Change file
             </button>
@@ -218,13 +225,13 @@ export function Import() {
         <div className="space-y-6">
           <div className="flex items-center gap-3 px-1">
             <FileText size={16} className="text-text-muted" />
-            <span className="text-xs text-text-secondary">{fileName}</span>
-            <span className="text-xs text-text-muted">
+            <span className="text-ui">{fileName}</span>
+            <span className="text-ui text-text-muted">
               &middot; parser: {selectedParser.name}
             </span>
             <button
               onClick={handleBackToParser}
-              className="text-xs text-text-muted hover:text-text transition-colors ml-auto bg-transparent border-none cursor-pointer"
+              className="text-ui text-text-muted hover:text-text transition-colors ml-auto bg-transparent border-none cursor-pointer"
             >
               Change parser
             </button>
@@ -234,6 +241,7 @@ export function Import() {
             rows={parsedRows}
             onConfirm={handleConfirmImport}
             onBack={handleBackToParser}
+            detectedIban={detectedIban}
           />
         </div>
       )}
@@ -250,14 +258,14 @@ export function Import() {
           </p>
           <div className="flex gap-6 mb-8">
             <div className="text-center">
-              <p className="text-xs text-text-muted mb-1">Income</p>
-              <p className="text-sm text-income font-medium" style={{ fontFamily: 'var(--font-display)' }}>
+              <p className="text-ui text-text-muted mb-1">Income</p>
+              <p className="text-ui text-income font-medium" style={{ fontFamily: 'var(--font-display)' }}>
                 +{formatCurrency(importResult.income)}
               </p>
             </div>
             <div className="text-center">
-              <p className="text-xs text-text-muted mb-1">Expenses</p>
-              <p className="text-sm text-expense font-medium" style={{ fontFamily: 'var(--font-display)' }}>
+              <p className="text-ui text-text-muted mb-1">Expenses</p>
+              <p className="text-ui text-expense font-medium" style={{ fontFamily: 'var(--font-display)' }}>
                 -{formatCurrency(importResult.expense)}
               </p>
             </div>

@@ -1,4 +1,4 @@
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useEffect } from 'react';
 import { AlertTriangle, Check, X } from 'lucide-react';
 import { cn, formatCurrency, formatDate } from '../../lib/utils';
 import { ACCOUNTS } from '../../data/mock/accounts';
@@ -8,9 +8,10 @@ interface TransactionPreviewProps {
   rows: ParsedRow[];
   onConfirm: (selectedRows: ParsedRow[], accountId: string) => void;
   onBack: () => void;
+  detectedIban?: string;
 }
 
-export function TransactionPreview({ rows, onConfirm, onBack }: TransactionPreviewProps) {
+export function TransactionPreview({ rows, onConfirm, onBack, detectedIban }: TransactionPreviewProps) {
   const [selected, setSelected] = useState<Set<number>>(() => {
     // Pre-select all rows without errors
     const set = new Set<number>();
@@ -20,6 +21,21 @@ export function TransactionPreview({ rows, onConfirm, onBack }: TransactionPrevi
     return set;
   });
   const [accountId, setAccountId] = useState(ACCOUNTS[0]?.id ?? '');
+
+  // Auto-select account when IBAN is detected
+  useEffect(() => {
+    if (!detectedIban) return;
+    
+    const normalizedIban = detectedIban.replace(/\s/g, '');
+    const matchingAccount = ACCOUNTS.find(acc => {
+      if (!acc.iban) return false;
+      return acc.iban.replace(/\s/g, '') === normalizedIban;
+    });
+    
+    if (matchingAccount) {
+      setAccountId(matchingAccount.id);
+    }
+  }, [detectedIban]);
 
   const hasCurrency = useMemo(
     () => rows.some((r) => r.currency),
@@ -71,26 +87,26 @@ export function TransactionPreview({ rows, onConfirm, onBack }: TransactionPrevi
       <div className="flex flex-wrap items-center gap-6 px-1">
         <div className="flex items-center gap-2">
           <div className="w-2 h-2 rounded-full bg-text-secondary" />
-          <span className="text-xs text-text-muted">
+          <span className="text-ui text-text-muted">
             {stats.count} of {rows.length} selected
           </span>
         </div>
         <div className="flex items-center gap-2">
           <div className="w-2 h-2 rounded-full bg-income" />
-          <span className="text-xs text-text-muted">
+          <span className="text-ui text-text-muted">
             Income: <span className="text-text font-medium">{formatCurrency(stats.income)}</span>
           </span>
         </div>
         <div className="flex items-center gap-2">
           <div className="w-2 h-2 rounded-full bg-expense" />
-          <span className="text-xs text-text-muted">
+          <span className="text-ui text-text-muted">
             Expense: <span className="text-text font-medium">{formatCurrency(stats.expense)}</span>
           </span>
         </div>
         {stats.errorCount > 0 && (
           <div className="flex items-center gap-2">
             <AlertTriangle size={12} className="text-amber-400" />
-            <span className="text-xs text-amber-400">
+            <span className="text-ui text-amber-400">
               {stats.errorCount} with warnings
             </span>
           </div>
@@ -98,24 +114,32 @@ export function TransactionPreview({ rows, onConfirm, onBack }: TransactionPrevi
       </div>
 
       {/* Account selector */}
-      <div className="flex items-center gap-3">
-        <label className="label whitespace-nowrap">Import into</label>
-        <select
-          value={accountId}
-          onChange={(e) => setAccountId(e.target.value)}
-          className="select text-xs max-w-xs"
-        >
-          {ACCOUNTS.map((acc) => (
-            <option key={acc.id} value={acc.id}>
-              {acc.name} ({acc.type})
-            </option>
-          ))}
-        </select>
+      <div className="flex flex-col gap-1.5">
+        <div className="flex items-center gap-3">
+          <label className="label whitespace-nowrap">Import into</label>
+          <select
+            value={accountId}
+            onChange={(e) => setAccountId(e.target.value)}
+            className="select text-sm max-w-xs"
+          >
+            {ACCOUNTS.map((acc) => (
+              <option key={acc.id} value={acc.id}>
+                {acc.name} ({acc.type})
+              </option>
+            ))}
+          </select>
+        </div>
+        {detectedIban && (
+          <div className="flex items-center gap-1.5 text-ui text-text-muted pl-[calc(theme(spacing.14)+theme(spacing.3))]">
+            <span>IBAN detected:</span>
+            <span className="font-mono text-text-secondary">{detectedIban}</span>
+          </div>
+        )}
       </div>
 
       {/* Transaction table */}
       <div className="overflow-x-auto rounded-(--radius-md) border border-border">
-        <table className="w-full text-xs">
+        <table className="w-full text-sm">
           <thead>
             <tr className="border-b border-border bg-surface">
               <th className="px-3 py-2.5 text-left w-8">

@@ -18,7 +18,7 @@ export function CsvPreviewTable({
 
   return (
     <div className="overflow-x-auto rounded-(--radius-md) border border-border">
-      <table className="w-full text-xs">
+      <table className="w-full text-sm">
         <thead>
           <tr className="border-b border-border">
             {headers.map((h, i) => {
@@ -36,7 +36,7 @@ export function CsvPreviewTable({
                   <div className="flex flex-col gap-1">
                     <span className="truncate max-w-[160px]">{h}</span>
                     {highlight && (
-                      <span className="text-xs text-income font-normal">{highlight}</span>
+                      <span className="text-ui text-income font-normal">{highlight}</span>
                     )}
                   </div>
                 </th>
@@ -71,7 +71,7 @@ export function CsvPreviewTable({
         </tbody>
       </table>
       {rows.length > maxRows && (
-        <div className="px-3 py-2 text-xs text-text-muted bg-surface border-t border-border">
+        <div className="px-3 py-2 text-ui text-text-muted bg-surface border-t border-border">
           Showing {maxRows} of {rows.length} rows
         </div>
       )}

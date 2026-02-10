@@ -31,7 +31,7 @@ export function Goals() {
             >
               {goals.length}
             </span>
-            <span className="text-xs text-text-muted">Active Goals</span>
+            <span className="text-ui text-text-muted">Active Goals</span>
           </div>
         </div>
         <div className="flex items-center gap-3">
@@ -43,7 +43,7 @@ export function Goals() {
             >
               {formatCurrency(goals.reduce((sum, g) => sum + g.currentAmount, 0))}
             </span>
-            <span className="text-xs text-text-muted">Total Saved</span>
+            <span className="text-ui text-text-muted">Total Saved</span>
           </div>
         </div>
         <div className="flex items-center gap-3">
@@ -55,7 +55,7 @@ export function Goals() {
             >
               {formatCurrency(goals.reduce((sum, g) => sum + g.goal.targetAmount, 0))}
             </span>
-            <span className="text-xs text-text-muted">Total Target</span>
+            <span className="text-ui text-text-muted">Total Target</span>
           </div>
         </div>
       </div>
@@ -83,9 +83,9 @@ export function Goals() {
                     <Icon name={gp.goal.icon} size={20} style={{ color: gp.goal.color }} />
                   </div>
                   <div>
-                    <div className="text-[14px] font-medium text-text">{gp.goal.name}</div>
+                    <div className="text-body font-medium text-text">{gp.goal.name}</div>
                     {gp.goal.deadline && (
-                      <div className="flex items-center gap-1 text-xs text-text-muted mt-0.5">
+                      <div className="flex items-center gap-1 text-ui text-text-muted mt-0.5">
                         <Calendar size={10} />
                         <span>Due {formatDate(gp.goal.deadline)}</span>
                       </div>
@@ -111,7 +111,7 @@ export function Goals() {
               </div>
 
               {/* Amounts */}
-              <div className="flex justify-between text-[12px] mb-5">
+              <div className="flex justify-between text-ui mb-5">
                 <span className="text-text-secondary">
                   {formatCurrency(gp.currentAmount)} saved
                 </span>
@@ -123,7 +123,7 @@ export function Goals() {
               {/* Linked Transactions */}
               {goalTransactions.length > 0 && (
                 <div className="border-t border-border pt-4">
-                  <div className="text-xs text-text-muted uppercase tracking-wider mb-3">
+                  <div className="text-ui text-text-muted uppercase tracking-wider mb-3">
                     Recent Contributions
                   </div>
                   <div className="flex flex-col">
@@ -151,8 +151,8 @@ export function Goals() {
           <div className="w-12 h-12 bg-surface rounded-(--radius-lg) flex items-center justify-center mb-4">
             <Target size={24} className="text-text-muted" />
           </div>
-          <div className="text-sm text-text-secondary mb-1">No goals yet</div>
-          <div className="text-[12px] text-text-muted">
+          <div className="text-body mb-1">No goals yet</div>
+          <div className="text-ui text-text-muted">
             Create your first savings goal to get started.
           </div>
         </div>

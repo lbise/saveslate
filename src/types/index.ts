@@ -62,6 +62,7 @@ export interface Account {
   currency: string;
   color: string; // For visual distinction
   icon: string; // Lucide icon name
+  iban?: string; // Optional IBAN for matching imported transactions
 }
 
 // Computed/derived types
@@ -154,6 +155,8 @@ export interface CsvParser {
   /** Separator used when concatenating multiple CSV columns into one field. Defaults to ' '. */
   multiColumnSeparator?: string;
   transforms?: FieldTransform[];
+  /** Regex pattern with capture group to extract IBAN from skipped header rows (optional) */
+  ibanPattern?: string;
   createdAt: string;
   updatedAt: string;
 }

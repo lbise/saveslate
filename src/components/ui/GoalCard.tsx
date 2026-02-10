@@ -12,9 +12,9 @@ export function GoalCard({ name, percentage, currentAmount, targetAmount }: Goal
     <div className="p-4 bg-surface rounded-(--radius-lg) transition-colors duration-150 hover:bg-surface-hover cursor-pointer">
       {/* Header */}
       <div className="flex items-center justify-between mb-3">
-        <span className="text-[15px] font-medium text-text">{name}</span>
+        <span className="text-body font-medium text-text">{name}</span>
         <span
-          className="text-[15px] text-text-secondary"
+          className="text-body"
           style={{ fontFamily: 'var(--font-display)' }}
         >
           {percentage.toFixed(0)}%
@@ -30,7 +30,7 @@ export function GoalCard({ name, percentage, currentAmount, targetAmount }: Goal
       </div>
 
       {/* Amounts */}
-      <div className="flex justify-between text-xs text-text-muted">
+      <div className="flex justify-between text-ui text-text-muted">
         <span>{formatCurrency(currentAmount)}</span>
         <span>{formatCurrency(targetAmount)}</span>
       </div>

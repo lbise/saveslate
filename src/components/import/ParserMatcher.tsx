@@ -43,10 +43,10 @@ export function ParserMatcher({ headers, onSelectParser, onCreateNew }: ParserMa
               <Zap size={18} className="text-income" />
             </div>
             <div className="flex-1 min-w-0">
-              <p className="text-sm text-text font-medium">
+              <p className="text-body text-text font-medium">
                 Parser matched: {matchedParser.name}
               </p>
-              <p className="text-xs text-text-muted mt-1">
+              <p className="text-ui text-text-muted mt-1">
                 {matchScore}% header match
                 &middot; {matchedParser.columnMappings.filter((m) => m.field !== 'ignore').length} mapped columns
                 &middot; {matchedParser.amountFormat === 'single' ? 'Single amount' : 'Debit/Credit'} format
@@ -100,12 +100,12 @@ export function ParserMatcher({ headers, onSelectParser, onCreateNew }: ParserMa
           <FileQuestion size={18} className="text-expense" />
         </div>
         <div className="flex-1">
-          <p className="text-sm text-text font-medium">
+           <p className="text-body text-text font-medium">
             {hasExistingParsers
               ? 'No parser matches this file format'
               : 'No parsers configured yet'}
           </p>
-          <p className="text-xs text-text-muted mt-1">
+          <p className="text-ui text-text-muted mt-1">
             {hasExistingParsers
               ? 'Create a new parser or select an existing one to map the columns.'
               : 'Create a parser to define how columns in this CSV map to transaction fields.'}
@@ -174,8 +174,8 @@ function ParserDropdown({ parsers, excludeId, onSelect, onCreateNew, onClose }: 
               'hover:bg-surface-hover transition-colors',
             )}
           >
-            <span className="text-xs text-text font-medium">{parser.name}</span>
-            <span className="text-xs text-text-muted mt-0.5">
+            <span className="text-ui text-text font-medium">{parser.name}</span>
+            <span className="text-ui text-text-muted mt-0.5">
               {parser.columnMappings.filter((m) => m.field !== 'ignore').length} columns
               &middot; delimiter: {parser.delimiter === '\t' ? 'tab' : `"${parser.delimiter}"`}
             </span>
@@ -184,7 +184,7 @@ function ParserDropdown({ parsers, excludeId, onSelect, onCreateNew, onClose }: 
         {filtered.length > 0 && <div className="h-px bg-border mx-2 my-1" />}
         <button
           onClick={onCreateNew}
-          className="flex items-center gap-2 w-full px-3 py-2.5 text-left bg-transparent border-none cursor-pointer text-xs text-text-secondary hover:text-text hover:bg-surface-hover transition-colors"
+          className="flex items-center gap-2 w-full px-3 py-2.5 text-left bg-transparent border-none cursor-pointer text-ui hover:text-text hover:bg-surface-hover transition-colors"
         >
           <Plus size={12} />
           Create new parser

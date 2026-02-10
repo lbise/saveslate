@@ -83,20 +83,48 @@ export function parseRawCsv(text: string, delimiter: CsvDelimiter): string[][] {
 
 /**
  * Get headers and data rows from raw parsed data, considering parser config.
+ * Also returns skipped rows for metadata extraction (e.g., IBAN).
  */
 export function extractHeadersAndData(
   rawRows: string[][],
   hasHeaderRow: boolean,
   skipRows: number,
-): { headers: string[]; dataRows: string[][] } {
+): { headers: string[]; dataRows: string[][]; skippedRows: string[][] } {
+  const skippedRows = rawRows.slice(0, skipRows);
   const afterSkip = rawRows.slice(skipRows);
   if (hasHeaderRow && afterSkip.length > 0) {
-    return { headers: afterSkip[0], dataRows: afterSkip.slice(1) };
+    return { headers: afterSkip[0], dataRows: afterSkip.slice(1), skippedRows };
   }
   // Generate numeric headers
   const maxCols = Math.max(...afterSkip.map((r) => r.length), 0);
   const headers = Array.from({ length: maxCols }, (_, i) => `Column ${i + 1}`);
-  return { headers, dataRows: afterSkip };
+  return { headers, dataRows: afterSkip, skippedRows };
+}
+
+/**
+ * Extract IBAN from skipped header rows using a regex pattern with capture group.
+ * Returns the first match found in any cell of the skipped rows.
+ */
+export function extractIban(skippedRows: string[][], pattern: string): string | null {
+  if (!pattern || skippedRows.length === 0) return null;
+  
+  try {
+    const regex = new RegExp(pattern, 'i');
+    for (const row of skippedRows) {
+      for (const cell of row) {
+        const match = regex.exec(cell);
+        if (match && match[1]) {
+          // Return captured group, normalized (remove spaces for storage)
+          return match[1].trim();
+        }
+      }
+    }
+  } catch {
+    // Invalid regex — return null
+    return null;
+  }
+  
+  return null;
 }
 
 // ─── Parser Matching ─────────────────────────────────────────

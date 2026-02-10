@@ -56,7 +56,7 @@
            font-medium rounded-sm transition-all duration-150
            focus:outline-none focus-visible:ring-2 focus-visible:ring-text focus-visible:ring-offset-2 focus-visible:ring-offset-bg
            disabled:opacity-50 disabled:cursor-not-allowed;
-    font-size: 14px;
+    font-size: 15px;
     font-weight: 500;
   }
 
@@ -100,7 +100,7 @@
   }
 
   .label {
-    @apply text-sm font-medium text-text-secondary;
+    @apply text-base font-medium text-text-secondary;
   }
 
   /* ---------- Cards ---------- */
@@ -121,7 +121,7 @@
   .badge-expense,
   .badge-muted {
     @apply inline-flex items-center gap-1.5 px-2.5 py-1
-           rounded-full text-xs font-medium;
+           rounded-full text-sm font-medium;
   }
 
   .badge-accent {
@@ -155,28 +155,32 @@
 
   .heading-2 {
     font-family: var(--font-display);
-    font-size: 16px;
+    font-size: 18px;
     font-weight: 500;
     @apply text-text;
   }
 
   .heading-3 {
     font-family: var(--font-display);
-    font-size: 14px;
+    font-size: 16px;
     font-weight: 500;
     @apply text-text-secondary;
   }
 
-  .text-body {
+  .text-ui {
     @apply text-sm text-text-secondary;
   }
 
+  .text-body {
+    @apply text-base text-text-secondary;
+  }
+
   .text-muted {
-    @apply text-sm text-text-muted;
+    @apply text-base text-text-muted;
   }
 
   .text-link {
-    @apply text-xs text-text-muted hover:text-text inline-flex items-center gap-1 transition-colors duration-150;
+    @apply text-sm text-text-muted hover:text-text inline-flex items-center gap-1 transition-colors duration-150;
   }
 
   /* ---------- Navigation ---------- */
@@ -215,13 +219,13 @@
 
   .section-title {
     font-family: var(--font-display);
-    font-size: 14px;
+    font-size: 16px;
     font-weight: 500;
     @apply text-text-secondary;
   }
 
   .section-action {
-    @apply text-xs text-text-muted hover:text-text inline-flex items-center gap-1 transition-colors duration-150 bg-transparent border-none cursor-pointer;
+    @apply text-sm text-text-muted hover:text-text inline-flex items-center gap-1 transition-colors duration-150 bg-transparent border-none cursor-pointer;
   }
 }
 

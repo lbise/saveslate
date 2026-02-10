@@ -7,6 +7,7 @@ import {
   extractHeadersAndData,
   validateMappings,
   applyParser,
+  extractIban,
   DATE_FORMAT_PRESETS,
 } from '../../lib/csv';
 import { saveParser } from '../../lib/parser-storage';
@@ -92,13 +93,20 @@ export function ParserEditor({
   const [dateFormat, setDateFormat] = useState(existingParser?.dateFormat ?? 'DD.MM.YYYY');
   const [decimalSeparator, setDecimalSeparator] = useState<'.' | ','>(existingParser?.decimalSeparator ?? '.');
   const [multiColumnSeparator, setMultiColumnSeparator] = useState(existingParser?.multiColumnSeparator ?? ' ');
+  const [ibanPattern, setIbanPattern] = useState(existingParser?.ibanPattern ?? '');
 
   // ─── Parse raw CSV with current settings ───────────────────
   const rawRows = useMemo(() => parseRawCsv(rawContent, delimiter), [rawContent, delimiter]);
-  const { headers, dataRows } = useMemo(
+  const { headers, dataRows, skippedRows } = useMemo(
     () => extractHeadersAndData(rawRows, hasHeaderRow, skipRows),
     [rawRows, hasHeaderRow, skipRows],
   );
+
+  // ─── IBAN extraction preview ────────────────────────────────
+  const ibanPreview = useMemo(() => {
+    if (!ibanPattern || skippedRows.length === 0) return null;
+    return extractIban(skippedRows, ibanPattern);
+  }, [skippedRows, ibanPattern]);
 
   // ─── Field mappings: field → column indices ────────────────
   const [fieldMappings, setFieldMappings] = useState<Map<AssignableField, number[]>>(() => {
@@ -273,12 +281,13 @@ export function ParserEditor({
       dateFormat,
       decimalSeparator,
       multiColumnSeparator,
+      ibanPattern: ibanPattern.trim() || undefined,
       createdAt: '',
       updatedAt: '',
     } satisfies CsvParser;
 
     return applyParser(dataRows, headers, tempParser);
-  }, [columnMappings, dataRows, headers, delimiter, hasHeaderRow, skipRows, amountFormat, dateFormat, decimalSeparator, multiColumnSeparator]);
+  }, [columnMappings, dataRows, headers, delimiter, hasHeaderRow, skipRows, amountFormat, dateFormat, decimalSeparator, multiColumnSeparator, ibanPattern]);
 
   // ─── Save handler ──────────────────────────────────────────
   const handleSave = () => {
@@ -305,6 +314,7 @@ export function ParserEditor({
       decimalSeparator,
       multiColumnSeparator,
       transforms: transforms.filter((t) => t.matchPattern && t.extractPattern && t.replacement),
+      ibanPattern: ibanPattern.trim() || undefined,
     };
 
     const parser = saveParser(parserData);
@@ -318,7 +328,7 @@ export function ParserEditor({
         <h2 className="heading-2">
           {existingParser ? 'Edit parser' : 'Create new parser'}
         </h2>
-        <button onClick={onCancel} className="btn-ghost text-xs">
+        <button onClick={onCancel} className="btn-ghost">
           <RotateCcw size={14} />
           Back
         </button>
@@ -335,7 +345,7 @@ export function ParserEditor({
           className="input max-w-sm"
         />
         {nameError && name.length > 0 && (
-          <p className="text-xs text-expense mt-1">{nameError}</p>
+          <p className="text-ui text-expense mt-1">{nameError}</p>
         )}
       </div>
 
@@ -347,7 +357,7 @@ export function ParserEditor({
           <select
             value={delimiter}
             onChange={(e) => setDelimiter(e.target.value as CsvDelimiter)}
-            className="select text-xs"
+            className="select text-sm"
           >
             {DELIMITER_OPTIONS.map((d) => (
               <option key={d.value} value={d.value}>
@@ -363,7 +373,7 @@ export function ParserEditor({
           <button
             onClick={() => setHasHeaderRow(!hasHeaderRow)}
             className={cn(
-              'w-full px-3 py-2.5 rounded-(--radius-md) border text-xs font-medium transition-colors cursor-pointer',
+              'w-full px-3 py-2.5 rounded-(--radius-md) border text-sm font-medium transition-colors cursor-pointer',
               hasHeaderRow
                 ? 'bg-text/10 text-text border-text/20'
                 : 'bg-surface text-text-muted border-border hover:border-text-muted',
@@ -382,7 +392,8 @@ export function ParserEditor({
             max={20}
             value={skipRows}
             onChange={(e) => setSkipRows(Math.max(0, parseInt(e.target.value) || 0))}
-            className="input text-xs"
+            onFocus={(e) => e.target.select()}
+            className="input text-sm"
           />
         </div>
 
@@ -392,7 +403,7 @@ export function ParserEditor({
           <select
             value={amountFormat}
             onChange={(e) => setAmountFormat(e.target.value as AmountFormat)}
-            className="select text-xs"
+            className="select text-sm"
           >
             <option value="single">Single column</option>
             <option value="amount-type">Amount + indicator</option>
@@ -406,7 +417,7 @@ export function ParserEditor({
           <select
             value={dateFormat}
             onChange={(e) => setDateFormat(e.target.value)}
-            className="select text-xs"
+            className="select text-sm"
           >
             {DATE_FORMAT_PRESETS.map((f) => (
               <option key={f.value} value={f.value}>
@@ -422,13 +433,39 @@ export function ParserEditor({
           <select
             value={decimalSeparator}
             onChange={(e) => setDecimalSeparator(e.target.value as '.' | ',')}
-            className="select text-xs"
+            className="select text-sm"
           >
             <option value=".">Dot (.)</option>
             <option value=",">Comma (,)</option>
           </select>
         </div>
       </div>
+
+      {/* IBAN pattern — only when skipRows > 0 */}
+      {skipRows > 0 && (
+        <div className="flex flex-col gap-2">
+          <div className="flex items-center gap-3">
+            <label className="label whitespace-nowrap">IBAN pattern</label>
+            <input
+              type="text"
+              value={ibanPattern}
+              onChange={(e) => setIbanPattern(e.target.value)}
+              placeholder="e.g. IBAN[:\\s]*([\\w\\s]+)"
+              className="input text-sm flex-1 max-w-md font-mono"
+            />
+          </div>
+          {ibanPreview ? (
+            <div className="flex items-center gap-1.5 text-ui text-text-muted pl-[calc(theme(spacing.28)+theme(spacing.3))]">
+              <span>Detected:</span>
+              <span className="font-mono text-text-secondary">{ibanPreview}</span>
+            </div>
+          ) : ibanPattern ? (
+            <div className="flex items-center gap-1.5 text-ui text-text-muted pl-[calc(theme(spacing.28)+theme(spacing.3))]">
+              <span>No match found in skipped rows</span>
+            </div>
+          ) : null}
+        </div>
+      )}
 
       {/* Field mapping (field-centric) */}
       <div>
@@ -444,11 +481,11 @@ export function ParserEditor({
             ([f, indices]) => MULTI_COLUMN_FIELDS.has(f) && indices.length >= 2,
           ) && (
             <div className="flex items-center gap-2">
-              <span className="text-xs text-text-muted shrink-0">Merge separator</span>
+              <span className="text-ui text-text-muted shrink-0">Merge separator</span>
               <select
                 value={multiColumnSeparator}
                 onChange={(e) => setMultiColumnSeparator(e.target.value)}
-                className="select text-xs w-auto"
+                className="select text-sm w-auto"
               >
                 {SEPARATOR_OPTIONS.map((s) => (
                   <option key={s.value} value={s.value}>
@@ -493,7 +530,7 @@ export function ParserEditor({
               Clean up or extract data using regex
             </span>
           </label>
-          <button onClick={addTransform} className="btn-ghost text-xs">
+          <button onClick={addTransform} className="btn-ghost">
             <Plus size={14} />
             Add rule
           </button>
@@ -517,7 +554,7 @@ export function ParserEditor({
         )}
 
         {transforms.length === 0 && (
-          <p className="text-xs text-text-muted">
+          <p className="text-ui text-text-muted">
             No transforms configured. Use transforms to clean up descriptions or extract fields from messy CSV data.
           </p>
         )}
@@ -637,19 +674,19 @@ function FieldMappingRow({
     >
       {/* Field label */}
       <div className="w-28 shrink-0">
-        <span className="text-xs font-medium text-text">
+        <span className="text-ui font-medium text-text">
           {TRANSACTION_FIELD_LABELS[field]}
         </span>
         {required ? (
           <span className="text-expense ml-0.5">*</span>
         ) : (
-          <span className="text-xs text-text-muted ml-1.5">optional</span>
+          <span className="text-ui text-text-muted ml-1.5">optional</span>
         )}
         {isMulti && (
-          <p className="text-xs text-text-muted mt-0.5">multi-column</p>
+          <p className="text-ui text-text-muted mt-0.5">multi-column</p>
         )}
         {error && (
-          <p className="text-xs text-expense mt-0.5">{error}</p>
+          <p className="text-ui text-expense mt-0.5">{error}</p>
         )}
       </div>
 
@@ -672,12 +709,12 @@ function FieldMappingRow({
             )}
           >
             {assignedIndices.length === 0 && (
-              <span className="text-xs text-text-muted">Select column{isMulti ? 's' : ''}...</span>
+              <span className="text-ui text-text-muted">Select column{isMulti ? 's' : ''}...</span>
             )}
             {assignedIndices.map((colIdx) => (
               <span
                 key={colIdx}
-                className="inline-flex items-center gap-1 px-2 py-0.5 rounded-(--radius-sm) bg-text/10 text-xs text-text"
+                className="inline-flex items-center gap-1 px-2 py-0.5 rounded-(--radius-sm) bg-text/10 text-ui text-text"
               >
                 <span className="truncate max-w-[120px]">{headers[colIdx] ?? `Col ${colIdx + 1}`}</span>
                 <button
@@ -721,15 +758,15 @@ function FieldMappingRow({
                     )}
                   >
                     <span className="flex items-center gap-2">
-                      <span className={cn('text-xs', alreadyAssigned ? 'text-text font-medium' : 'text-text')}>
+                      <span className={cn('text-ui', alreadyAssigned ? 'text-text font-medium' : 'text-text')}>
                         {header}
                       </span>
                       {alreadyAssigned && isMulti && (
-                        <span className="text-xs text-income">selected</span>
+                        <span className="text-ui text-income">selected</span>
                       )}
                     </span>
                     {sampleValue && (
-                      <span className="text-xs text-text-muted truncate mt-0.5 max-w-full">
+                      <span className="text-ui text-text-muted truncate mt-0.5 max-w-full">
                         {sampleValue}
                       </span>
                     )}
@@ -768,18 +805,18 @@ function ParsedTransactionPreview({ rows, maxRows = 8 }: ParsedTransactionPrevie
     <div>
       <div className="flex items-center gap-3 mb-2">
         <label className="label">Parsed preview</label>
-        <span className="text-xs text-text-muted">
+        <span className="text-ui text-text-muted">
           {rows.length} row{rows.length !== 1 ? 's' : ''}
         </span>
         {errorCount > 0 && (
-          <span className="flex items-center gap-1 text-xs text-amber-400">
+          <span className="flex items-center gap-1 text-ui text-amber-400">
             <AlertTriangle size={11} />
             {errorCount} with warnings
           </span>
         )}
       </div>
       <div className="overflow-x-auto rounded-(--radius-md) border border-border">
-        <table className="w-full text-xs">
+        <table className="w-full text-sm">
           <thead>
             <tr className="border-b border-border bg-surface">
               <th className="px-3 py-2.5 text-left text-text-muted font-medium">Date</th>
@@ -841,7 +878,7 @@ function ParsedTransactionPreview({ rows, maxRows = 8 }: ParsedTransactionPrevie
           </tbody>
         </table>
         {rows.length > maxRows && (
-          <div className="px-3 py-2 text-xs text-text-muted bg-surface border-t border-border">
+          <div className="px-3 py-2 text-ui text-text-muted bg-surface border-t border-border">
             Showing {maxRows} of {rows.length} rows
           </div>
         )}
@@ -942,7 +979,7 @@ function TransformRuleEditor({
           value={transform.label ?? ''}
           onChange={(e) => onChange({ label: e.target.value })}
           placeholder={`Rule ${index + 1}`}
-          className="input text-xs flex-1"
+          className="input text-sm flex-1"
         />
         <div className="flex items-center gap-1 shrink-0">
           {total > 1 && (
@@ -971,22 +1008,22 @@ function TransformRuleEditor({
 
       {/* Source → Target */}
       <div className="flex items-center gap-2">
-        <label className="text-xs text-text-muted w-14 shrink-0">Source</label>
+        <label className="text-ui text-text-muted w-14 shrink-0">Source</label>
         <select
           value={transform.sourceField}
           onChange={(e) => onChange({ sourceField: e.target.value as TransformableField })}
-          className="select text-xs flex-1"
+          className="select text-sm flex-1"
         >
           {TRANSFORMABLE_FIELDS.map((f) => (
             <option key={f.value} value={f.value}>{f.label}</option>
           ))}
         </select>
-        <span className="text-text-muted text-xs">&rarr;</span>
-        <label className="text-xs text-text-muted w-14 shrink-0">Target</label>
+        <span className="text-ui text-text-muted">&rarr;</span>
+        <label className="text-ui text-text-muted w-14 shrink-0">Target</label>
         <select
           value={transform.targetField}
           onChange={(e) => onChange({ targetField: e.target.value as TransformableField })}
-          className="select text-xs flex-1"
+          className="select text-sm flex-1"
         >
           {TRANSFORMABLE_FIELDS.map((f) => (
             <option key={f.value} value={f.value}>{f.label}</option>
@@ -996,19 +1033,19 @@ function TransformRuleEditor({
 
       {/* Match pattern */}
       <div className="flex items-center gap-2">
-        <label className="text-xs text-text-muted w-14 shrink-0">Match</label>
+        <label className="text-ui text-text-muted w-14 shrink-0">Match</label>
         <input
           type="text"
           value={transform.matchPattern}
           onChange={(e) => onChange({ matchPattern: e.target.value })}
           placeholder="Regex to test (e.g. ^TWINT)"
-          className={cn('input text-xs font-mono flex-1', !matchDetails.valid && 'border-expense')}
+          className={cn('input text-sm font-mono flex-1', !matchDetails.valid && 'border-expense')}
         />
         {transform.matchPattern && (
           <>
             <span
               className={cn(
-                'text-xs shrink-0 tabular-nums whitespace-nowrap',
+                'text-ui shrink-0 tabular-nums whitespace-nowrap',
                 !matchDetails.valid
                   ? 'text-expense'
                   : matchDetails.matched > 0
@@ -1024,7 +1061,7 @@ function TransformRuleEditor({
               <button
                 type="button"
                 onClick={() => setShowMatches(!showMatches)}
-                className="text-xs text-text-muted hover:text-text transition-colors shrink-0 bg-transparent border-none cursor-pointer"
+                className="text-ui text-text-muted hover:text-text transition-colors shrink-0 bg-transparent border-none cursor-pointer"
               >
                 {showMatches ? 'Hide' : 'Show'}
               </button>
@@ -1035,28 +1072,28 @@ function TransformRuleEditor({
 
       {/* Extract pattern */}
       <div className="flex items-center gap-2">
-        <label className="text-xs text-text-muted w-14 shrink-0">Extract</label>
+        <label className="text-ui text-text-muted w-14 shrink-0">Extract</label>
         <input
           type="text"
           value={transform.extractPattern}
           onChange={(e) => onChange({ extractPattern: e.target.value })}
           placeholder="Regex with named groups: (?<merchant>.+)"
-          className={cn('input text-xs font-mono flex-1', !extractValid && 'border-expense')}
+          className={cn('input text-sm font-mono flex-1', !extractValid && 'border-expense')}
         />
         {!extractValid && (
-          <span className="text-xs text-expense shrink-0">invalid</span>
+          <span className="text-ui text-expense shrink-0">invalid</span>
         )}
       </div>
 
       {/* Replacement template */}
       <div className="flex items-center gap-2">
-        <label className="text-xs text-text-muted w-14 shrink-0">Output</label>
+        <label className="text-ui text-text-muted w-14 shrink-0">Output</label>
         <input
           type="text"
           value={transform.replacement}
           onChange={(e) => onChange({ replacement: e.target.value })}
           placeholder="Template: {{merchant}}"
-          className="input text-xs font-mono flex-1"
+          className="input text-sm font-mono flex-1"
         />
       </div>
 
@@ -1067,7 +1104,7 @@ function TransformRuleEditor({
             {matchDetails.items.slice(0, showAllMatches ? undefined : 5).map((item, i) => (
               <div
                 key={i}
-                className="flex items-start gap-2 px-2.5 py-1.5 text-xs border-b border-border last:border-b-0 bg-bg/50"
+                className="flex items-start gap-2 px-2.5 py-1.5 text-sm border-b border-border last:border-b-0 bg-bg/50"
               >
                 <span className="text-text-secondary break-words min-w-0 flex-1 font-mono">{item.source}</span>
                 {item.output !== undefined && (
@@ -1083,7 +1120,7 @@ function TransformRuleEditor({
             <button
               type="button"
               onClick={() => setShowAllMatches(!showAllMatches)}
-              className="w-full px-2.5 py-1.5 text-xs text-text-muted hover:text-text bg-surface border-t border-border transition-colors cursor-pointer border-x-0 border-b-0"
+              className="w-full px-2.5 py-1.5 text-ui text-text-muted hover:text-text bg-surface border-t border-border transition-colors cursor-pointer border-x-0 border-b-0"
             >
               {showAllMatches ? 'Show less' : `Show all ${matchDetails.items.length}`}
             </button>
