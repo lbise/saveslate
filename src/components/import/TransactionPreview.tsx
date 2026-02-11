@@ -130,9 +130,6 @@ export function TransactionPreview({ rows, onConfirm, onBack, detectedIdentifier
               className="input text-sm max-w-xs"
             />
           </div>
-          <div className="text-ui text-text-muted pl-[calc(theme(spacing.14)+theme(spacing.3))]">
-            Optional — defaults to filename if left empty
-          </div>
         </div>
 
         <div className="flex flex-col gap-1.5">

@@ -125,6 +125,7 @@ export function Import() {
       date: row.date,
       accountId,
       importBatchId: batch.id,
+      rawData: row.raw,
     }));
 
     // Persist to localStorage
