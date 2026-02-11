@@ -96,7 +96,7 @@ export function Import() {
   }, []);
 
   // ─── Step 3: Import confirmed ──────────────────────────────
-  const handleConfirmImport = useCallback((selectedRows: ParsedRow[], accountId: string) => {
+  const handleConfirmImport = useCallback((selectedRows: ParsedRow[], accountId: string, importName: string) => {
     if (!selectedParser) return;
 
     // Resolve the account's currency for fallback
@@ -106,6 +106,7 @@ export function Import() {
     // Create an import batch record
     const batch = saveImportBatch({
       fileName,
+      name: importName || fileName, // Use importName if provided, otherwise fileName
       importedAt: new Date().toISOString(),
       parserName: selectedParser.name,
       parserId: selectedParser.id,
@@ -256,6 +257,7 @@ export function Import() {
             onConfirm={handleConfirmImport}
             onBack={handleBackToParser}
             detectedIdentifier={detectedIdentifier}
+            fileName={fileName}
           />
         </div>
       )}

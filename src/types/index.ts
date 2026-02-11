@@ -47,6 +47,7 @@ export interface Transaction {
 export interface ImportBatch {
   id: string;
   fileName: string;
+  name?: string; // Optional custom name for the import
   importedAt: string; // ISO date string
   parserName: string;
   parserId: string;

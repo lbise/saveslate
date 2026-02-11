@@ -1,5 +1,5 @@
 import { useState, useMemo, useCallback, useRef, useEffect } from 'react';
-import { Save, RotateCcw, X, ChevronDown, ChevronUp, ChevronLeft, ChevronRight, Plus, AlertTriangle, Check } from 'lucide-react';
+import { Save, RotateCcw, X, ChevronDown, ChevronUp, ChevronLeft, ChevronRight, Plus, AlertTriangle, Check, Pencil } from 'lucide-react';
 import { cn, formatCurrency, formatDate } from '../../lib/utils';
 import {
   detectDelimiter,
@@ -329,7 +329,8 @@ export function ParserEditor({
     <div className="space-y-6">
       {/* Header */}
       <div className="flex items-center justify-between">
-        <h2 className="heading-2">
+        <h2 className="heading-2 flex items-center gap-2">
+          {existingParser ? <Pencil size={18} /> : <Plus size={18} />}
           {existingParser ? 'Edit parser' : 'Create new parser'}
         </h2>
         <button onClick={onCancel} className="btn-ghost">
@@ -391,11 +392,20 @@ export function ParserEditor({
         <div>
           <label className="label mb-1.5 block">Skip rows</label>
           <input
-            type="number"
-            min={0}
-            max={20}
+            type="text"
+            inputMode="numeric"
             value={skipRows}
-            onChange={(e) => setSkipRows(Math.max(0, parseInt(e.target.value) || 0))}
+            onChange={(e) => {
+              const val = e.target.value;
+              if (val === '') {
+                setSkipRows(0);
+              } else {
+                const parsed = parseInt(val, 10);
+                if (!isNaN(parsed)) {
+                  setSkipRows(Math.max(0, Math.min(99, parsed)));
+                }
+              }
+            }}
             onFocus={(e) => e.target.select()}
             className="input text-sm"
           />

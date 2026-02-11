@@ -6,14 +6,15 @@ import type { ParsedRow } from '../../types';
 
 interface TransactionPreviewProps {
   rows: ParsedRow[];
-  onConfirm: (selectedRows: ParsedRow[], accountId: string) => void;
+  onConfirm: (selectedRows: ParsedRow[], accountId: string, importName: string) => void;
   onBack: () => void;
   detectedIdentifier?: string;
+  fileName?: string;
 }
 
 const PREVIEW_PAGE_SIZES = [10, 25, 50] as const;
 
-export function TransactionPreview({ rows, onConfirm, onBack, detectedIdentifier }: TransactionPreviewProps) {
+export function TransactionPreview({ rows, onConfirm, onBack, detectedIdentifier, fileName }: TransactionPreviewProps) {
   const [selected, setSelected] = useState<Set<number>>(() => {
     // Pre-select all rows without errors
     const set = new Set<number>();
@@ -26,6 +27,7 @@ export function TransactionPreview({ rows, onConfirm, onBack, detectedIdentifier
   const [page, setPage] = useState(0);
   const [pageSize, setPageSize] = useState<number>(PREVIEW_PAGE_SIZES[0]);
   const [showWarningsOnly, setShowWarningsOnly] = useState(false);
+  const [importName, setImportName] = useState(fileName ?? '');
 
   // Reset to first page when rows or filter changes
   useEffect(() => { setPage(0); }, [rows, showWarningsOnly]);
@@ -71,12 +73,13 @@ export function TransactionPreview({ rows, onConfirm, onBack, detectedIdentifier
     let income = 0;
     let expense = 0;
     let count = 0;
-    let errorCount = 0;
+    
+    // Count ALL errors, not just selected ones
+    const errorCount = rows.filter(r => r.errors.length > 0).length;
 
     for (const [i, row] of rows.entries()) {
       if (!selected.has(i)) continue;
       count++;
-      if (row.errors.length > 0) errorCount++;
       if (row.amount >= 0) income += row.amount;
       else expense += Math.abs(row.amount);
     }
@@ -86,7 +89,7 @@ export function TransactionPreview({ rows, onConfirm, onBack, detectedIdentifier
 
   const handleConfirm = () => {
     const selectedRows = rows.filter((_, i) => selected.has(i));
-    onConfirm(selectedRows, accountId);
+    onConfirm(selectedRows, accountId, importName);
   };
 
   return (
@@ -119,36 +122,54 @@ export function TransactionPreview({ rows, onConfirm, onBack, detectedIdentifier
               showWarningsOnly ? "opacity-100" : "opacity-60 hover:opacity-100"
             )}
           >
-            <AlertTriangle size={12} className="text-amber-400" />
-            <span className="text-ui text-amber-400">
+            <AlertTriangle size={14} className="text-amber-400" />
+            <span className="text-ui text-amber-400 font-medium">
               {stats.errorCount} with warnings{showWarningsOnly ? ' (filtered)' : ''}
             </span>
           </button>
         )}
       </div>
 
-      {/* Account selector */}
-      <div className="flex flex-col gap-1.5">
-        <div className="flex items-center gap-3">
-          <label className="label whitespace-nowrap">Import into</label>
-          <select
-            value={accountId}
-            onChange={(e) => setAccountId(e.target.value)}
-            className="select text-sm max-w-xs"
-          >
-            {ACCOUNTS.map((acc) => (
-              <option key={acc.id} value={acc.id}>
-                {acc.name} ({acc.type})
-              </option>
-            ))}
-          </select>
-        </div>
-        {detectedIdentifier && (
-          <div className="flex items-center gap-1.5 text-ui text-text-muted pl-[calc(theme(spacing.14)+theme(spacing.3))]">
-            <span>Account matched:</span>
-            <span className="font-mono text-text-secondary">{detectedIdentifier}</span>
+      {/* Account selector and import name */}
+      <div className="flex flex-col gap-3">
+        <div className="flex flex-col gap-1.5">
+          <div className="flex items-center gap-3">
+            <label className="label whitespace-nowrap">Import into</label>
+            <select
+              value={accountId}
+              onChange={(e) => setAccountId(e.target.value)}
+              className="select text-sm max-w-xs"
+            >
+              {ACCOUNTS.map((acc) => (
+                <option key={acc.id} value={acc.id}>
+                  {acc.name} ({acc.type})
+                </option>
+              ))}
+            </select>
           </div>
-        )}
+          {detectedIdentifier && (
+            <div className="flex items-center gap-1.5 text-ui text-text-muted pl-[calc(theme(spacing.14)+theme(spacing.3))]">
+              <span>Account matched:</span>
+              <span className="font-mono text-text-secondary">{detectedIdentifier}</span>
+            </div>
+          )}
+        </div>
+
+        <div className="flex flex-col gap-1.5">
+          <div className="flex items-center gap-3">
+            <label className="label whitespace-nowrap">Import name</label>
+            <input
+              type="text"
+              value={importName}
+              onChange={(e) => setImportName(e.target.value)}
+              placeholder={fileName ?? 'Optional name for this import'}
+              className="input text-sm max-w-xs"
+            />
+          </div>
+          <div className="text-ui text-text-muted pl-[calc(theme(spacing.14)+theme(spacing.3))]">
+            Optional — defaults to filename if left empty
+          </div>
+        </div>
       </div>
 
       {/* Transaction table */}
