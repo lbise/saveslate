@@ -1,4 +1,4 @@
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect } from "react";
 import {
   Search,
   ArrowUpDown,
@@ -10,6 +10,8 @@ import {
   Copy,
   Trash2,
   Users,
+  ChevronLeft,
+  ChevronRight,
 } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { PageHeader } from "../components/layout/PageHeader";
@@ -28,6 +30,8 @@ import type {
 
 type SortField = "date" | "amount";
 type SortDirection = "asc" | "desc";
+
+const PAGE_SIZES = [25, 50, 100] as const;
 
 const TYPE_LABELS: { value: TransactionType | "all"; label: string }[] = [
   { value: "all", label: "All" },
@@ -69,11 +73,20 @@ export function Transactions() {
   const [sortField, setSortField] = useState<SortField>("date");
   const [sortDirection, setSortDirection] = useState<SortDirection>("desc");
 
+  // Pagination state
+  const [page, setPage] = useState(0);
+  const [pageSize, setPageSize] = useState<number>(PAGE_SIZES[0]);
+
   // Popover state — at most one open at a time
   const [openActionId, setOpenActionId] = useState<string | null>(null);
   const [editingCategoryId, setEditingCategoryId] = useState<string | null>(
     null,
   );
+
+  // Reset to first page when filters change
+  useEffect(() => {
+    setPage(0);
+  }, [searchQuery, typeFilter, categoryFilter, batchFilter, sortField, sortDirection]);
 
   const closePopovers = () => {
     setOpenActionId(null);
@@ -203,6 +216,14 @@ export function Transactions() {
   const totalExpenses = filteredTransactions
     .filter((t) => t.category.type === "expense")
     .reduce((sum, t) => sum + t.amount, 0);
+
+  // Paginate the filtered results
+  const totalPages = Math.max(1, Math.ceil(filteredTransactions.length / pageSize));
+  const paginatedTransactions = useMemo(() => {
+    const start = page * pageSize;
+    const end = start + pageSize;
+    return filteredTransactions.slice(start, end);
+  }, [filteredTransactions, page, pageSize]);
 
   return (
     <div className="page-container">
@@ -382,7 +403,7 @@ export function Transactions() {
             </p>
           </div>
         ) : (
-          filteredTransactions.map((tx) => (
+          paginatedTransactions.map((tx) => (
             <TransactionRow
               key={tx.id}
               transaction={tx}
@@ -396,6 +417,45 @@ export function Transactions() {
           ))
         )}
       </div>
+
+      {/* Pagination */}
+      {filteredTransactions.length > PAGE_SIZES[0] && (
+        <div className="flex items-center justify-between px-1 py-3 text-ui text-text-muted border-t border-border mt-2">
+          <div className="flex items-center gap-1.5">
+            <span>Rows</span>
+            <select
+              value={pageSize}
+              onChange={(e) => { setPageSize(Number(e.target.value)); setPage(0); }}
+              className="text-sm bg-transparent border border-border rounded px-1 py-0.5 text-text-secondary cursor-pointer"
+            >
+              {PAGE_SIZES.map((size) => (
+                <option key={size} value={size}>{size}</option>
+              ))}
+            </select>
+          </div>
+          <span>
+            {page * pageSize + 1}–{Math.min((page + 1) * pageSize, filteredTransactions.length)} of {filteredTransactions.length}
+          </span>
+          <div className="flex items-center gap-1">
+            <button
+              type="button"
+              onClick={() => setPage(p => p - 1)}
+              disabled={page === 0}
+              className="p-0.5 rounded hover:bg-surface-hover disabled:opacity-30 disabled:cursor-not-allowed transition-colors cursor-pointer bg-transparent border-none text-text-muted"
+            >
+              <ChevronLeft size={16} />
+            </button>
+            <button
+              type="button"
+              onClick={() => setPage(p => p + 1)}
+              disabled={page >= totalPages - 1}
+              className="p-0.5 rounded hover:bg-surface-hover disabled:opacity-30 disabled:cursor-not-allowed transition-colors cursor-pointer bg-transparent border-none text-text-muted"
+            >
+              <ChevronRight size={16} />
+            </button>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

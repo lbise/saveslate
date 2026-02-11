@@ -1,17 +1,18 @@
 import { useMemo, useState } from 'react';
-import { Check, ChevronDown, FileQuestion, Plus, Zap } from 'lucide-react';
+import { Check, ChevronDown, Edit, FileQuestion, Plus, Zap } from 'lucide-react';
 import { cn } from '../../lib/utils';
-import { findBestParser } from '../../lib/csv';
+import { findBestParserFromRaw } from '../../lib/csv';
 import { loadParsers } from '../../lib/parser-storage';
 import type { CsvParser } from '../../types';
 
 interface ParserMatcherProps {
-  headers: string[];
+  rawContent: string;
   onSelectParser: (parser: CsvParser) => void;
+  onEditParser: (parser: CsvParser) => void;
   onCreateNew: () => void;
 }
 
-export function ParserMatcher({ headers, onSelectParser, onCreateNew }: ParserMatcherProps) {
+export function ParserMatcher({ rawContent, onSelectParser, onEditParser, onCreateNew }: ParserMatcherProps) {
   const [showDropdown, setShowDropdown] = useState(false);
 
   const { parsers, matchedParser, matchScore } = useMemo(() => {
@@ -20,7 +21,7 @@ export function ParserMatcher({ headers, onSelectParser, onCreateNew }: ParserMa
     let score = 0;
 
     if (saved.length > 0) {
-      const result = findBestParser(saved, headers);
+      const result = findBestParserFromRaw(saved, rawContent);
       if (result) {
         matched = result.parser;
         score = Math.round(result.score * 100);
@@ -28,7 +29,7 @@ export function ParserMatcher({ headers, onSelectParser, onCreateNew }: ParserMa
     }
 
     return { parsers: saved, matchedParser: matched, matchScore: score };
-  }, [headers]);
+  }, [rawContent]);
 
   const hasExistingParsers = parsers.length > 0;
 
@@ -61,6 +62,13 @@ export function ParserMatcher({ headers, onSelectParser, onCreateNew }: ParserMa
             >
               <Check size={14} />
               Use this parser
+            </button>
+            <button
+              onClick={() => onEditParser(matchedParser)}
+              className="btn-secondary"
+            >
+              <Edit size={14} />
+              Edit parser
             </button>
             <div className="relative">
               <button

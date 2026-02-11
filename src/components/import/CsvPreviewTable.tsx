@@ -1,9 +1,12 @@
+import { useState, useEffect } from 'react';
+import { ChevronLeft, ChevronRight } from 'lucide-react';
 import { cn } from '../../lib/utils';
+
+const PAGE_SIZE_OPTIONS = [5, 10, 25] as const;
 
 interface CsvPreviewTableProps {
   headers: string[];
   rows: string[][];
-  maxRows?: number;
   /** If provided, highlight columns with assigned fields */
   columnHighlights?: Map<number, string>;
 }
@@ -11,10 +14,18 @@ interface CsvPreviewTableProps {
 export function CsvPreviewTable({
   headers,
   rows,
-  maxRows = 8,
   columnHighlights,
 }: CsvPreviewTableProps) {
-  const displayRows = rows.slice(0, maxRows);
+  const [page, setPage] = useState(0);
+  const [pageSize, setPageSize] = useState<number>(PAGE_SIZE_OPTIONS[0]);
+
+  // Reset to first page when rows change
+  useEffect(() => { setPage(0); }, [rows]);
+
+  const totalPages = Math.max(1, Math.ceil(rows.length / pageSize));
+  const start = page * pageSize;
+  const end = Math.min(start + pageSize, rows.length);
+  const displayRows = rows.slice(start, end);
 
   return (
     <div className="overflow-x-auto rounded-(--radius-md) border border-border">
@@ -70,9 +81,39 @@ export function CsvPreviewTable({
           ))}
         </tbody>
       </table>
-      {rows.length > maxRows && (
-        <div className="px-3 py-2 text-ui text-text-muted bg-surface border-t border-border">
-          Showing {maxRows} of {rows.length} rows
+      {rows.length > PAGE_SIZE_OPTIONS[0] && (
+        <div className="flex items-center justify-between px-3 py-2 text-ui text-text-muted bg-surface border-t border-border">
+          <div className="flex items-center gap-1.5">
+            <span>Rows</span>
+            <select
+              value={pageSize}
+              onChange={(e) => { setPageSize(Number(e.target.value)); setPage(0); }}
+              className="text-sm bg-transparent border border-border rounded px-1 py-0.5 text-text-secondary cursor-pointer"
+            >
+              {PAGE_SIZE_OPTIONS.map((size) => (
+                <option key={size} value={size}>{size}</option>
+              ))}
+            </select>
+          </div>
+          <span>{start + 1}–{end} of {rows.length}</span>
+          <div className="flex items-center gap-1">
+            <button
+              type="button"
+              onClick={() => setPage((p) => p - 1)}
+              disabled={page === 0}
+              className="p-0.5 rounded hover:bg-surface-hover disabled:opacity-30 disabled:cursor-not-allowed transition-colors cursor-pointer bg-transparent border-none text-text-muted"
+            >
+              <ChevronLeft size={16} />
+            </button>
+            <button
+              type="button"
+              onClick={() => setPage((p) => p + 1)}
+              disabled={page >= totalPages - 1}
+              className="p-0.5 rounded hover:bg-surface-hover disabled:opacity-30 disabled:cursor-not-allowed transition-colors cursor-pointer bg-transparent border-none text-text-muted"
+            >
+              <ChevronRight size={16} />
+            </button>
+          </div>
         </div>
       )}
     </div>

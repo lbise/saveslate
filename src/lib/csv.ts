@@ -83,7 +83,7 @@ export function parseRawCsv(text: string, delimiter: CsvDelimiter): string[][] {
 
 /**
  * Get headers and data rows from raw parsed data, considering parser config.
- * Also returns skipped rows for metadata extraction (e.g., IBAN).
+ * Also returns skipped rows for metadata extraction (e.g., account identifier).
  */
 export function extractHeadersAndData(
   rawRows: string[][],
@@ -102,20 +102,41 @@ export function extractHeadersAndData(
 }
 
 /**
- * Extract IBAN from skipped header rows using a regex pattern with capture group.
+ * Extract an account identifier from skipped header rows using a regex pattern.
  * Returns the first match found in any cell of the skipped rows.
+ * 
+ * Patterns can be:
+ * - Simple regex with capture group: "IBAN:\\s*([A-Z0-9\\s]+)" matches "IBAN: CH28..." in same cell
+ * - Label + value across cells: "IBAN:" matches the label cell, returns the next cell's content
+ * - Direct pattern: "(CH[0-9]{2}\\s+[0-9]+)" matches Swiss IBANs anywhere
  */
-export function extractIban(skippedRows: string[][], pattern: string): string | null {
+export function extractAccountIdentifier(skippedRows: string[][], pattern: string): string | null {
   if (!pattern || skippedRows.length === 0) return null;
   
   try {
-    const regex = new RegExp(pattern, 'i');
-    for (const row of skippedRows) {
-      for (const cell of row) {
-        const match = regex.exec(cell);
-        if (match && match[1]) {
-          // Return captured group, normalized (remove spaces for storage)
-          return match[1].trim();
+    // Check if pattern looks like a label-only pattern (no capture groups, likely matching a label cell)
+    const hasCaptureGroup = pattern.includes('(') && pattern.includes(')');
+    
+    if (!hasCaptureGroup) {
+      // Label-only pattern: find cell matching pattern, return next cell's content
+      const labelRegex = new RegExp(pattern, 'i');
+      for (const row of skippedRows) {
+        for (let i = 0; i < row.length; i++) {
+          if (labelRegex.test(row[i]) && i + 1 < row.length) {
+            const value = row[i + 1].trim();
+            if (value) return value;
+          }
+        }
+      }
+    } else {
+      // Pattern with capture group: match within cells
+      const regex = new RegExp(pattern, 'i');
+      for (const row of skippedRows) {
+        for (const cell of row) {
+          const match = regex.exec(cell);
+          if (match && match[1]) {
+            return match[1].trim();
+          }
         }
       }
     }
@@ -176,6 +197,34 @@ export function findBestParser(
 
   for (const parser of parsers) {
     const score = scoreParserMatch(parser, actualHeaders);
+    if (score >= threshold && (!best || score > best.score)) {
+      best = { parser, score };
+    }
+  }
+
+  return best;
+}
+
+/**
+ * Find the best matching parser by re-parsing raw CSV content with each
+ * parser's own settings (delimiter, skipRows, hasHeaderRow).
+ *
+ * This solves the problem where the initial header extraction uses default
+ * settings (skipRows=0, auto-detected delimiter), which produces wrong headers
+ * for parsers that skip metadata rows or use a non-default delimiter.
+ */
+export function findBestParserFromRaw(
+  parsers: CsvParser[],
+  rawContent: string,
+  threshold = 0.7,
+): MatchResult | null {
+  let best: MatchResult | null = null;
+
+  for (const parser of parsers) {
+    const rawRows = parseRawCsv(rawContent, parser.delimiter);
+    const { headers } = extractHeadersAndData(rawRows, parser.hasHeaderRow, parser.skipRows);
+    const score = scoreParserMatch(parser, headers);
+
     if (score >= threshold && (!best || score > best.score)) {
       best = { parser, score };
     }
@@ -428,9 +477,11 @@ export function applyParser(
  * Match regex is case-insensitive. Extract regex preserves original casing.
  */
 export function applyTransforms(row: ParsedRow, transforms: FieldTransform[]): void {
+  let anyTransformMatched = false;
+
   for (const transform of transforms) {
-    // Skip incomplete transforms
-    if (!transform.matchPattern || !transform.extractPattern || !transform.replacement) continue;
+    // Skip transforms without match + extract patterns
+    if (!transform.matchPattern || !transform.extractPattern) continue;
 
     const sourceValue = row[transform.sourceField] ?? '';
     if (!sourceValue) continue;
@@ -439,14 +490,22 @@ export function applyTransforms(row: ParsedRow, transforms: FieldTransform[]): v
       const matchRe = new RegExp(transform.matchPattern, 'i');
       if (!matchRe.test(sourceValue)) continue;
 
+      anyTransformMatched = true;
+
       const extractRe = new RegExp(transform.extractPattern);
       const match = extractRe.exec(sourceValue);
 
       if (match?.groups && Object.keys(match.groups).length > 0) {
-        const result = transform.replacement.replace(
-          /\{\{(\w+)\}\}/g,
-          (_, name: string) => match.groups?.[name] ?? '',
-        );
+        // Use explicit replacement template, or auto-join all named groups
+        let result: string;
+        if (transform.replacement) {
+          result = transform.replacement.replace(
+            /\{\{(\w+)\}\}/g,
+            (_, name: string) => match.groups?.[name] ?? '',
+          );
+        } else {
+          result = Object.values(match.groups).filter(Boolean).join(' ');
+        }
 
         if (transform.targetField === 'description') {
           row.description = result;
@@ -460,6 +519,17 @@ export function applyTransforms(row: ParsedRow, transforms: FieldTransform[]): v
     } catch {
       const label = transform.label || 'unnamed';
       row.errors.push(`Transform "${label}": invalid regex`);
+    }
+  }
+
+  // Warn if no transform matched and there was content to match
+  if (!anyTransformMatched && transforms.length > 0) {
+    const hasContent = transforms.some(t => {
+      const sourceValue = row[t.sourceField] ?? '';
+      return sourceValue.trim().length > 0;
+    });
+    if (hasContent) {
+      row.errors.push('No transform rule matched this row');
     }
   }
 }

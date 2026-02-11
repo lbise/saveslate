@@ -1,5 +1,5 @@
 import { useState, useMemo, useEffect } from 'react';
-import { AlertTriangle, Check, X } from 'lucide-react';
+import { AlertTriangle, Check, ChevronLeft, ChevronRight, X } from 'lucide-react';
 import { cn, formatCurrency, formatDate } from '../../lib/utils';
 import { ACCOUNTS } from '../../data/mock/accounts';
 import type { ParsedRow } from '../../types';
@@ -8,10 +8,12 @@ interface TransactionPreviewProps {
   rows: ParsedRow[];
   onConfirm: (selectedRows: ParsedRow[], accountId: string) => void;
   onBack: () => void;
-  detectedIban?: string;
+  detectedIdentifier?: string;
 }
 
-export function TransactionPreview({ rows, onConfirm, onBack, detectedIban }: TransactionPreviewProps) {
+const PREVIEW_PAGE_SIZES = [10, 25, 50] as const;
+
+export function TransactionPreview({ rows, onConfirm, onBack, detectedIdentifier }: TransactionPreviewProps) {
   const [selected, setSelected] = useState<Set<number>>(() => {
     // Pre-select all rows without errors
     const set = new Set<number>();
@@ -21,21 +23,27 @@ export function TransactionPreview({ rows, onConfirm, onBack, detectedIban }: Tr
     return set;
   });
   const [accountId, setAccountId] = useState(ACCOUNTS[0]?.id ?? '');
+  const [page, setPage] = useState(0);
+  const [pageSize, setPageSize] = useState<number>(PREVIEW_PAGE_SIZES[0]);
+  const [showWarningsOnly, setShowWarningsOnly] = useState(false);
 
-  // Auto-select account when IBAN is detected
+  // Reset to first page when rows or filter changes
+  useEffect(() => { setPage(0); }, [rows, showWarningsOnly]);
+
+  // Auto-select account when an identifier is detected
   useEffect(() => {
-    if (!detectedIban) return;
+    if (!detectedIdentifier) return;
     
-    const normalizedIban = detectedIban.replace(/\s/g, '');
+    const normalized = detectedIdentifier.replace(/\s/g, '');
     const matchingAccount = ACCOUNTS.find(acc => {
-      if (!acc.iban) return false;
-      return acc.iban.replace(/\s/g, '') === normalizedIban;
+      if (!acc.accountIdentifier) return false;
+      return acc.accountIdentifier.replace(/\s/g, '') === normalized;
     });
     
     if (matchingAccount) {
       setAccountId(matchingAccount.id);
     }
-  }, [detectedIban]);
+  }, [detectedIdentifier]);
 
   const hasCurrency = useMemo(
     () => rows.some((r) => r.currency),
@@ -104,12 +112,18 @@ export function TransactionPreview({ rows, onConfirm, onBack, detectedIban }: Tr
           </span>
         </div>
         {stats.errorCount > 0 && (
-          <div className="flex items-center gap-2">
+          <button
+            onClick={() => setShowWarningsOnly(!showWarningsOnly)}
+            className={cn(
+              "flex items-center gap-2 bg-transparent border-none cursor-pointer transition-opacity px-0 py-0",
+              showWarningsOnly ? "opacity-100" : "opacity-60 hover:opacity-100"
+            )}
+          >
             <AlertTriangle size={12} className="text-amber-400" />
             <span className="text-ui text-amber-400">
-              {stats.errorCount} with warnings
+              {stats.errorCount} with warnings{showWarningsOnly ? ' (filtered)' : ''}
             </span>
-          </div>
+          </button>
         )}
       </div>
 
@@ -129,101 +143,152 @@ export function TransactionPreview({ rows, onConfirm, onBack, detectedIban }: Tr
             ))}
           </select>
         </div>
-        {detectedIban && (
+        {detectedIdentifier && (
           <div className="flex items-center gap-1.5 text-ui text-text-muted pl-[calc(theme(spacing.14)+theme(spacing.3))]">
-            <span>IBAN detected:</span>
-            <span className="font-mono text-text-secondary">{detectedIban}</span>
+            <span>Account matched:</span>
+            <span className="font-mono text-text-secondary">{detectedIdentifier}</span>
           </div>
         )}
       </div>
 
       {/* Transaction table */}
-      <div className="overflow-x-auto rounded-(--radius-md) border border-border">
-        <table className="w-full text-sm">
-          <thead>
-            <tr className="border-b border-border bg-surface">
-              <th className="px-3 py-2.5 text-left w-8">
-                <input
-                  type="checkbox"
-                  checked={selected.size === rows.length}
-                  onChange={toggleAll}
-                  className="cursor-pointer accent-text"
-                />
-              </th>
-              <th className="px-3 py-2.5 text-left text-text-muted font-medium">Date</th>
-              <th className="px-3 py-2.5 text-left text-text-muted font-medium">Description</th>
-              <th className="px-3 py-2.5 text-left text-text-muted font-medium">Category</th>
-              {hasCurrency && (
-                <th className="px-3 py-2.5 text-left text-text-muted font-medium">Currency</th>
-              )}
-              <th className="px-3 py-2.5 text-right text-text-muted font-medium">Amount</th>
-              <th className="px-3 py-2.5 text-center text-text-muted font-medium w-10">Status</th>
-            </tr>
-          </thead>
-          <tbody>
-            {rows.map((row, idx) => {
-              const isSelected = selected.has(idx);
-              const hasErrors = row.errors.length > 0;
+      {(() => {
+        // Filter rows if warnings-only mode is active
+        const filteredRows = showWarningsOnly
+          ? rows.filter(r => r.errors.length > 0)
+          : rows;
 
-              return (
-                <tr
-                  key={idx}
-                  onClick={() => toggleRow(idx)}
-                  className={cn(
-                    'border-b border-border last:border-b-0 cursor-pointer transition-colors',
-                    isSelected
-                      ? 'hover:bg-surface-hover/50'
-                      : 'opacity-40 hover:opacity-60',
-                    hasErrors && isSelected && 'bg-amber-400/[0.03]',
-                  )}
-                >
-                  <td className="px-3 py-2.5">
+        const totalPages = Math.max(1, Math.ceil(filteredRows.length / pageSize));
+        const start = page * pageSize;
+        const end = Math.min(start + pageSize, filteredRows.length);
+        const displayRows = filteredRows.slice(start, end);
+
+        return (
+          <div className="overflow-x-auto rounded-(--radius-md) border border-border">
+            <table className="w-full text-sm">
+              <thead>
+                <tr className="border-b border-border bg-surface">
+                  <th className="px-3 py-2.5 text-left w-8">
                     <input
                       type="checkbox"
-                      checked={isSelected}
-                      onChange={() => toggleRow(idx)}
-                      onClick={(e) => e.stopPropagation()}
+                      checked={selected.size === rows.length}
+                      onChange={toggleAll}
                       className="cursor-pointer accent-text"
                     />
-                  </td>
-                  <td className="px-3 py-2.5 text-text-secondary whitespace-nowrap">
-                    {row.date ? formatDate(row.date) : '—'}
-                  </td>
-                  <td className="px-3 py-2.5 text-text">
-                    <span className="truncate block max-w-[300px]" title={row.description || undefined}>{row.description || '—'}</span>
-                  </td>
-                  <td className="px-3 py-2.5 text-text-muted">
-                    {row.category || '—'}
-                  </td>
+                  </th>
+                  <th className="px-3 py-2.5 text-left text-text-muted font-medium">Date</th>
+                  <th className="px-3 py-2.5 text-left text-text-muted font-medium">Description</th>
+                  <th className="px-3 py-2.5 text-left text-text-muted font-medium">Category</th>
                   {hasCurrency && (
-                    <td className="px-3 py-2.5 text-text-muted">
-                      {row.currency || '—'}
-                    </td>
+                    <th className="px-3 py-2.5 text-left text-text-muted font-medium">Currency</th>
                   )}
-                  <td
-                    className={cn(
-                      'px-3 py-2.5 text-right font-medium whitespace-nowrap',
-                      row.amount >= 0 ? 'text-income' : 'text-expense',
-                    )}
-                    style={{ fontFamily: 'var(--font-display)' }}
-                  >
-                    {row.amount >= 0 ? '+' : ''}{formatCurrency(Math.abs(row.amount))}
-                  </td>
-                  <td className="px-3 py-2.5 text-center">
-                    {hasErrors ? (
-                      <span title={row.errors.join(', ')}>
-                        <AlertTriangle size={14} className="text-amber-400 inline" />
-                      </span>
-                    ) : (
-                      <Check size={14} className="text-income inline" />
-                    )}
-                  </td>
+                  <th className="px-3 py-2.5 text-right text-text-muted font-medium">Amount</th>
+                  <th className="px-3 py-2.5 text-center text-text-muted font-medium w-10">Status</th>
                 </tr>
-              );
-            })}
-          </tbody>
-        </table>
-      </div>
+              </thead>
+              <tbody>
+                {displayRows.map((row) => {
+                  // Find the original index in the full rows array
+                  const idx = rows.indexOf(row);
+                  const isSelected = selected.has(idx);
+                  const hasErrors = row.errors.length > 0;
+
+                  return (
+                    <tr
+                      key={idx}
+                      onClick={() => toggleRow(idx)}
+                      className={cn(
+                        'border-b border-border last:border-b-0 cursor-pointer transition-colors',
+                        isSelected
+                          ? 'hover:bg-surface-hover/50'
+                          : 'opacity-40 hover:opacity-60',
+                        hasErrors && isSelected && 'bg-amber-400/[0.03]',
+                      )}
+                    >
+                      <td className="px-3 py-2.5">
+                        <input
+                          type="checkbox"
+                          checked={isSelected}
+                          onChange={() => toggleRow(idx)}
+                          onClick={(e) => e.stopPropagation()}
+                          className="cursor-pointer accent-text"
+                        />
+                      </td>
+                      <td className="px-3 py-2.5 text-text-secondary whitespace-nowrap">
+                        {row.date ? formatDate(row.date) : '—'}
+                      </td>
+                      <td className="px-3 py-2.5 text-text">
+                        <span className="break-words">{row.description || '—'}</span>
+                      </td>
+                      <td className="px-3 py-2.5 text-text-muted">
+                        {row.category || '—'}
+                      </td>
+                      {hasCurrency && (
+                        <td className="px-3 py-2.5 text-text-muted">
+                          {row.currency || '—'}
+                        </td>
+                      )}
+                      <td
+                        className={cn(
+                          'px-3 py-2.5 text-right font-medium whitespace-nowrap',
+                          row.amount >= 0 ? 'text-income' : 'text-expense',
+                        )}
+                        style={{ fontFamily: 'var(--font-display)' }}
+                      >
+                        {row.amount >= 0 ? '+' : ''}{formatCurrency(Math.abs(row.amount))}
+                      </td>
+                      <td className="px-3 py-2.5 text-center">
+                        {hasErrors ? (
+                          <span title={row.errors.join(', ')}>
+                            <AlertTriangle size={14} className="text-amber-400 inline" />
+                          </span>
+                        ) : (
+                          <Check size={14} className="text-income inline" />
+                        )}
+                      </td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+            {filteredRows.length > PREVIEW_PAGE_SIZES[0] && (
+              <div className="flex items-center justify-between px-3 py-2 text-ui text-text-muted bg-surface border-t border-border">
+                <div className="flex items-center gap-1.5">
+                  <span>Rows</span>
+                  <select
+                    value={pageSize}
+                    onChange={(e) => { setPageSize(Number(e.target.value)); setPage(0); }}
+                    className="text-sm bg-transparent border border-border rounded px-1 py-0.5 text-text-secondary cursor-pointer"
+                  >
+                    {PREVIEW_PAGE_SIZES.map((size) => (
+                      <option key={size} value={size}>{size}</option>
+                    ))}
+                  </select>
+                </div>
+                <span>{start + 1}–{end} of {filteredRows.length}</span>
+                <div className="flex items-center gap-1">
+                  <button
+                    type="button"
+                    onClick={() => setPage((p) => p - 1)}
+                    disabled={page === 0}
+                    className="p-0.5 rounded hover:bg-surface-hover disabled:opacity-30 disabled:cursor-not-allowed transition-colors cursor-pointer bg-transparent border-none text-text-muted"
+                  >
+                    <ChevronLeft size={16} />
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setPage((p) => p + 1)}
+                    disabled={page >= totalPages - 1}
+                    className="p-0.5 rounded hover:bg-surface-hover disabled:opacity-30 disabled:cursor-not-allowed transition-colors cursor-pointer bg-transparent border-none text-text-muted"
+                  >
+                    <ChevronRight size={16} />
+                  </button>
+                </div>
+              </div>
+            )}
+          </div>
+        );
+      })()}
 
       {/* Actions */}
       <div className="flex gap-3">

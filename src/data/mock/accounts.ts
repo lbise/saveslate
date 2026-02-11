@@ -10,7 +10,7 @@ export const ACCOUNTS: Account[] = [
     currency: 'CHF',
     color: '#3b82f6', // blue
     icon: 'Wallet',
-    iban: 'CH28 0029 0290 F030 5556 0',
+    accountIdentifier: 'CH97 0029 0290 IN11 3984 2',
   },
   {
     id: 'savings',
@@ -20,7 +20,7 @@ export const ACCOUNTS: Account[] = [
     currency: 'CHF',
     color: '#10b981', // emerald
     icon: 'PiggyBank',
-    iban: 'CH48 0075 3123 4000 0010 0',
+    accountIdentifier: 'CH48 0075 3123 4000 0010 0',
   },
   {
     id: 'credit-card',
@@ -30,7 +30,7 @@ export const ACCOUNTS: Account[] = [
     currency: 'CHF',
     color: '#f97316', // orange
     icon: 'CreditCard',
-    iban: 'CH35 0077 0016 1500 5325 9',
+    accountIdentifier: 'CH35 0077 0016 1500 5325 9',
   },
   {
     id: 'cash',
@@ -40,7 +40,7 @@ export const ACCOUNTS: Account[] = [
     currency: 'CHF',
     color: '#a855f7', // purple
     icon: 'Banknote',
-    // Cash has no IBAN
+    // Cash has no account identifier
   },
 ];
 

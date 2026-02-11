@@ -21,6 +21,19 @@ export function loadParsers(): CsvParser[] {
       return [];
     }
 
+    // Migrate ibanPattern → accountPattern
+    let migrated = false;
+    for (const p of parsers) {
+      if ('ibanPattern' in p && !('accountPattern' in p)) {
+        (p as Record<string, unknown>).accountPattern = (p as Record<string, unknown>).ibanPattern;
+        delete (p as Record<string, unknown>).ibanPattern;
+        migrated = true;
+      }
+    }
+    if (migrated) {
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(parsers));
+    }
+
     return parsers;
   } catch {
     return [];

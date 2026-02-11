@@ -1,5 +1,5 @@
 import { useState, useMemo, useCallback, useRef, useEffect } from 'react';
-import { Save, RotateCcw, X, ChevronDown, ChevronUp, Plus, AlertTriangle, Check } from 'lucide-react';
+import { Save, RotateCcw, X, ChevronDown, ChevronUp, ChevronLeft, ChevronRight, Plus, AlertTriangle, Check } from 'lucide-react';
 import { cn, formatCurrency, formatDate } from '../../lib/utils';
 import {
   detectDelimiter,
@@ -7,10 +7,10 @@ import {
   extractHeadersAndData,
   validateMappings,
   applyParser,
-  extractIban,
+  extractAccountIdentifier,
   DATE_FORMAT_PRESETS,
 } from '../../lib/csv';
-import { saveParser } from '../../lib/parser-storage';
+import { saveParser, updateParser } from '../../lib/parser-storage';
 import { CsvPreviewTable } from './CsvPreviewTable';
 import type {
   CsvDelimiter,
@@ -93,7 +93,7 @@ export function ParserEditor({
   const [dateFormat, setDateFormat] = useState(existingParser?.dateFormat ?? 'DD.MM.YYYY');
   const [decimalSeparator, setDecimalSeparator] = useState<'.' | ','>(existingParser?.decimalSeparator ?? '.');
   const [multiColumnSeparator, setMultiColumnSeparator] = useState(existingParser?.multiColumnSeparator ?? ' ');
-  const [ibanPattern, setIbanPattern] = useState(existingParser?.ibanPattern ?? '');
+  const [accountPattern, setAccountPattern] = useState(existingParser?.accountPattern ?? '');
 
   // ─── Parse raw CSV with current settings ───────────────────
   const rawRows = useMemo(() => parseRawCsv(rawContent, delimiter), [rawContent, delimiter]);
@@ -102,11 +102,11 @@ export function ParserEditor({
     [rawRows, hasHeaderRow, skipRows],
   );
 
-  // ─── IBAN extraction preview ────────────────────────────────
-  const ibanPreview = useMemo(() => {
-    if (!ibanPattern || skippedRows.length === 0) return null;
-    return extractIban(skippedRows, ibanPattern);
-  }, [skippedRows, ibanPattern]);
+  // ─── Account identifier extraction preview ────────────────────
+  const accountPatternPreview = useMemo(() => {
+    if (!accountPattern || skippedRows.length === 0) return null;
+    return extractAccountIdentifier(skippedRows, accountPattern);
+  }, [skippedRows, accountPattern]);
 
   // ─── Field mappings: field → column indices ────────────────
   const [fieldMappings, setFieldMappings] = useState<Map<AssignableField, number[]>>(() => {
@@ -257,7 +257,7 @@ export function ParserEditor({
       dateFormat,
       decimalSeparator,
       multiColumnSeparator,
-      transforms: transforms.filter((t) => t.matchPattern && t.extractPattern && t.replacement),
+      transforms: transforms.filter((t) => t.matchPattern && t.extractPattern),
       createdAt: '',
       updatedAt: '',
     } satisfies CsvParser;
@@ -281,13 +281,13 @@ export function ParserEditor({
       dateFormat,
       decimalSeparator,
       multiColumnSeparator,
-      ibanPattern: ibanPattern.trim() || undefined,
+      accountPattern: accountPattern.trim() || undefined,
       createdAt: '',
       updatedAt: '',
     } satisfies CsvParser;
 
     return applyParser(dataRows, headers, tempParser);
-  }, [columnMappings, dataRows, headers, delimiter, hasHeaderRow, skipRows, amountFormat, dateFormat, decimalSeparator, multiColumnSeparator, ibanPattern]);
+  }, [columnMappings, dataRows, headers, delimiter, hasHeaderRow, skipRows, amountFormat, dateFormat, decimalSeparator, multiColumnSeparator, accountPattern]);
 
   // ─── Save handler ──────────────────────────────────────────
   const handleSave = () => {
@@ -313,11 +313,15 @@ export function ParserEditor({
       dateFormat,
       decimalSeparator,
       multiColumnSeparator,
-      transforms: transforms.filter((t) => t.matchPattern && t.extractPattern && t.replacement),
-      ibanPattern: ibanPattern.trim() || undefined,
+      transforms: transforms.filter((t) => t.matchPattern && t.extractPattern),
+      accountPattern: accountPattern.trim() || undefined,
     };
 
-    const parser = saveParser(parserData);
+    const parser = existingParser
+      ? updateParser(existingParser.id, parserData)
+      : saveParser(parserData);
+
+    if (!parser) return;
     onSave(parser);
   };
 
@@ -441,29 +445,35 @@ export function ParserEditor({
         </div>
       </div>
 
-      {/* IBAN pattern — only when skipRows > 0 */}
+      {/* Account match — only when skipRows > 0 */}
       {skipRows > 0 && (
-        <div className="flex flex-col gap-2">
-          <div className="flex items-center gap-3">
-            <label className="label whitespace-nowrap">IBAN pattern</label>
+        <div>
+          <label className="label">
+            Account match
+            <span className="text-text-muted font-normal ml-2">
+              Auto-match imports to an account
+            </span>
+          </label>
+          <div className="flex flex-col gap-2 mt-3">
             <input
               type="text"
-              value={ibanPattern}
-              onChange={(e) => setIbanPattern(e.target.value)}
-              placeholder="e.g. IBAN[:\\s]*([\\w\\s]+)"
-              className="input text-sm flex-1 max-w-md font-mono"
+              value={accountPattern}
+              onChange={(e) => setAccountPattern(e.target.value)}
+              placeholder="e.g. IBAN: or (CH[0-9]{2}[\\s0-9]+)"
+              className="input text-sm max-w-md font-mono"
             />
+
+            {accountPatternPreview ? (
+              <div className="flex items-center gap-1.5 text-ui text-text-muted">
+                <span>Detected:</span>
+                <span className="font-mono text-text-secondary">{accountPatternPreview}</span>
+              </div>
+            ) : accountPattern ? (
+              <div className="flex items-center gap-1.5 text-ui text-text-muted">
+                <span>No match found in skipped rows</span>
+              </div>
+            ) : null}
           </div>
-          {ibanPreview ? (
-            <div className="flex items-center gap-1.5 text-ui text-text-muted pl-[calc(theme(spacing.28)+theme(spacing.3))]">
-              <span>Detected:</span>
-              <span className="font-mono text-text-secondary">{ibanPreview}</span>
-            </div>
-          ) : ibanPattern ? (
-            <div className="flex items-center gap-1.5 text-ui text-text-muted pl-[calc(theme(spacing.28)+theme(spacing.3))]">
-              <span>No match found in skipped rows</span>
-            </div>
-          ) : null}
         </div>
       )}
 
@@ -527,7 +537,7 @@ export function ParserEditor({
           <label className="label">
             Field transforms
             <span className="text-text-muted font-normal ml-2">
-              Clean up or extract data using regex
+              Rules run top to bottom &mdash; all matching rules apply
             </span>
           </label>
           <button onClick={addTransform} className="btn-ghost">
@@ -566,14 +576,13 @@ export function ParserEditor({
         <CsvPreviewTable
           headers={headers}
           rows={dataRows}
-          maxRows={5}
           columnHighlights={columnHighlights}
         />
       </div>
 
       {/* Parsed transaction preview */}
       {parsedRows.length > 0 && (
-        <ParsedTransactionPreview rows={parsedRows} maxRows={5} />
+        <ParsedTransactionPreview rows={parsedRows} />
       )}
 
       {/* Actions */}
@@ -740,7 +749,7 @@ function FieldMappingRow({
 
           {/* Dropdown */}
           {dropdownOpen && (
-            <div className="absolute top-full left-0 right-0 mt-1 bg-surface border border-border rounded-(--radius-md) py-1 z-20 shadow-(--shadow-md) max-h-52 overflow-y-auto">
+            <div className="absolute top-full left-0 right-0 mt-1 bg-surface border border-border rounded-(--radius-md) py-1 z-20 shadow-(--shadow-md) max-h-80 overflow-y-auto">
               {availableColumns.map(({ idx, header, alreadyAssigned, disabled }) => {
                 const sampleValue = dataRows[0]?.[idx] ?? '';
                 return (
@@ -785,11 +794,27 @@ function FieldMappingRow({
 
 interface ParsedTransactionPreviewProps {
   rows: ParsedRow[];
-  maxRows?: number;
 }
 
-function ParsedTransactionPreview({ rows, maxRows = 8 }: ParsedTransactionPreviewProps) {
-  const displayRows = rows.slice(0, maxRows);
+const PARSED_PAGE_SIZES = [5, 10, 25] as const;
+
+function ParsedTransactionPreview({ rows }: ParsedTransactionPreviewProps) {
+  const [page, setPage] = useState(0);
+  const [pageSize, setPageSize] = useState<number>(PARSED_PAGE_SIZES[0]);
+  const [showWarningsOnly, setShowWarningsOnly] = useState(false);
+
+  // Reset to first page when rows or filter changes
+  useEffect(() => { setPage(0); }, [rows, showWarningsOnly]);
+
+  // Filter rows if warnings-only mode is active
+  const filteredRows = showWarningsOnly
+    ? rows.filter(r => r.errors.length > 0)
+    : rows;
+
+  const totalPages = Math.max(1, Math.ceil(filteredRows.length / pageSize));
+  const start = page * pageSize;
+  const end = Math.min(start + pageSize, filteredRows.length);
+  const displayRows = filteredRows.slice(start, end);
 
   const hasCurrency = useMemo(
     () => rows.some((r) => r.currency),
@@ -809,10 +834,18 @@ function ParsedTransactionPreview({ rows, maxRows = 8 }: ParsedTransactionPrevie
           {rows.length} row{rows.length !== 1 ? 's' : ''}
         </span>
         {errorCount > 0 && (
-          <span className="flex items-center gap-1 text-ui text-amber-400">
-            <AlertTriangle size={11} />
-            {errorCount} with warnings
-          </span>
+          <button
+            onClick={() => setShowWarningsOnly(!showWarningsOnly)}
+            className={cn(
+              "flex items-center gap-1 bg-transparent border-none cursor-pointer transition-opacity px-0 py-0",
+              showWarningsOnly ? "opacity-100" : "opacity-60 hover:opacity-100"
+            )}
+          >
+            <AlertTriangle size={11} className="text-amber-400" />
+            <span className="text-ui text-amber-400">
+              {errorCount} with warnings{showWarningsOnly ? ' (filtered)' : ''}
+            </span>
+          </button>
         )}
       </div>
       <div className="overflow-x-auto rounded-(--radius-md) border border-border">
@@ -830,8 +863,10 @@ function ParsedTransactionPreview({ rows, maxRows = 8 }: ParsedTransactionPrevie
             </tr>
           </thead>
           <tbody>
-            {displayRows.map((row, idx) => {
+            {displayRows.map((row) => {
               const hasErrors = row.errors.length > 0;
+              // Find the original index in rows (for unique keys)
+              const idx = rows.indexOf(row);
               return (
                 <tr
                   key={idx}
@@ -877,14 +912,82 @@ function ParsedTransactionPreview({ rows, maxRows = 8 }: ParsedTransactionPrevie
             })}
           </tbody>
         </table>
-        {rows.length > maxRows && (
-          <div className="px-3 py-2 text-ui text-text-muted bg-surface border-t border-border">
-            Showing {maxRows} of {rows.length} rows
+        {filteredRows.length > PARSED_PAGE_SIZES[0] && (
+          <div className="flex items-center justify-between px-3 py-2 text-ui text-text-muted bg-surface border-t border-border">
+            <div className="flex items-center gap-1.5">
+              <span>Rows</span>
+              <select
+                value={pageSize}
+                onChange={(e) => { setPageSize(Number(e.target.value)); setPage(0); }}
+                className="text-sm bg-transparent border border-border rounded px-1 py-0.5 text-text-secondary cursor-pointer"
+              >
+                {PARSED_PAGE_SIZES.map((size) => (
+                  <option key={size} value={size}>{size}</option>
+                ))}
+              </select>
+            </div>
+            <span>{start + 1}–{end} of {filteredRows.length}</span>
+            <div className="flex items-center gap-1">
+              <button
+                type="button"
+                onClick={() => setPage((p) => p - 1)}
+                disabled={page === 0}
+                className="p-0.5 rounded hover:bg-surface-hover disabled:opacity-30 disabled:cursor-not-allowed transition-colors cursor-pointer bg-transparent border-none text-text-muted"
+              >
+                <ChevronLeft size={16} />
+              </button>
+              <button
+                type="button"
+                onClick={() => setPage((p) => p + 1)}
+                disabled={page >= totalPages - 1}
+                className="p-0.5 rounded hover:bg-surface-hover disabled:opacity-30 disabled:cursor-not-allowed transition-colors cursor-pointer bg-transparent border-none text-text-muted"
+              >
+                <ChevronRight size={16} />
+              </button>
+            </div>
           </div>
         )}
       </div>
     </div>
   );
+}
+
+// ─── Highlighted Source ──────────────────────────────────────
+
+interface HighlightedSourceProps {
+  source: string;
+  highlights: { start: number; end: number; groupName: string }[];
+}
+
+function HighlightedSource({ source, highlights }: HighlightedSourceProps) {
+  if (highlights.length === 0) {
+    return <>{source}</>;
+  }
+
+  const segments: React.ReactNode[] = [];
+  let cursor = 0;
+
+  for (const { start, end, groupName } of highlights) {
+    if (start > cursor) {
+      segments.push(source.slice(cursor, start));
+    }
+    segments.push(
+      <span
+        key={`${start}-${end}`}
+        className="bg-accent/15 rounded-sm px-px"
+        title={groupName}
+      >
+        {source.slice(start, end)}
+      </span>,
+    );
+    cursor = end;
+  }
+
+  if (cursor < source.length) {
+    segments.push(source.slice(cursor));
+  }
+
+  return <>{segments}</>;
 }
 
 // ─── Transform Rule Editor ───────────────────────────────────
@@ -919,8 +1022,9 @@ function TransformRuleEditor({
 
   // Compute match details from parsed field values (shows actual transaction data)
   const matchDetails = useMemo(() => {
+    type MatchItem = { source: string; output?: string; highlights: { start: number; end: number; groupName: string }[] };
     if (!transform.matchPattern) {
-      return { matched: 0, total: preTransformRows.length, valid: true, items: [] as { source: string; output?: string }[] };
+      return { matched: 0, total: preTransformRows.length, valid: true, items: [] as MatchItem[] };
     }
 
     const values = preTransformRows.map((row) => {
@@ -930,32 +1034,62 @@ function TransformRuleEditor({
 
     try {
       const re = new RegExp(transform.matchPattern, 'i');
-      const items: { source: string; output?: string }[] = [];
+      const items: MatchItem[] = [];
 
       let extractRe: RegExp | null = null;
-      if (transform.extractPattern && transform.replacement) {
-        try { extractRe = new RegExp(transform.extractPattern); } catch { /* invalid */ }
+      if (transform.extractPattern) {
+        try { extractRe = new RegExp(transform.extractPattern, 'd'); } catch { /* invalid */ }
       }
 
       for (const value of values) {
         if (re.test(value)) {
           let output: string | undefined;
+          let highlights: { start: number; end: number; groupName: string }[] = [];
+
           if (extractRe) {
             const m = value.match(extractRe);
-            if (m?.groups) {
-              output = transform.replacement.replace(
-                /\{\{(\w+)\}\}/g,
-                (_, name) => m.groups?.[name] ?? '',
-              );
+            if (m?.groups && Object.keys(m.groups).length > 0) {
+              // Use explicit replacement template, or auto-join all named groups
+              if (transform.replacement) {
+                output = transform.replacement.replace(
+                  /\{\{(\w+)\}\}/g,
+                  (_, name) => m.groups?.[name] ?? '',
+                );
+              } else {
+                output = Object.values(m.groups).filter(Boolean).join(' ');
+              }
+              // Extract highlight positions from named capture groups
+              const indices = (m as RegExpExecArray & { indices?: { groups?: Record<string, [number, number]> } }).indices;
+              if (indices?.groups) {
+                highlights = Object.entries(indices.groups)
+                  .filter((entry): entry is [string, [number, number]] => entry[1] != null)
+                  .map(([groupName, [start, end]]) => ({ start, end, groupName }))
+                  .sort((a, b) => a.start - b.start);
+                // Remove overlaps: skip any span that starts before the previous one ends
+                const deduped: typeof highlights = [];
+                for (const h of highlights) {
+                  if (deduped.length === 0 || h.start >= deduped[deduped.length - 1].end) {
+                    deduped.push(h);
+                  }
+                }
+                highlights = deduped;
+              }
+            }
+          } else {
+            // No extract pattern — highlight the full match span
+            const matchExec = re.exec(value);
+            if (matchExec) {
+              highlights = [{ start: matchExec.index, end: matchExec.index + matchExec[0].length, groupName: 'match' }];
             }
           }
-          items.push({ source: value, output });
+
+          items.push({ source: value, output, highlights });
         }
       }
 
       return { matched: items.length, total: values.length, valid: true, items };
     } catch {
-      return { matched: 0, total: values.length, valid: false, items: [] as { source: string; output?: string }[] };
+      return { matched: 0, total: values.length, valid: false, items: [] as { source: string; output?: string; highlights: { start: number; end: number; groupName: string }[] }[] };
     }
   }, [transform.sourceField, transform.matchPattern, transform.extractPattern, transform.replacement, preTransformRows]);
 
@@ -1106,7 +1240,7 @@ function TransformRuleEditor({
                 key={i}
                 className="flex items-start gap-2 px-2.5 py-1.5 text-sm border-b border-border last:border-b-0 bg-bg/50"
               >
-                <span className="text-text-secondary break-words min-w-0 flex-1 font-mono">{item.source}</span>
+                <span className="text-text-secondary break-words min-w-0 flex-1 font-mono"><HighlightedSource source={item.source} highlights={item.highlights} /></span>
                 {item.output !== undefined && (
                   <>
                     <span className="text-text-muted shrink-0 mt-0.5">&rarr;</span>

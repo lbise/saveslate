@@ -14,7 +14,7 @@ import {
   parseRawCsv,
   extractHeadersAndData,
   applyParser,
-  extractIban,
+  extractAccountIdentifier,
 } from '../lib/csv';
 import { addTransactions, saveImportBatch } from '../lib/transaction-storage';
 import { getAccountById } from '../data/mock/accounts';
@@ -30,6 +30,7 @@ export function Import() {
   const [fileName, setFileName] = useState('');
   const [selectedParser, setSelectedParser] = useState<CsvParser | null>(null);
   const [isCreatingParser, setIsCreatingParser] = useState(false);
+  const [parserToEdit, setParserToEdit] = useState<CsvParser | null>(null);
   const [importResult, setImportResult] = useState<{ count: number; income: number; expense: number } | null>(null);
 
   // ─── Derived CSV data ──────────────────────────────────────
@@ -44,10 +45,10 @@ export function Import() {
     return extractHeadersAndData(rawRows, hasHeader, skip);
   }, [rawContent, selectedParser]);
 
-  // ─── Detected IBAN from skipped header rows ────────────────
-  const detectedIban = useMemo(() => {
-    if (!selectedParser?.ibanPattern || skippedRows.length === 0) return undefined;
-    return extractIban(skippedRows, selectedParser.ibanPattern) ?? undefined;
+  // ─── Detected account identifier from skipped header rows ───
+  const detectedIdentifier = useMemo(() => {
+    if (!selectedParser?.accountPattern || skippedRows.length === 0) return undefined;
+    return extractAccountIdentifier(skippedRows, selectedParser.accountPattern) ?? undefined;
   }, [skippedRows, selectedParser]);
 
   // ─── Parsed rows (only when parser is selected) ────────────
@@ -73,17 +74,25 @@ export function Import() {
   }, []);
 
   const handleCreateNew = useCallback(() => {
+    setParserToEdit(null);
+    setIsCreatingParser(true);
+  }, []);
+
+  const handleEditParser = useCallback((parser: CsvParser) => {
+    setParserToEdit(parser);
     setIsCreatingParser(true);
   }, []);
 
   const handleParserSaved = useCallback((parser: CsvParser) => {
     setSelectedParser(parser);
+    setParserToEdit(null);
     setIsCreatingParser(false);
     setStep('preview');
   }, []);
 
   const handleCancelCreate = useCallback(() => {
     setIsCreatingParser(false);
+    setParserToEdit(null);
   }, []);
 
   // ─── Step 3: Import confirmed ──────────────────────────────
@@ -137,12 +146,14 @@ export function Import() {
     setRawContent('');
     setFileName('');
     setSelectedParser(null);
+    setParserToEdit(null);
     setIsCreatingParser(false);
   }, []);
 
   const handleBackToParser = useCallback(() => {
     setStep('parser');
     setSelectedParser(null);
+    setParserToEdit(null);
     setIsCreatingParser(false);
   }, []);
 
@@ -151,6 +162,7 @@ export function Import() {
     setRawContent('');
     setFileName('');
     setSelectedParser(null);
+    setParserToEdit(null);
     setIsCreatingParser(false);
     setImportResult(null);
   }, []);
@@ -204,8 +216,9 @@ export function Import() {
 
           {/* Parser matching */}
           <ParserMatcher
-            headers={headers}
+            rawContent={rawContent}
             onSelectParser={handleSelectParser}
+            onEditParser={handleEditParser}
             onCreateNew={handleCreateNew}
           />
         </div>
@@ -215,6 +228,7 @@ export function Import() {
       {step === 'parser' && isCreatingParser && (
         <ParserEditor
           rawContent={rawContent}
+          existingParser={parserToEdit ?? undefined}
           onSave={handleParserSaved}
           onCancel={handleCancelCreate}
         />
@@ -241,7 +255,7 @@ export function Import() {
             rows={parsedRows}
             onConfirm={handleConfirmImport}
             onBack={handleBackToParser}
-            detectedIban={detectedIban}
+            detectedIdentifier={detectedIdentifier}
           />
         </div>
       )}
