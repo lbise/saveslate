@@ -342,7 +342,7 @@ export function Transactions() {
             <option value="manual">Manual entries</option>
             {importBatches.map((batch) => (
               <option key={batch.id} value={batch.id}>
-                {batch.name || batch.fileName} ({formatDate(batch.importedAt)})
+                {batch.name || batch.fileName}
               </option>
             ))}
           </select>

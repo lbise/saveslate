@@ -1,5 +1,5 @@
 import { useState, useMemo, useEffect } from 'react';
-import { AlertTriangle, Check, ChevronLeft, ChevronRight, X } from 'lucide-react';
+import { AlertTriangle, Check, ChevronLeft, ChevronRight, Filter, X } from 'lucide-react';
 import { cn, formatCurrency, formatDate } from '../../lib/utils';
 import { ACCOUNTS } from '../../data/mock/accounts';
 import type { ParsedRow } from '../../types';
@@ -32,20 +32,21 @@ export function TransactionPreview({ rows, onConfirm, onBack, detectedIdentifier
   // Reset to first page when rows or filter changes
   useEffect(() => { setPage(0); }, [rows, showWarningsOnly]);
 
+  // Find matching account ID based on detected identifier
+  const matchedAccountId = useMemo(() => {
+    if (!detectedIdentifier) return undefined;
+    const normalized = detectedIdentifier.replace(/\s/g, '');
+    return ACCOUNTS.find(acc => 
+      acc.accountIdentifier?.replace(/\s/g, '') === normalized
+    )?.id;
+  }, [detectedIdentifier]);
+
   // Auto-select account when an identifier is detected
   useEffect(() => {
-    if (!detectedIdentifier) return;
-    
-    const normalized = detectedIdentifier.replace(/\s/g, '');
-    const matchingAccount = ACCOUNTS.find(acc => {
-      if (!acc.accountIdentifier) return false;
-      return acc.accountIdentifier.replace(/\s/g, '') === normalized;
-    });
-    
-    if (matchingAccount) {
-      setAccountId(matchingAccount.id);
+    if (matchedAccountId) {
+      setAccountId(matchedAccountId);
     }
-  }, [detectedIdentifier]);
+  }, [matchedAccountId]);
 
   const hasCurrency = useMemo(
     () => rows.some((r) => r.currency),
@@ -114,47 +115,10 @@ export function TransactionPreview({ rows, onConfirm, onBack, detectedIdentifier
             Expense: <span className="text-text font-medium">{formatCurrency(stats.expense)}</span>
           </span>
         </div>
-        {stats.errorCount > 0 && (
-          <button
-            onClick={() => setShowWarningsOnly(!showWarningsOnly)}
-            className={cn(
-              "flex items-center gap-2 bg-transparent border-none cursor-pointer transition-opacity px-0 py-0",
-              showWarningsOnly ? "opacity-100" : "opacity-60 hover:opacity-100"
-            )}
-          >
-            <AlertTriangle size={14} className="text-amber-400" />
-            <span className="text-ui text-amber-400 font-medium">
-              {stats.errorCount} with warnings{showWarningsOnly ? ' (filtered)' : ''}
-            </span>
-          </button>
-        )}
       </div>
 
       {/* Account selector and import name */}
       <div className="flex flex-col gap-3">
-        <div className="flex flex-col gap-1.5">
-          <div className="flex items-center gap-3">
-            <label className="label whitespace-nowrap">Import into</label>
-            <select
-              value={accountId}
-              onChange={(e) => setAccountId(e.target.value)}
-              className="select text-sm max-w-xs"
-            >
-              {ACCOUNTS.map((acc) => (
-                <option key={acc.id} value={acc.id}>
-                  {acc.name} ({acc.type})
-                </option>
-              ))}
-            </select>
-          </div>
-          {detectedIdentifier && (
-            <div className="flex items-center gap-1.5 text-ui text-text-muted pl-[calc(theme(spacing.14)+theme(spacing.3))]">
-              <span>Account matched:</span>
-              <span className="font-mono text-text-secondary">{detectedIdentifier}</span>
-            </div>
-          )}
-        </div>
-
         <div className="flex flex-col gap-1.5">
           <div className="flex items-center gap-3">
             <label className="label whitespace-nowrap">Import name</label>
@@ -170,7 +134,43 @@ export function TransactionPreview({ rows, onConfirm, onBack, detectedIdentifier
             Optional — defaults to filename if left empty
           </div>
         </div>
+
+        <div className="flex flex-col gap-1.5">
+          <div className="flex items-center gap-3">
+            <label className="label whitespace-nowrap">Import into</label>
+            <select
+              value={accountId}
+              onChange={(e) => setAccountId(e.target.value)}
+              className="select text-sm max-w-xs"
+            >
+              {ACCOUNTS.map((acc) => (
+                <option key={acc.id} value={acc.id}>
+                  {acc.name} ({acc.type}){acc.id === matchedAccountId ? ' — matched' : ''}
+                </option>
+              ))}
+            </select>
+          </div>
+        </div>
       </div>
+
+      {/* Warnings filter */}
+      {stats.errorCount > 0 && (
+        <div className="flex items-center px-1">
+          <button
+            onClick={() => setShowWarningsOnly(!showWarningsOnly)}
+            className={cn(
+              "flex items-center gap-2 bg-transparent border-none cursor-pointer transition-opacity px-0 py-0",
+              showWarningsOnly ? "opacity-100" : "opacity-60 hover:opacity-100"
+            )}
+          >
+            <AlertTriangle size={14} className="text-amber-400" />
+            <span className="text-ui text-amber-400 font-medium hover:underline">
+              {stats.errorCount} with warnings{showWarningsOnly ? ' (filtered)' : ''}
+            </span>
+            <Filter size={12} className="text-amber-400" />
+          </button>
+        </div>
+      )}
 
       {/* Transaction table */}
       {(() => {

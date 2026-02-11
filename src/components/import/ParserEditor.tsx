@@ -1,5 +1,5 @@
 import { useState, useMemo, useCallback, useRef, useEffect } from 'react';
-import { Save, RotateCcw, X, ChevronDown, ChevronUp, ChevronLeft, ChevronRight, Plus, AlertTriangle, Check, Pencil } from 'lucide-react';
+import { Save, RotateCcw, X, ChevronDown, ChevronUp, ChevronLeft, ChevronRight, Plus, AlertTriangle, Check, Pencil, Filter } from 'lucide-react';
 import { cn, formatCurrency, formatDate } from '../../lib/utils';
 import {
   detectDelimiter,
@@ -362,7 +362,7 @@ export function ParserEditor({
           <select
             value={delimiter}
             onChange={(e) => setDelimiter(e.target.value as CsvDelimiter)}
-            className="select text-sm"
+            className="select text-sm pl-3 pr-8"
           >
             {DELIMITER_OPTIONS.map((d) => (
               <option key={d.value} value={d.value}>
@@ -852,9 +852,10 @@ function ParsedTransactionPreview({ rows }: ParsedTransactionPreviewProps) {
             )}
           >
             <AlertTriangle size={11} className="text-amber-400" />
-            <span className="text-ui text-amber-400">
+            <span className="text-ui text-amber-400 hover:underline">
               {errorCount} with warnings{showWarningsOnly ? ' (filtered)' : ''}
             </span>
+            <Filter size={10} className="text-amber-400" />
           </button>
         )}
       </div>
@@ -1177,7 +1178,10 @@ function TransformRuleEditor({
 
       {/* Match pattern */}
       <div className="flex items-center gap-2">
-        <label className="text-ui text-text-muted w-14 shrink-0">Match</label>
+        <label className="text-ui text-text-muted w-14 shrink-0">
+          Match
+          {!transform.matchPattern && <span className="text-expense ml-0.5">*</span>}
+        </label>
         <input
           type="text"
           value={transform.matchPattern}
@@ -1216,7 +1220,10 @@ function TransformRuleEditor({
 
       {/* Extract pattern */}
       <div className="flex items-center gap-2">
-        <label className="text-ui text-text-muted w-14 shrink-0">Extract</label>
+        <label className="text-ui text-text-muted w-14 shrink-0">
+          Extract
+          {!transform.extractPattern && <span className="text-expense ml-0.5">*</span>}
+        </label>
         <input
           type="text"
           value={transform.extractPattern}
@@ -1239,6 +1246,7 @@ function TransformRuleEditor({
           placeholder="Template: {{merchant}}"
           className="input text-sm font-mono flex-1"
         />
+        <span className="text-ui text-text-muted shrink-0 opacity-60">optional</span>
       </div>
 
       {/* Matched rows preview */}
