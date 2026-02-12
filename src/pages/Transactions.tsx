@@ -293,6 +293,15 @@ export function Transactions() {
           <Upload size={16} />
           Import
         </button>
+        <button
+          type="button"
+          onClick={handleExportJson}
+          disabled={filteredTransactions.length === 0}
+          className="btn-ghost"
+        >
+          <Download size={16} />
+          Export
+        </button>
       </PageHeader>
 
       {/* Quick Stats */}
@@ -400,39 +409,27 @@ export function Transactions() {
         </div>
 
         {/* Row 2: Type filter pills */}
-        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
-          <div className="flex items-center gap-2 flex-wrap">
-            {TYPE_LABELS.map((t) => {
-              const isActive = typeFilter === t.value;
-              return (
-                <button
-                  key={t.value}
-                  onClick={() => {
-                    setTypeFilter(t.value);
-                    setCategoryFilter(null);
-                  }}
-                  className={cn(
-                    "px-3 py-1.5 rounded-full text-sm font-medium transition-all duration-150 border cursor-pointer",
-                    isActive
-                      ? "bg-text/10 text-text border-text/20"
-                      : "bg-surface text-text-secondary border-border opacity-60 hover:opacity-100",
-                  )}
-                >
-                  {t.label}
-                </button>
-              );
-            })}
-          </div>
-
-          <button
-            type="button"
-            onClick={handleExportJson}
-            disabled={filteredTransactions.length === 0}
-            className="btn-secondary"
-          >
-            <Download size={16} />
-            Export JSON
-          </button>
+        <div className="flex items-center gap-2 flex-wrap">
+          {TYPE_LABELS.map((t) => {
+            const isActive = typeFilter === t.value;
+            return (
+              <button
+                key={t.value}
+                onClick={() => {
+                  setTypeFilter(t.value);
+                  setCategoryFilter(null);
+                }}
+                className={cn(
+                  "px-3 py-1.5 rounded-full text-sm font-medium transition-all duration-150 border cursor-pointer",
+                  isActive
+                    ? "bg-text/10 text-text border-text/20"
+                    : "bg-surface text-text-secondary border-border opacity-60 hover:opacity-100",
+                )}
+              >
+                {t.label}
+              </button>
+            );
+          })}
         </div>
       </div>
 

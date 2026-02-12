@@ -78,11 +78,11 @@ export function Sidebar({ collapsed, onToggleCollapse }: SidebarProps) {
             <span>eloMoney</span>
           </Link>
         )}
-        {isCollapsed && (
+        {isCollapsed && isMobile && (
           <Link
             to="/"
             className="text-lg font-semibold text-accent hover:text-accent transition-colors"
-            style={{ fontFamily: 'var(--font-display)', textDecoration: 'none' }}
+            style={{ fontFamily: 'var(--font-display)', letterSpacing: '-0.03em', textDecoration: 'none' }}
           >
             M
           </Link>
@@ -90,14 +90,27 @@ export function Sidebar({ collapsed, onToggleCollapse }: SidebarProps) {
         {!isMobile && (
           <button
             onClick={onToggleCollapse}
+            aria-label={isCollapsed ? 'Expand sidebar' : 'Collapse sidebar'}
             className={cn(
-              'w-7 h-7 rounded-(--radius-sm) bg-transparent border border-border',
+              'rounded-(--radius-sm) bg-transparent border border-border',
               'text-text-muted hover:text-text hover:border-text-muted',
               'flex items-center justify-center transition-all duration-150',
-              isCollapsed && 'rotate-180',
+              isCollapsed ? 'h-8 min-w-11 px-1.5 gap-1.5' : 'w-7 h-7',
             )}
           >
-            <ChevronLeft size={14} />
+            {isCollapsed ? (
+              <>
+                <span
+                  className="text-accent text-lg font-semibold leading-none"
+                  style={{ fontFamily: 'var(--font-display)', letterSpacing: '-0.03em' }}
+                >
+                  M
+                </span>
+                <ChevronLeft size={14} className="rotate-180" />
+              </>
+            ) : (
+              <ChevronLeft size={14} />
+            )}
           </button>
         )}
       </div>
