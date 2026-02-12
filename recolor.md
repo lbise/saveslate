@@ -33,6 +33,21 @@ Remember: Claude is capable of extraordinary creative work. Don't hold back, sho
 Here is the current theme, create a new one.
 
 ```
+  --color-income: #4fd08a; /* cool jade, optimistic */
+  --color-expense: #ef6a6a; /* smoky coral-red (still clear, less panic) */
+  --color-transfer: #6aa7ff; /* arctic blue, distinct from accent */
+
+  --color-split: #e0b35c; /* muted saffron: “shared / pending / split” */
+  --color-warning: #e0b35c;
+
+  --font-body: "Familjen Grotesk", sans-serif; /* Nordic-ish, human, readable */
+
+  --font-display: "Cabinet Grotesk", sans-serif;
+  --font-body: "Satoshi", sans-serif;
+  --font-display: "Epilogue", sans-serif;
+```
+
+```
 @theme {
   /* Dark-only palette */
   --color-bg: #111111;
@@ -203,5 +218,53 @@ Here is the current theme, create a new one.
    * Use this on the body or main container for the 'film' look
    */
   --bg-noise: url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noiseFilter'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.65' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noiseFilter)' opacity='0.05'/%3E%3C/svg%3E");
+}
+```
+
+```
+/* Claude */
+@theme {
+  /* Dark-only palette - Nordic depths */
+  --color-bg: #0a0a0a;
+  --color-surface: #141414;
+  --color-surface-hover: #1a1a1a;
+  --color-border: #212121;
+
+  --color-text: #f5f5f5;
+  --color-text-secondary: #8a8a8a;
+  --color-text-muted: #4a4a4a;
+
+  /* Core semantic colors - refined nordic palette */
+  --color-accent: #88d4f5;           /* Icy blue - cooler, calmer */
+  --color-goal: #a8b5d6;             /* Soft periwinkle - aspirational */
+  --color-income: #7dd3a4;           /* Mint green - fresh money in */
+  --color-expense: #ff6b7a;          /* Coral red - softer, less aggressive */
+  --color-transfer: #b8a3ff;         /* Lavender - neutral movement */
+  --color-split: #ffa959;            /* Warm amber - shared/divided */
+
+  /* Shadows - subtle depth */
+  --shadow: none;
+  --shadow-md: 0 2px 12px rgba(0, 0, 0, 0.4);
+  --shadow-glow: 0 0 20px rgba(136, 212, 245, 0.1);
+
+  /* Border radius - softer edges */
+  --radius-sm: 8px;
+  --radius-md: 12px;
+  --radius-lg: 16px;
+  --radius-full: 9999px;
+
+  /* Transitions */
+  --transition-fast: 150ms cubic-bezier(0.4, 0, 0.2, 1);
+  --transition-normal: 250ms cubic-bezier(0.4, 0, 0.2, 1);
+  --transition-slow: 350ms cubic-bezier(0.4, 0, 0.2, 1);
+
+  /* Layout */
+  --sidebar-width: 260px;
+  --sidebar-collapsed: 72px;
+
+  /* Fonts - more character */
+  --font-display: "Epilogue", sans-serif;
+  --font-body: "Satoshi", -apple-system, sans-serif;
+  --font-mono: "JetBrains Mono", monospace;
 }
 ```
