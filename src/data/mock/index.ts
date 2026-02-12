@@ -103,7 +103,8 @@ export const getGoalProgress = (): GoalProgress[] => {
     // Find all transactions directly linked to this goal
     const goalTransactions = TRANSACTIONS.filter((t) => t.goalId === goal.id);
 
-    const currentAmount = goalTransactions.reduce((sum, t) => sum + t.amount, 0);
+    const startingAmount = goal.startingAmount ?? 0;
+    const currentAmount = startingAmount + goalTransactions.reduce((sum, t) => sum + t.amount, 0);
     const percentage = goal.targetAmount > 0 ? (currentAmount / goal.targetAmount) * 100 : 0;
 
     return {

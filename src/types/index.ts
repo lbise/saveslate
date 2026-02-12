@@ -6,6 +6,8 @@ export type AccountType = 'checking' | 'savings' | 'credit' | 'cash';
 
 export type SplitStatus = 'pending' | 'reimbursed';
 
+export type ContributionFrequency = 'weekly' | 'monthly';
+
 export interface Category {
   id: string;
   name: string;
@@ -17,9 +19,15 @@ export interface Category {
 export interface Goal {
   id: string;
   name: string;
+  description?: string;
   icon: string;
-  color: string;
+  startingAmount?: number;
   targetAmount: number;
+  hasTarget?: boolean;
+  expectedContribution?: {
+    amount: number;
+    frequency: ContributionFrequency;
+  };
   deadline?: string; // ISO date string
   createdAt: string;
   isArchived?: boolean;

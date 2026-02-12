@@ -19,7 +19,6 @@ export const GOALS: Goal[] = [
     id: 'goal-1',
     name: 'Summer Vacation',
     icon: 'Palmtree',
-    color: '#0ea5e9', // sky
     targetAmount: 3000,
     deadline: monthsFromNow(6),
     createdAt: daysAgo(60),
@@ -29,7 +28,6 @@ export const GOALS: Goal[] = [
     id: 'goal-2',
     name: 'New Laptop',
     icon: 'Laptop',
-    color: '#8b5cf6', // violet
     targetAmount: 2000,
     deadline: monthsFromNow(3),
     createdAt: daysAgo(30),
