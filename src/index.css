@@ -120,6 +120,8 @@
   .badge-accent,
   .badge-income,
   .badge-expense,
+  .badge-transfer,
+  .badge-split,
   .badge-muted {
     @apply inline-flex items-center gap-1.5 px-2.5 py-1
            rounded-full text-sm font-medium;
@@ -139,6 +141,10 @@
 
   .badge-transfer {
     @apply bg-transfer/15 text-transfer;
+  }
+
+  .badge-split {
+    @apply bg-split/15 text-split;
   }
 
   .badge-muted {

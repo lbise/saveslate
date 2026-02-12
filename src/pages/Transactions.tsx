@@ -344,7 +344,7 @@ export function Transactions() {
         </div>
         {pendingSplitTotal > 0 && (
           <div className="flex items-center gap-3">
-            <div className="w-2 h-2 rounded-full bg-amber-400" />
+            <div className="w-2 h-2 rounded-full bg-split" />
             <div className="flex flex-col gap-0.5">
               <span
                 className="text-base font-medium text-text"
@@ -617,7 +617,7 @@ function TransactionRow({
                 <Users size={9} />
                 {transaction.split.withPerson}
                 {transaction.split.status === "pending" && (
-                  <span className="text-amber-400">&middot; pending</span>
+                  <span className="text-split">&middot; pending</span>
                 )}
                 {transaction.split.status === "reimbursed" && (
                   <span className="text-income">&middot; settled</span>
@@ -682,7 +682,7 @@ function TransactionRow({
                 <Users size={9} />
                 {transaction.split.withPerson}
                 {transaction.split.status === "pending" && (
-                  <span className="text-amber-400">&middot; pending</span>
+                  <span className="text-split">&middot; pending</span>
                 )}
                 {transaction.split.status === "reimbursed" && (
                   <span className="text-income">&middot; settled</span>

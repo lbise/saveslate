@@ -1,7 +1,13 @@
 import type { ReactNode } from 'react';
 import { cn } from '../../lib/utils';
 
-type BadgeVariant = 'default' | 'income' | 'expense' | 'transfer' | 'muted';
+type BadgeVariant =
+  | 'default'
+  | 'income'
+  | 'expense'
+  | 'transfer'
+  | 'split'
+  | 'muted';
 
 interface BadgeProps {
   children: ReactNode;
@@ -15,6 +21,7 @@ const variantClasses: Record<BadgeVariant, string> = {
   income: 'badge-income',
   expense: 'badge-expense',
   transfer: 'badge-transfer',
+  split: 'badge-split',
   muted: 'badge-muted',
 };
 

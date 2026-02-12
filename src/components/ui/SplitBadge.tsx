@@ -14,9 +14,7 @@ export function SplitBadge({ status, className }: SplitBadgeProps) {
     <div
       className={cn(
         'inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-ui font-medium',
-        isPending
-          ? 'bg-amber-900/30 text-amber-400'
-          : 'bg-green-900/30 text-green-400',
+        isPending ? 'bg-split/20 text-split' : 'bg-income/20 text-income',
         className
       )}
     >
