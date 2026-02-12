@@ -13,7 +13,7 @@
   --color-text-secondary: #888888;
   --color-text-muted: #555555;
 
-  --color-accent: #ffffff;
+  --color-accent: #2dd4bf;
   --color-goal: #7e9ab3;
   --color-income: #6fcf97;
   --color-expense: #eb5757;
@@ -63,7 +63,7 @@
 
   .btn-primary {
     @apply px-5 py-2.5
-           bg-accent text-bg
+           bg-text text-bg
            hover:opacity-90;
   }
 

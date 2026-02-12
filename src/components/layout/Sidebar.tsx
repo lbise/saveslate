@@ -74,13 +74,14 @@ export function Sidebar({ collapsed, onToggleCollapse }: SidebarProps) {
             className="text-lg font-semibold tracking-tight whitespace-nowrap overflow-hidden text-text hover:text-text transition-colors"
             style={{ fontFamily: 'var(--font-display)', letterSpacing: '-0.03em', textDecoration: 'none' }}
           >
-            MeloMoney
+            <span className="text-accent">M</span>
+            <span>eloMoney</span>
           </Link>
         )}
         {isCollapsed && (
           <Link
             to="/"
-            className="text-lg font-semibold text-text hover:text-text transition-colors"
+            className="text-lg font-semibold text-accent hover:text-accent transition-colors"
             style={{ fontFamily: 'var(--font-display)', textDecoration: 'none' }}
           >
             M

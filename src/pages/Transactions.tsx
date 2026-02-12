@@ -3,6 +3,7 @@ import {
   Search,
   ArrowUpDown,
   Upload,
+  Download,
   Plus,
   Target,
   MoreHorizontal,
@@ -225,6 +226,56 @@ export function Transactions() {
     return filteredTransactions.slice(start, end);
   }, [filteredTransactions, page, pageSize]);
 
+  const handleExportJson = () => {
+    if (filteredTransactions.length === 0) {
+      return;
+    }
+
+    const exportPayload = {
+      exportedAt: new Date().toISOString(),
+      filters: {
+        searchQuery,
+        type: typeFilter,
+        categoryId: categoryFilter,
+        importBatchId: batchFilter,
+        sortField,
+        sortDirection,
+      },
+      transactionCount: filteredTransactions.length,
+      transactions: filteredTransactions.map((transaction) => ({
+        id: transaction.id,
+        date: transaction.date,
+        description: transaction.description,
+        amount: transaction.amount,
+        currency: transaction.currency,
+        type: transaction.category.type,
+        categoryId: transaction.categoryId,
+        categoryName: transaction.category.name,
+        accountId: transaction.accountId,
+        accountName: transaction.account.name,
+        goalId: transaction.goalId ?? null,
+        goalName: transaction.goal?.name ?? null,
+        importBatchId: transaction.importBatchId ?? null,
+        split: transaction.split ?? null,
+        rawData: transaction.rawData ?? null,
+      })),
+    };
+
+    const fileDate = new Date().toISOString().split("T")[0];
+    const fileName = `transactions-filtered-${fileDate}.json`;
+    const blob = new Blob([JSON.stringify(exportPayload, null, 2)], {
+      type: "application/json",
+    });
+    const downloadUrl = URL.createObjectURL(blob);
+    const anchor = document.createElement("a");
+    anchor.href = downloadUrl;
+    anchor.download = fileName;
+    document.body.appendChild(anchor);
+    anchor.click();
+    anchor.remove();
+    URL.revokeObjectURL(downloadUrl);
+  };
+
   return (
     <div className="page-container">
       {/* Backdrop — closes any open popover on click */}
@@ -349,27 +400,39 @@ export function Transactions() {
         </div>
 
         {/* Row 2: Type filter pills */}
-        <div className="flex items-center gap-2">
-          {TYPE_LABELS.map((t) => {
-            const isActive = typeFilter === t.value;
-            return (
-              <button
-                key={t.value}
-                onClick={() => {
-                  setTypeFilter(t.value);
-                  setCategoryFilter(null);
-                }}
-                className={cn(
-                  "px-3 py-1.5 rounded-full text-sm font-medium transition-all duration-150 border cursor-pointer",
-                  isActive
-                    ? "bg-text/10 text-text border-text/20"
-                    : "bg-surface text-text-secondary border-border opacity-60 hover:opacity-100",
-                )}
-              >
-                {t.label}
-              </button>
-            );
-          })}
+        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+          <div className="flex items-center gap-2 flex-wrap">
+            {TYPE_LABELS.map((t) => {
+              const isActive = typeFilter === t.value;
+              return (
+                <button
+                  key={t.value}
+                  onClick={() => {
+                    setTypeFilter(t.value);
+                    setCategoryFilter(null);
+                  }}
+                  className={cn(
+                    "px-3 py-1.5 rounded-full text-sm font-medium transition-all duration-150 border cursor-pointer",
+                    isActive
+                      ? "bg-text/10 text-text border-text/20"
+                      : "bg-surface text-text-secondary border-border opacity-60 hover:opacity-100",
+                  )}
+                >
+                  {t.label}
+                </button>
+              );
+            })}
+          </div>
+
+          <button
+            type="button"
+            onClick={handleExportJson}
+            disabled={filteredTransactions.length === 0}
+            className="btn-secondary"
+          >
+            <Download size={16} />
+            Export JSON
+          </button>
         </div>
       </div>
 
