@@ -851,11 +851,11 @@ function ParsedTransactionPreview({ rows }: ParsedTransactionPreviewProps) {
               showWarningsOnly ? "opacity-100" : "opacity-60 hover:opacity-100"
             )}
           >
-            <AlertTriangle size={11} className="text-amber-400" />
-            <span className="text-ui text-amber-400 hover:underline">
+            <AlertTriangle size={11} className="text-warning" />
+            <span className="text-ui text-warning hover:underline">
               {errorCount} with warnings{showWarningsOnly ? ' (filtered)' : ''}
             </span>
-            <Filter size={10} className="text-amber-400" />
+            <Filter size={10} className="text-warning" />
           </button>
         )}
       </div>
@@ -883,7 +883,7 @@ function ParsedTransactionPreview({ rows }: ParsedTransactionPreviewProps) {
                   key={idx}
                   className={cn(
                     'border-b border-border last:border-b-0 transition-colors',
-                    hasErrors && 'bg-amber-400/[0.03]',
+                    hasErrors && 'bg-warning/[0.03]',
                   )}
                 >
                   <td className="px-3 py-2.5 text-text-secondary whitespace-nowrap">
@@ -912,7 +912,7 @@ function ParsedTransactionPreview({ rows }: ParsedTransactionPreviewProps) {
                   <td className="px-3 py-2.5 text-center">
                     {hasErrors ? (
                       <span title={row.errors.join(', ')}>
-                        <AlertTriangle size={14} className="text-amber-400 inline" />
+                        <AlertTriangle size={14} className="text-warning inline" />
                       </span>
                     ) : (
                       <Check size={14} className="text-income inline" />

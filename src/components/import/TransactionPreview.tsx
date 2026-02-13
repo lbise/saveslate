@@ -160,11 +160,11 @@ export function TransactionPreview({ rows, onConfirm, onBack, detectedIdentifier
               showWarningsOnly ? "opacity-100" : "opacity-60 hover:opacity-100"
             )}
           >
-            <AlertTriangle size={14} className="text-amber-400" />
-            <span className="text-ui text-amber-400 font-medium hover:underline">
+            <AlertTriangle size={14} className="text-warning" />
+            <span className="text-ui text-warning font-medium hover:underline">
               {stats.errorCount} with warnings{showWarningsOnly ? ' (filtered)' : ''}
             </span>
-            <Filter size={12} className="text-amber-400" />
+            <Filter size={12} className="text-warning" />
           </button>
         </div>
       )}
@@ -220,7 +220,7 @@ export function TransactionPreview({ rows, onConfirm, onBack, detectedIdentifier
                         isSelected
                           ? 'hover:bg-surface-hover/50'
                           : 'opacity-40 hover:opacity-60',
-                        hasErrors && isSelected && 'bg-amber-400/[0.03]',
+                        hasErrors && isSelected && 'bg-warning/[0.03]',
                       )}
                     >
                       <td className="px-3 py-2.5">
@@ -258,7 +258,7 @@ export function TransactionPreview({ rows, onConfirm, onBack, detectedIdentifier
                       <td className="px-3 py-2.5 text-center">
                         {hasErrors ? (
                           <span title={row.errors.join(', ')}>
-                            <AlertTriangle size={14} className="text-amber-400 inline" />
+                            <AlertTriangle size={14} className="text-warning inline" />
                           </span>
                         ) : (
                           <Check size={14} className="text-income inline" />

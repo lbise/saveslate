@@ -4,21 +4,25 @@
 
 @theme {
   /* Dark-only palette */
-  --color-bg: #111111;
-  --color-surface: #161616;
-  --color-surface-hover: #1a1a1a;
-  --color-border: #252525;
+  --color-bg: #09090b; /* Almost black, hint of blue */
+  --color-surface: #121215; /* Slightly lighter, maintains cool tone */
+  --color-surface-hover: #1c1c21;
+  --color-surface-active: #23232a;
+  --color-border: #27272a;
+  --color-border-subtle: #1f1f22;
 
-  --color-text: #ffffff;
-  --color-text-secondary: #888888;
-  --color-text-muted: #555555;
+  --color-text: #e9f0ef;
+  --color-text-secondary: #9aa8a6;
+  --color-text-muted: #5e6b69;
 
-  --color-accent: #2dd4bf;
-  --color-goal: #7e9ab3;
-  --color-income: #6fcf97;
-  --color-expense: #eb5757;
-  --color-transfer: #5b9cf6;
+  --color-accent: #dd83b2;
+  /* --color-accent: #eddaca; */
+  --color-goal: #6aa7ff;
+  --color-income: #4fd08a;
+  --color-expense: #ef6a6a;
+  --color-transfer: #7e9ab3;
   --color-split: #c7a2ff;
+  --color-warning: #f5bb00;
 
   /* Shadows */
   --shadow: none;
@@ -39,8 +43,8 @@
   --sidebar-collapsed: 72px;
 
   /* Fonts */
-  --font-display: "Sora", sans-serif;
-  --font-body: "DM Sans", sans-serif;
+  --font-display: "Poppins", sans-serif;
+  --font-body: "Satoshi", sans-serif;
 }
 
 /* ========================================

@@ -44,6 +44,7 @@ Here is the current theme, create a new one.
 
   --font-display: "Cabinet Grotesk", sans-serif;
   --font-body: "Satoshi", sans-serif;
+
   --font-display: "Epilogue", sans-serif;
 ```
 
