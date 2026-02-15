@@ -26,6 +26,12 @@ const TYPE_COLORS: Record<TransactionType, string> = {
   transfer: 'text-transfer',
 };
 
+const TYPE_BG_COLORS: Record<TransactionType, string> = {
+  expense: 'bg-expense/10',
+  income: 'bg-income/10',
+  transfer: 'bg-transfer/10',
+};
+
 export function CategoryPicker({
   currentCategoryId,
   onSelect,
@@ -101,7 +107,12 @@ export function CategoryPicker({
           grouped.map(({ type, categories }) => (
             <div key={type}>
               {/* Section header */}
-              <div className="px-3 pt-2.5 pb-1 text-ui font-medium uppercase tracking-wider text-text-muted">
+              <div
+                className={cn(
+                  'px-3 pt-2.5 pb-1 text-ui font-medium uppercase tracking-wider',
+                  TYPE_COLORS[type],
+                )}
+              >
                 {TYPE_LABELS[type]}
               </div>
 
@@ -113,11 +124,17 @@ export function CategoryPicker({
                     key={cat.id}
                     onClick={() => onSelect(cat.id)}
                     className={cn(
-                      'flex items-center gap-2.5 w-full px-3 py-1.5 text-left bg-transparent border-none cursor-pointer text-ui transition-colors hover:bg-surface-hover',
-                      isCurrent ? TYPE_COLORS[type] : 'text-text-secondary hover:text-text',
+                      'flex items-center gap-2.5 w-full px-3 py-1.5 text-left border-none cursor-pointer text-ui transition-colors',
+                      isCurrent
+                        ? `${TYPE_BG_COLORS[type]} ${TYPE_COLORS[type]}`
+                        : 'bg-transparent text-text-secondary hover:bg-surface-hover hover:text-text',
                     )}
                   >
-                    <Icon name={cat.icon} size={14} className={isCurrent ? TYPE_COLORS[type] : 'text-text-muted'} />
+                    <Icon
+                      name={cat.icon}
+                      size={14}
+                      className={cn(TYPE_COLORS[type], isCurrent ? 'opacity-100' : 'opacity-60')}
+                    />
                     <span className="flex-1 truncate">{cat.name}</span>
                     {isCurrent && <Check size={12} />}
                   </button>

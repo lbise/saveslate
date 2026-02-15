@@ -12,7 +12,7 @@ interface TransactionPreviewProps {
   fileName?: string;
 }
 
-const PREVIEW_PAGE_SIZES = [10, 25, 50] as const;
+const PREVIEW_PAGE_SIZES = [20, 25, 50] as const;
 
 export function TransactionPreview({ rows, onConfirm, onBack, detectedIdentifier, fileName }: TransactionPreviewProps) {
   const [selected, setSelected] = useState<Set<number>>(() => {

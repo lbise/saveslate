@@ -18,13 +18,15 @@ import { useNavigate } from "react-router-dom";
 import { PageHeader } from "../components/layout/PageHeader";
 import { Badge, CategoryPicker, Icon } from "../components/ui";
 import {
-  getTransactionsWithDetails,
+  getAccountById,
   getCategoryById,
+  getGoalById,
   CATEGORIES,
 } from "../data/mock";
-import { loadImportBatches } from "../lib/transaction-storage";
+import { loadImportBatches, loadTransactions } from "../lib/transaction-storage";
 import { formatCurrency, formatDate, cn } from "../lib/utils";
 import type {
+  Transaction,
   TransactionType,
   TransactionWithDetails as TxDetails,
 } from "../types";
@@ -32,7 +34,7 @@ import type {
 type SortField = "date" | "amount";
 type SortDirection = "asc" | "desc";
 
-const PAGE_SIZES = [25, 50, 100] as const;
+const PAGE_SIZES = [20, 50, 100] as const;
 
 const TYPE_LABELS: { value: TransactionType | "all"; label: string }[] = [
   { value: "all", label: "All" },
@@ -59,11 +61,51 @@ const iconBoxStyles: Record<TransactionType, string> = {
   transfer: "bg-transfer/10 text-transfer",
 };
 
+const activeTypePillStyles: Record<TransactionType, string> = {
+  income: "bg-income/10 text-income border-income/20",
+  expense: "bg-expense/10 text-expense border-expense/20",
+  transfer: "bg-transfer/10 text-transfer border-transfer/20",
+};
+
+function toTransactionWithDetails(transaction: Transaction): TxDetails {
+  const inferredType: TransactionType = transaction.amount >= 0 ? "income" : "expense";
+
+  const category = getCategoryById(transaction.categoryId) ?? {
+    id: transaction.categoryId,
+    name: transaction.categoryId === "uncategorized" ? "Uncategorized" : "Unknown Category",
+    type: inferredType,
+    icon: "CircleHelp",
+  };
+
+  const account = getAccountById(transaction.accountId) ?? {
+    id: transaction.accountId,
+    name: "Unknown Account",
+    type: "checking",
+    balance: 0,
+    currency: transaction.currency || "CHF",
+    color: "#64748b",
+    icon: "Wallet",
+  };
+
+  const goal = transaction.goalId ? getGoalById(transaction.goalId) : undefined;
+
+  return {
+    ...transaction,
+    category,
+    account,
+    goal,
+  };
+}
+
+function loadTransactionsWithDetails(): TxDetails[] {
+  return loadTransactions().map((transaction) => toTransactionWithDetails(transaction));
+}
+
 export function Transactions() {
   const navigate = useNavigate();
   // Mutable local state so inline actions (delete, duplicate) work
   const [transactions, setTransactions] = useState(() =>
-    getTransactionsWithDetails(),
+    loadTransactionsWithDetails(),
   );
 
   // Filters
@@ -422,7 +464,9 @@ export function Transactions() {
                 className={cn(
                   "px-3 py-1.5 rounded-full text-sm font-medium transition-all duration-150 border cursor-pointer",
                   isActive
-                    ? "bg-text/10 text-text border-text/20"
+                    ? t.value === "all"
+                      ? "bg-text/10 text-text border-text/20"
+                      : activeTypePillStyles[t.value]
                     : "bg-surface text-text-secondary border-border opacity-60 hover:opacity-100",
                 )}
               >
