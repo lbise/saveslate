@@ -1,9 +1,10 @@
-import { useState } from 'react';
-import { Plus, Trash2 } from 'lucide-react';
+import { useMemo, useState, type FormEvent } from 'react';
+import * as LucideIcons from 'lucide-react';
+import { ChevronDown, Plus, Search, Trash2, X } from 'lucide-react';
 import { PageHeader } from '../components/layout/PageHeader';
 import { Icon } from '../components/ui';
-import { CATEGORIES as DEFAULT_CATEGORIES, getCategorySpending } from '../data/mock';
-import { formatCurrency, cn } from '../lib/utils';
+import { CATEGORIES as DEFAULT_CATEGORIES } from '../data/mock';
+import { cn } from '../lib/utils';
 import type { Category, TransactionType } from '../types';
 
 const TYPE_SECTIONS: { type: TransactionType; label: string }[] = [
@@ -20,74 +21,201 @@ const TYPE_ICON_STYLES: Record<TransactionType, { bg: string; text: string }> = 
 
 export function Categories() {
   const [categories, setCategories] = useState<Category[]>(DEFAULT_CATEGORIES);
-  const categorySpending = getCategorySpending();
+  const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
+  const [isIconPickerOpen, setIsIconPickerOpen] = useState(false);
+  const [iconSearchQuery, setIconSearchQuery] = useState('');
+  const [form, setForm] = useState<{ name: string; type: TransactionType; icon: string }>({
+    name: '',
+    type: 'expense',
+    icon: 'CircleDot',
+  });
 
-  const getSpending = (categoryId: string) =>
-    categorySpending.find((cs) => cs.category.id === categoryId);
+  const allIconNames = useMemo(
+    () => Object.keys(LucideIcons.icons).sort((a, b) => a.localeCompare(b)),
+    [],
+  );
+
+  const filteredIconNames = useMemo(() => {
+    const query = iconSearchQuery.trim().toLowerCase();
+    if (!query) return allIconNames;
+    return allIconNames.filter((iconName) => iconName.toLowerCase().includes(query));
+  }, [allIconNames, iconSearchQuery]);
+
+  const openCreateModal = (type: TransactionType) => {
+    setForm({ name: '', type, icon: 'CircleDot' });
+    setIconSearchQuery('');
+    setIsIconPickerOpen(false);
+    setIsCreateModalOpen(true);
+  };
 
   const handleDelete = (categoryId: string) => {
     setCategories((prev) => prev.filter((c) => c.id !== categoryId));
   };
 
-  const handleAdd = (type: TransactionType) => {
-    const name = prompt(`New ${type} category name:`);
-    if (!name?.trim()) return;
+  const handleCreateCategory = (event: FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+    const categoryName = form.name.trim();
+    if (!categoryName) return;
 
     const newCategory: Category = {
       id: `custom-${Date.now()}`,
-      name: name.trim(),
-      type,
-      icon: type === 'expense' ? 'CircleDot' : type === 'income' ? 'CircleDot' : 'CircleDot',
+      name: categoryName,
+      type: form.type,
+      icon: form.icon,
       isDefault: false,
     };
+
     setCategories((prev) => [...prev, newCategory]);
+    setIsCreateModalOpen(false);
   };
 
   return (
     <div className="page-container">
       <PageHeader title="Categories">
-        <button className="btn-primary" onClick={() => handleAdd('expense')}>
+        <button className="btn-primary" onClick={() => openCreateModal('expense')}>
           <Plus size={16} />
           New Category
         </button>
       </PageHeader>
 
-      {/* Spending Overview */}
-      {categorySpending.length > 0 && (
-        <section style={{ marginTop: '-32px', marginBottom: '16px' }}>
-          <div className="section-header">
-            <h2 className="section-title">Monthly Spending</h2>
-          </div>
-          <div className="flex flex-col gap-2.5">
-            {categorySpending.map((cs) => (
-              <div key={cs.category.id} className="flex items-center gap-3">
-                <div className="w-8 h-8 rounded-(--radius-md) bg-surface flex items-center justify-center shrink-0">
-                  <Icon name={cs.category.icon} size={16} className="text-text-secondary" />
-                </div>
-                <div className="flex-1 min-w-0">
-                  <div className="flex items-center justify-between mb-1">
-                    <span className="text-body text-text">{cs.category.name}</span>
-                    <span
-                      className="text-body"
-                      style={{ fontFamily: 'var(--font-display)' }}
-                    >
-                      {formatCurrency(cs.amount)}
-                    </span>
-                  </div>
-                  <div className="h-1 bg-border rounded-full overflow-hidden">
-                    <div
-                      className="h-full rounded-full bg-text-secondary transition-[width] duration-400 ease-out"
-                      style={{ width: `${cs.percentage}%` }}
+      {isCreateModalOpen && (
+        <>
+          <div
+            className="fixed inset-0 z-30 bg-bg/70"
+            onClick={() => {
+              setIsCreateModalOpen(false);
+              setIsIconPickerOpen(false);
+            }}
+          />
+          <div className="fixed inset-0 z-40 flex items-center justify-center p-4">
+            <section className="card w-full max-w-xl p-5">
+              <div className="section-header mb-4">
+                <h2 className="heading-3 text-text">Create Category</h2>
+                <button
+                  type="button"
+                  className="btn-icon"
+                  onClick={() => {
+                    setIsCreateModalOpen(false);
+                    setIsIconPickerOpen(false);
+                  }}
+                >
+                  <X size={16} />
+                </button>
+              </div>
+
+              <form className="space-y-4" onSubmit={handleCreateCategory}>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div>
+                    <label className="label mb-1.5 block" htmlFor="category-name">Name</label>
+                    <input
+                      id="category-name"
+                      className="input"
+                      placeholder="Groceries"
+                      value={form.name}
+                      onChange={(event) => setForm((current) => ({ ...current, name: event.target.value }))}
+                      required
                     />
                   </div>
+
+                  <div>
+                    <label className="label mb-1.5 block" htmlFor="category-type">Type</label>
+                    <select
+                      id="category-type"
+                      className="select"
+                      value={form.type}
+                      onChange={(event) => {
+                        const type = event.target.value as TransactionType;
+                        setForm((current) => ({ ...current, type }));
+                      }}
+                    >
+                      {TYPE_SECTIONS.map(({ type, label }) => (
+                        <option key={type} value={type}>{label}</option>
+                      ))}
+                    </select>
+                  </div>
                 </div>
-                <span className="text-ui text-text-muted w-10 text-right shrink-0">
-                  {cs.percentage.toFixed(0)}%
-                </span>
-              </div>
-            ))}
+
+                <div className="relative">
+                  <label className="label mb-1.5 block" htmlFor="category-icon-search">Icon</label>
+                  <button
+                    type="button"
+                    className="input flex items-center justify-between"
+                    onClick={() => setIsIconPickerOpen((current) => !current)}
+                    aria-expanded={isIconPickerOpen}
+                    aria-controls="category-icon-picker"
+                  >
+                    <span className="flex items-center gap-2 min-w-0">
+                      <Icon name={form.icon} size={16} className="text-text" />
+                      <span className="text-body text-text truncate">{form.icon}</span>
+                    </span>
+                    <ChevronDown size={16} className="text-text-muted" />
+                  </button>
+
+                  {isIconPickerOpen && (
+                    <div id="category-icon-picker" className="card absolute z-20 mt-2 w-full p-3">
+                      <div className="relative mb-3">
+                        <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-text-muted" />
+                        <input
+                          id="category-icon-search"
+                          className="input pl-9"
+                          placeholder="Search icon"
+                          value={iconSearchQuery}
+                          onChange={(event) => setIconSearchQuery(event.target.value)}
+                        />
+                      </div>
+
+                      <div className="max-h-64 overflow-y-auto rounded-(--radius-md) border border-border">
+                        {filteredIconNames.map((iconName) => {
+                          const isSelected = form.icon === iconName;
+                          return (
+                            <button
+                              key={iconName}
+                              type="button"
+                              onClick={() => {
+                                setForm((current) => ({ ...current, icon: iconName }));
+                                setIsIconPickerOpen(false);
+                              }}
+                              className={cn(
+                                'w-full flex items-center gap-2 px-3 py-2 text-left border-none bg-transparent',
+                                'transition-colors duration-150',
+                                isSelected
+                                  ? 'bg-surface-hover text-text'
+                                  : 'text-text-secondary hover:bg-surface-hover hover:text-text',
+                              )}
+                            >
+                              <Icon name={iconName} size={16} />
+                              <span className="text-ui">{iconName}</span>
+                            </button>
+                          );
+                        })}
+
+                        {filteredIconNames.length === 0 && (
+                          <div className="px-3 py-4 text-ui text-text-muted">No icons found.</div>
+                        )}
+                      </div>
+                    </div>
+                  )}
+                </div>
+
+                <div className="flex items-center justify-end gap-2 pt-1">
+                  <button
+                    type="button"
+                    className="btn-secondary"
+                    onClick={() => {
+                      setIsCreateModalOpen(false);
+                      setIsIconPickerOpen(false);
+                    }}
+                  >
+                    Cancel
+                  </button>
+                  <button type="submit" className="btn-primary">
+                    Create Category
+                  </button>
+                </div>
+              </form>
+            </section>
           </div>
-        </section>
+        </>
       )}
 
       {/* Category Sections by Type */}
@@ -100,7 +228,7 @@ export function Categories() {
               <div className="flex items-center gap-3">
                 <span className="text-ui text-text-muted">{typeCats.length} categories</span>
                 <button
-                  onClick={() => handleAdd(type)}
+                  onClick={() => openCreateModal(type)}
                   className="section-action"
                 >
                   <Plus size={10} /> Add
@@ -109,7 +237,6 @@ export function Categories() {
             </div>
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
               {typeCats.map((cat) => {
-                const spending = getSpending(cat.id);
                 return (
                   <div
                     key={cat.id}
@@ -120,13 +247,7 @@ export function Categories() {
                     </div>
                     <div className="flex-1 min-w-0">
                       <div className="text-body text-text">{cat.name}</div>
-                      {spending ? (
-                        <div className="text-ui text-text-muted">
-                          {spending.transactionCount} transactions &middot; {formatCurrency(spending.amount)}
-                        </div>
-                      ) : (
-                        <div className="text-ui text-text-muted capitalize">{type}</div>
-                      )}
+                      <div className="text-ui text-text-muted capitalize">{type}</div>
                     </div>
                     {!cat.isDefault && (
                       <button

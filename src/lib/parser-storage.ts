@@ -1,6 +1,187 @@
 import type { CsvParser } from '../types';
 
 const STORAGE_KEY = 'melomoney:csv-parsers';
+const PARSER_EXPORT_SCHEMA_VERSION = 1;
+const DELIMITERS: CsvParser['delimiter'][] = [',', ';', '\t', '|'];
+const AMOUNT_FORMATS: CsvParser['amountFormat'][] = ['single', 'debit-credit', 'amount-type'];
+const DECIMAL_SEPARATORS: CsvParser['decimalSeparator'][] = ['.', ','];
+const TRANSACTION_FIELDS = ['description', 'amount', 'debit', 'credit', 'amountType', 'date', 'category', 'currency', 'ignore'] as const;
+const TRANSFORMABLE_FIELDS = ['description', 'category', 'currency'] as const;
+
+interface ExportedParserFile {
+  schemaVersion: number;
+  exportedAt: string;
+  parser: CsvParser;
+}
+
+type ParserDraft = Omit<CsvParser, 'id' | 'createdAt' | 'updatedAt'>;
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === 'object' && value !== null;
+}
+
+function isDelimiter(value: unknown): value is CsvParser['delimiter'] {
+  return typeof value === 'string' && DELIMITERS.includes(value as CsvParser['delimiter']);
+}
+
+function isAmountFormat(value: unknown): value is CsvParser['amountFormat'] {
+  return typeof value === 'string' && AMOUNT_FORMATS.includes(value as CsvParser['amountFormat']);
+}
+
+function isDecimalSeparator(value: unknown): value is CsvParser['decimalSeparator'] {
+  return typeof value === 'string' && DECIMAL_SEPARATORS.includes(value as CsvParser['decimalSeparator']);
+}
+
+function isTransactionField(value: unknown): value is CsvParser['columnMappings'][number]['field'] {
+  return typeof value === 'string' && TRANSACTION_FIELDS.includes(value as typeof TRANSACTION_FIELDS[number]);
+}
+
+function isTransformableField(value: unknown): value is NonNullable<CsvParser['transforms']>[number]['sourceField'] {
+  return typeof value === 'string' && TRANSFORMABLE_FIELDS.includes(value as typeof TRANSFORMABLE_FIELDS[number]);
+}
+
+function parseColumnMappings(value: unknown): ParserDraft['columnMappings'] {
+  if (!Array.isArray(value)) {
+    throw new Error('Parser file is missing valid column mappings.');
+  }
+
+  return value.map((mapping, index) => {
+    if (!isRecord(mapping)) {
+      throw new Error(`Column mapping #${index + 1} is invalid.`);
+    }
+
+    if (!isTransactionField(mapping.field)) {
+      throw new Error(`Column mapping #${index + 1} has an invalid field.`);
+    }
+
+    if (!Array.isArray(mapping.columnIndices) || !mapping.columnIndices.every((idx) => Number.isInteger(idx) && (idx as number) >= 0)) {
+      throw new Error(`Column mapping #${index + 1} has invalid column indices.`);
+    }
+
+    return {
+      field: mapping.field,
+      columnIndices: mapping.columnIndices as number[],
+    };
+  });
+}
+
+function parseTransforms(value: unknown): ParserDraft['transforms'] {
+  if (value === undefined) return undefined;
+  if (!Array.isArray(value)) {
+    throw new Error('Parser transforms must be an array.');
+  }
+
+  return value.map((transform, index) => {
+    if (!isRecord(transform)) {
+      throw new Error(`Transform #${index + 1} is invalid.`);
+    }
+
+    if (!isTransformableField(transform.sourceField) || !isTransformableField(transform.targetField)) {
+      throw new Error(`Transform #${index + 1} uses unsupported fields.`);
+    }
+    if (typeof transform.matchPattern !== 'string') {
+      throw new Error(`Transform #${index + 1} has an invalid match pattern.`);
+    }
+    if (typeof transform.extractPattern !== 'string') {
+      throw new Error(`Transform #${index + 1} has an invalid extract pattern.`);
+    }
+    if (typeof transform.replacement !== 'string') {
+      throw new Error(`Transform #${index + 1} has an invalid replacement template.`);
+    }
+
+    return {
+      label: typeof transform.label === 'string' ? transform.label : undefined,
+      sourceField: transform.sourceField,
+      targetField: transform.targetField,
+      matchPattern: transform.matchPattern,
+      extractPattern: transform.extractPattern,
+      replacement: transform.replacement,
+    };
+  });
+}
+
+function getParserDraftFromImport(value: unknown): ParserDraft {
+  if (!isRecord(value)) {
+    throw new Error('Invalid parser file format.');
+  }
+
+  const payload = 'parser' in value ? value.parser : value;
+  if ('schemaVersion' in value && value.schemaVersion !== PARSER_EXPORT_SCHEMA_VERSION) {
+    throw new Error('Unsupported parser export version.');
+  }
+  if (!isRecord(payload)) {
+    throw new Error('Parser file is missing parser data.');
+  }
+
+  if (typeof payload.name !== 'string' || payload.name.trim() === '') {
+    throw new Error('Parser file is missing a valid parser name.');
+  }
+  if (!isDelimiter(payload.delimiter)) {
+    throw new Error('Parser file has an invalid delimiter.');
+  }
+  if (typeof payload.hasHeaderRow !== 'boolean') {
+    throw new Error('Parser file has an invalid header-row setting.');
+  }
+  if (!Number.isInteger(payload.skipRows) || (payload.skipRows as number) < 0) {
+    throw new Error('Parser file has an invalid skip-rows value.');
+  }
+  if (!Array.isArray(payload.headerPatterns) || !payload.headerPatterns.every((pattern) => typeof pattern === 'string')) {
+    throw new Error('Parser file has invalid header patterns.');
+  }
+  if (!isAmountFormat(payload.amountFormat)) {
+    throw new Error('Parser file has an invalid amount format.');
+  }
+  if (typeof payload.dateFormat !== 'string' || payload.dateFormat.trim() === '') {
+    throw new Error('Parser file has an invalid date format.');
+  }
+  if (!isDecimalSeparator(payload.decimalSeparator)) {
+    throw new Error('Parser file has an invalid decimal separator.');
+  }
+  if (payload.multiColumnSeparator !== undefined && typeof payload.multiColumnSeparator !== 'string') {
+    throw new Error('Parser file has an invalid multi-column separator.');
+  }
+  if (payload.accountPattern !== undefined && typeof payload.accountPattern !== 'string') {
+    throw new Error('Parser file has an invalid account pattern.');
+  }
+
+  const skipRows = payload.skipRows as number;
+  const headerPatterns = payload.headerPatterns as string[];
+
+  const draft: ParserDraft = {
+    name: payload.name.trim(),
+    delimiter: payload.delimiter,
+    hasHeaderRow: payload.hasHeaderRow,
+    skipRows,
+    headerPatterns,
+    columnMappings: parseColumnMappings(payload.columnMappings),
+    amountFormat: payload.amountFormat,
+    dateFormat: payload.dateFormat,
+    decimalSeparator: payload.decimalSeparator,
+    multiColumnSeparator: payload.multiColumnSeparator,
+    transforms: parseTransforms(payload.transforms),
+    accountPattern: payload.accountPattern,
+  };
+
+  return draft;
+}
+
+function getUniqueParserName(baseName: string): string {
+  const existingNames = new Set(loadParsers().map((parser) => parser.name.trim().toLowerCase()));
+  if (!existingNames.has(baseName.trim().toLowerCase())) return baseName;
+
+  let copyIndex = 1;
+  while (copyIndex < 1000) {
+    const nextName = copyIndex === 1
+      ? `${baseName} (Copy)`
+      : `${baseName} (Copy ${copyIndex})`;
+    if (!existingNames.has(nextName.toLowerCase())) {
+      return nextName;
+    }
+    copyIndex += 1;
+  }
+
+  return `${baseName} (${Date.now()})`;
+}
 
 /**
  * Load all saved parsers from localStorage.
@@ -90,4 +271,55 @@ export function deleteParser(id: string): boolean {
  */
 export function getParserById(id: string): CsvParser | undefined {
   return loadParsers().find((p) => p.id === id);
+}
+
+/**
+ * Export a single parser as a downloadable JSON file.
+ */
+export function exportParser(parser: CsvParser): void {
+  const payload: ExportedParserFile = {
+    schemaVersion: PARSER_EXPORT_SCHEMA_VERSION,
+    exportedAt: new Date().toISOString(),
+    parser,
+  };
+
+  const safeName = parser.name
+    .trim()
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, '-')
+    .replace(/^-+|-+$/g, '') || 'parser';
+  const exportDate = new Date().toISOString().split('T')[0];
+  const fileName = `melomoney-parser-${safeName}-${exportDate}.json`;
+
+  const blob = new Blob([JSON.stringify(payload, null, 2)], {
+    type: 'application/json',
+  });
+  const downloadUrl = URL.createObjectURL(blob);
+  const anchor = document.createElement('a');
+  anchor.href = downloadUrl;
+  anchor.download = fileName;
+  document.body.appendChild(anchor);
+  anchor.click();
+  anchor.remove();
+  URL.revokeObjectURL(downloadUrl);
+}
+
+/**
+ * Import a parser from a JSON file and store it as a new parser.
+ */
+export async function importParserFromFile(file: File): Promise<CsvParser> {
+  let parsed: unknown;
+  try {
+    parsed = JSON.parse(await file.text()) as unknown;
+  } catch {
+    throw new Error('Invalid JSON file.');
+  }
+
+  const parserDraft = getParserDraftFromImport(parsed);
+  const uniqueName = getUniqueParserName(parserDraft.name);
+
+  return saveParser({
+    ...parserDraft,
+    name: uniqueName,
+  });
 }

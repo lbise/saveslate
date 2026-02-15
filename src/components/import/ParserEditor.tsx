@@ -1,5 +1,5 @@
-import { useState, useMemo, useCallback, useRef, useEffect } from 'react';
-import { Save, RotateCcw, X, ChevronDown, ChevronUp, ChevronLeft, ChevronRight, Plus, AlertTriangle, Check, Pencil, Filter } from 'lucide-react';
+import { useState, useMemo, useCallback, useRef, useEffect, type ChangeEvent } from 'react';
+import { Save, RotateCcw, X, ChevronDown, ChevronUp, ChevronLeft, ChevronRight, Plus, AlertTriangle, Check, Pencil, Filter, Download, Upload } from 'lucide-react';
 import { cn, formatCurrency, formatDate } from '../../lib/utils';
 import {
   detectDelimiter,
@@ -10,7 +10,7 @@ import {
   extractAccountIdentifier,
   DATE_FORMAT_PRESETS,
 } from '../../lib/csv';
-import { saveParser, updateParser } from '../../lib/parser-storage';
+import { exportParser, importParserFromFile, saveParser, updateParser } from '../../lib/parser-storage';
 import { CsvPreviewTable } from './CsvPreviewTable';
 import type {
   CsvDelimiter,
@@ -94,6 +94,32 @@ export function ParserEditor({
   const [decimalSeparator, setDecimalSeparator] = useState<'.' | ','>(existingParser?.decimalSeparator ?? '.');
   const [multiColumnSeparator, setMultiColumnSeparator] = useState(existingParser?.multiColumnSeparator ?? ' ');
   const [accountPattern, setAccountPattern] = useState(existingParser?.accountPattern ?? '');
+  const [isImportingParser, setIsImportingParser] = useState(false);
+  const [importParserError, setImportParserError] = useState<string | null>(null);
+  const parserImportInputRef = useRef<HTMLInputElement>(null);
+
+  const handleOpenImportPicker = () => {
+    setImportParserError(null);
+    parserImportInputRef.current?.click();
+  };
+
+  const handleImportParser = async (event: ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    event.target.value = '';
+    if (!file) return;
+
+    setIsImportingParser(true);
+    setImportParserError(null);
+
+    try {
+      const importedParser = await importParserFromFile(file);
+      onSave(importedParser);
+    } catch (error) {
+      setImportParserError(error instanceof Error ? error.message : 'Failed to import parser file.');
+    } finally {
+      setIsImportingParser(false);
+    }
+  };
 
   // ─── Parse raw CSV with current settings ───────────────────
   const rawRows = useMemo(() => parseRawCsv(rawContent, delimiter), [rawContent, delimiter]);
@@ -596,7 +622,17 @@ export function ParserEditor({
       )}
 
       {/* Actions */}
-      <div className="flex gap-3">
+      <input
+        ref={parserImportInputRef}
+        type="file"
+        accept="application/json,.json"
+        onChange={(event) => {
+          void handleImportParser(event);
+        }}
+        className="hidden"
+      />
+
+      <div className="flex gap-3 flex-wrap">
         <button
           onClick={handleSave}
           disabled={hasValidationErrors || !name.trim()}
@@ -605,10 +641,32 @@ export function ParserEditor({
           <Save size={14} />
           Save parser
         </button>
+        <button
+          type="button"
+          onClick={handleOpenImportPicker}
+          className="btn-secondary"
+          disabled={isImportingParser}
+        >
+          <Upload size={14} />
+          {isImportingParser ? 'Importing...' : 'Import parser'}
+        </button>
         <button onClick={onCancel} className="btn-secondary">
           Cancel
         </button>
+        {existingParser && (
+          <button
+            type="button"
+            onClick={() => exportParser(existingParser)}
+            className="btn-secondary"
+          >
+            <Download size={14} />
+            Export parser
+          </button>
+        )}
       </div>
+      {importParserError && (
+        <p className="text-ui text-expense">{importParserError}</p>
+      )}
     </div>
   );
 }
@@ -696,14 +754,7 @@ function FieldMappingRow({
         <span className="text-ui font-medium text-text">
           {TRANSACTION_FIELD_LABELS[field]}
         </span>
-        {required ? (
-          <span className="text-expense ml-0.5">*</span>
-        ) : (
-          <span className="text-ui text-text-muted ml-1.5">optional</span>
-        )}
-        {isMulti && (
-          <p className="text-ui text-text-muted mt-0.5">multi-column</p>
-        )}
+        {required && <span className="text-expense ml-0.5">*</span>}
         {error && (
           <p className="text-ui text-expense mt-0.5">{error}</p>
         )}
@@ -1246,7 +1297,6 @@ function TransformRuleEditor({
           placeholder="Template: {{merchant}}"
           className="input text-sm font-mono flex-1"
         />
-        <span className="text-ui text-text-muted shrink-0 opacity-60">optional</span>
       </div>
 
       {/* Matched rows preview */}
