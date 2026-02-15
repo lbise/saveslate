@@ -1,23 +1,34 @@
-import { useState, useMemo, useEffect } from 'react';
-import { AlertTriangle, Check, ChevronLeft, ChevronRight, Filter, X } from 'lucide-react';
-import { loadTransactions } from '../../lib/transaction-storage';
-import { cn, formatCurrency, formatDate } from '../../lib/utils';
-import { ACCOUNTS } from '../../data/mock/accounts';
-import type { ParsedRow } from '../../types';
+import { useState, useMemo, useEffect } from "react";
+import {
+  AlertTriangle,
+  Check,
+  ChevronLeft,
+  ChevronRight,
+  Filter,
+  X,
+} from "lucide-react";
+import { loadTransactions } from "../../lib/transaction-storage";
+import { cn, formatCurrency, formatDate } from "../../lib/utils";
+import { ACCOUNTS } from "../../data/mock/accounts";
+import type { ParsedRow } from "../../types";
 
 interface TransactionPreviewProps {
   rows: ParsedRow[];
-  onConfirm: (selectedRows: ParsedRow[], accountId: string, importName: string) => void;
+  onConfirm: (
+    selectedRows: ParsedRow[],
+    accountId: string,
+    importName: string,
+  ) => void;
   onBack: () => void;
   detectedIdentifier?: string;
   fileName?: string;
 }
 
 const PREVIEW_PAGE_SIZES = [20, 25, 50] as const;
-const DUPLICATE_WARNING_TEXT = 'Duplicate transaction detected';
+const DUPLICATE_WARNING_TEXT = "Duplicate transaction detected";
 
 function normalizeDescription(description: string): string {
-  return description.trim().replace(/\s+/g, ' ').toLowerCase();
+  return description.trim().replace(/\s+/g, " ").toLowerCase();
 }
 
 function normalizeAmount(amount: number): string {
@@ -37,10 +48,16 @@ function buildTransactionFingerprint(
     normalizeAmount(amount),
     currency,
     normalizeDescription(description),
-  ].join('|');
+  ].join("|");
 }
 
-export function TransactionPreview({ rows, onConfirm, onBack, detectedIdentifier, fileName }: TransactionPreviewProps) {
+export function TransactionPreview({
+  rows,
+  onConfirm,
+  onBack,
+  detectedIdentifier,
+  fileName,
+}: TransactionPreviewProps) {
   const existingTransactions = useMemo(() => loadTransactions(), []);
   const [selected, setSelected] = useState<Set<number>>(() => {
     // Pre-select all rows without errors
@@ -50,19 +67,21 @@ export function TransactionPreview({ rows, onConfirm, onBack, detectedIdentifier
     });
     return set;
   });
-  const [selectedDuplicateIndexes, setSelectedDuplicateIndexes] = useState<Set<number>>(new Set());
-  const [accountId, setAccountId] = useState(ACCOUNTS[0]?.id ?? '');
+  const [selectedDuplicateIndexes, setSelectedDuplicateIndexes] = useState<
+    Set<number>
+  >(new Set());
+  const [accountId, setAccountId] = useState(ACCOUNTS[0]?.id ?? "");
   const [page, setPage] = useState(0);
   const [pageSize, setPageSize] = useState<number>(PREVIEW_PAGE_SIZES[0]);
   const [showWarningsOnly, setShowWarningsOnly] = useState(false);
-  const [importName, setImportName] = useState(fileName ?? '');
+  const [importName, setImportName] = useState(fileName ?? "");
 
   // Find matching account ID based on detected identifier
   const matchedAccountId = useMemo(() => {
     if (!detectedIdentifier) return undefined;
-    const normalized = detectedIdentifier.replace(/\s/g, '');
-    return ACCOUNTS.find(acc => 
-      acc.accountIdentifier?.replace(/\s/g, '') === normalized
+    const normalized = detectedIdentifier.replace(/\s/g, "");
+    return ACCOUNTS.find(
+      (acc) => acc.accountIdentifier?.replace(/\s/g, "") === normalized,
     )?.id;
   }, [detectedIdentifier]);
 
@@ -73,13 +92,10 @@ export function TransactionPreview({ rows, onConfirm, onBack, detectedIdentifier
     }
   }, [matchedAccountId]);
 
-  const hasCurrency = useMemo(
-    () => rows.some((r) => r.currency),
-    [rows],
-  );
+  const hasCurrency = useMemo(() => rows.some((r) => r.currency), [rows]);
 
   const selectedAccountCurrency = useMemo(
-    () => ACCOUNTS.find((acc) => acc.id === accountId)?.currency ?? 'CHF',
+    () => ACCOUNTS.find((acc) => acc.id === accountId)?.currency ?? "CHF",
     [accountId],
   );
 
@@ -112,7 +128,10 @@ export function TransactionPreview({ rows, onConfirm, onBack, detectedIdentifier
         row.description,
       );
 
-      if (existingFingerprints.has(fingerprint) || seenImportFingerprints.has(fingerprint)) {
+      if (
+        existingFingerprints.has(fingerprint) ||
+        seenImportFingerprints.has(fingerprint)
+      ) {
         duplicates.add(idx);
         return;
       }
@@ -141,7 +160,9 @@ export function TransactionPreview({ rows, onConfirm, onBack, detectedIdentifier
   }, [rows, duplicateIndexes]);
 
   // Reset to first page when rows or warning scope changes
-  useEffect(() => { setPage(0); }, [rows, showWarningsOnly, warningsByIndex]);
+  useEffect(() => {
+    setPage(0);
+  }, [rows, showWarningsOnly, warningsByIndex]);
 
   const selectedWithoutDuplicates = useMemo(() => {
     const next = new Set<number>();
@@ -237,13 +258,19 @@ export function TransactionPreview({ rows, onConfirm, onBack, detectedIdentifier
         <div className="flex items-center gap-2">
           <div className="w-2 h-2 rounded-full bg-income" />
           <span className="text-ui text-text-muted">
-            Income: <span className="text-text font-medium">{formatCurrency(stats.income)}</span>
+            Income:{" "}
+            <span className="text-text font-medium">
+              {formatCurrency(stats.income)}
+            </span>
           </span>
         </div>
         <div className="flex items-center gap-2">
           <div className="w-2 h-2 rounded-full bg-expense" />
           <span className="text-ui text-text-muted">
-            Expense: <span className="text-text font-medium">{formatCurrency(stats.expense)}</span>
+            Expense:{" "}
+            <span className="text-text font-medium">
+              {formatCurrency(stats.expense)}
+            </span>
           </span>
         </div>
       </div>
@@ -257,7 +284,7 @@ export function TransactionPreview({ rows, onConfirm, onBack, detectedIdentifier
               type="text"
               value={importName}
               onChange={(e) => setImportName(e.target.value)}
-              placeholder={fileName ?? 'Optional name for this import'}
+              placeholder={fileName ?? "Optional name for this import"}
               className="input text-sm max-w-xs"
             />
           </div>
@@ -273,22 +300,14 @@ export function TransactionPreview({ rows, onConfirm, onBack, detectedIdentifier
             >
               {ACCOUNTS.map((acc) => (
                 <option key={acc.id} value={acc.id}>
-                  {acc.name} ({acc.type}){acc.id === matchedAccountId ? ' — matched' : ''}
+                  {acc.name} ({acc.type})
+                  {acc.id === matchedAccountId ? " — matched" : ""}
                 </option>
               ))}
             </select>
           </div>
         </div>
       </div>
-
-      {stats.duplicateCount > 0 && (
-        <div className="flex items-center gap-2 px-1">
-          <AlertTriangle size={14} className="text-warning" />
-          <span className="text-ui text-warning">
-            {stats.duplicateCount} duplicate transaction{stats.duplicateCount !== 1 ? 's' : ''} detected and unchecked by default
-          </span>
-        </div>
-      )}
 
       {/* Warnings filter */}
       {stats.warningCount > 0 && (
@@ -297,12 +316,16 @@ export function TransactionPreview({ rows, onConfirm, onBack, detectedIdentifier
             onClick={() => setShowWarningsOnly(!showWarningsOnly)}
             className={cn(
               "flex items-center gap-2 bg-transparent border-none cursor-pointer transition-opacity px-0 py-0",
-              showWarningsOnly ? "opacity-100" : "opacity-60 hover:opacity-100"
+              showWarningsOnly ? "opacity-100" : "opacity-60 hover:opacity-100",
             )}
           >
             <AlertTriangle size={14} className="text-warning" />
             <span className="text-ui text-warning font-medium hover:underline">
-              {stats.warningCount} with warnings{showWarningsOnly ? ' (filtered)' : ''}
+              {stats.warningCount} with warnings
+              {stats.duplicateCount > 0
+                ? ` · ${stats.duplicateCount} duplicate transaction${stats.duplicateCount !== 1 ? "s" : ""} detected`
+                : ""}
+              {showWarningsOnly ? " (filtered)" : ""}
             </span>
             <Filter size={12} className="text-warning" />
           </button>
@@ -313,13 +336,20 @@ export function TransactionPreview({ rows, onConfirm, onBack, detectedIdentifier
       {(() => {
         // Filter rows if warnings-only mode is active
         const filteredRows = showWarningsOnly
-          ? rows.map((row, idx) => ({ row, idx })).filter(({ idx }) => warningsByIndex.has(idx))
+          ? rows
+              .map((row, idx) => ({ row, idx }))
+              .filter(({ idx }) => warningsByIndex.has(idx))
           : rows.map((row, idx) => ({ row, idx }));
 
         const selectableRowCount = rows.length - duplicateIndexes.size;
-        const allSelectableSelected = selectableRowCount > 0 && selectedWithoutDuplicates.size === selectableRowCount;
+        const allSelectableSelected =
+          selectableRowCount > 0 &&
+          selectedWithoutDuplicates.size === selectableRowCount;
 
-        const totalPages = Math.max(1, Math.ceil(filteredRows.length / pageSize));
+        const totalPages = Math.max(
+          1,
+          Math.ceil(filteredRows.length / pageSize),
+        );
         const start = page * pageSize;
         const end = Math.min(start + pageSize, filteredRows.length);
         const displayRows = filteredRows.slice(start, end);
@@ -337,14 +367,26 @@ export function TransactionPreview({ rows, onConfirm, onBack, detectedIdentifier
                       className="cursor-pointer accent-text"
                     />
                   </th>
-                  <th className="px-3 py-2.5 text-left text-text-muted font-medium">Date</th>
-                  <th className="px-3 py-2.5 text-left text-text-muted font-medium">Description</th>
-                  <th className="px-3 py-2.5 text-left text-text-muted font-medium">Category</th>
+                  <th className="px-3 py-2.5 text-left text-text-muted font-medium">
+                    Date
+                  </th>
+                  <th className="px-3 py-2.5 text-left text-text-muted font-medium">
+                    Description
+                  </th>
+                  <th className="px-3 py-2.5 text-left text-text-muted font-medium">
+                    Category
+                  </th>
                   {hasCurrency && (
-                    <th className="px-3 py-2.5 text-left text-text-muted font-medium">Currency</th>
+                    <th className="px-3 py-2.5 text-left text-text-muted font-medium">
+                      Currency
+                    </th>
                   )}
-                  <th className="px-3 py-2.5 text-right text-text-muted font-medium">Amount</th>
-                  <th className="px-3 py-2.5 text-center text-text-muted font-medium w-10">Status</th>
+                  <th className="px-3 py-2.5 text-right text-text-muted font-medium">
+                    Amount
+                  </th>
+                  <th className="px-3 py-2.5 text-center text-text-muted font-medium w-10">
+                    Status
+                  </th>
                 </tr>
               </thead>
               <tbody>
@@ -359,13 +401,13 @@ export function TransactionPreview({ rows, onConfirm, onBack, detectedIdentifier
                       key={idx}
                       onClick={() => toggleRow(idx)}
                       className={cn(
-                        'border-b border-border last:border-b-0 transition-colors',
+                        "border-b border-border last:border-b-0 transition-colors",
                         isSelected
-                          ? 'hover:bg-surface-hover/50'
+                          ? "hover:bg-surface-hover/50"
                           : isDuplicate
-                            ? 'cursor-pointer opacity-70 hover:opacity-90'
-                            : 'cursor-pointer opacity-40 hover:opacity-60',
-                        hasWarnings && isSelected && 'bg-warning/[0.03]',
+                            ? "cursor-pointer opacity-70 hover:opacity-90"
+                            : "cursor-pointer opacity-40 hover:opacity-60",
+                        hasWarnings && isSelected && "bg-warning/[0.03]",
                       )}
                     >
                       <td className="px-3 py-2.5">
@@ -378,32 +420,38 @@ export function TransactionPreview({ rows, onConfirm, onBack, detectedIdentifier
                         />
                       </td>
                       <td className="px-3 py-2.5 text-text-secondary whitespace-nowrap">
-                        {row.date ? formatDate(row.date) : '—'}
+                        {row.date ? formatDate(row.date) : "—"}
                       </td>
                       <td className="px-3 py-2.5 text-text">
-                        <span className="break-words">{row.description || '—'}</span>
+                        <span className="break-words">
+                          {row.description || "—"}
+                        </span>
                       </td>
                       <td className="px-3 py-2.5 text-text-muted">
-                        {row.category || '—'}
+                        {row.category || "—"}
                       </td>
                       {hasCurrency && (
                         <td className="px-3 py-2.5 text-text-muted">
-                          {row.currency || '—'}
+                          {row.currency || "—"}
                         </td>
                       )}
                       <td
                         className={cn(
-                          'px-3 py-2.5 text-right font-medium whitespace-nowrap',
-                          row.amount >= 0 ? 'text-income' : 'text-expense',
+                          "px-3 py-2.5 text-right font-medium whitespace-nowrap",
+                          row.amount >= 0 ? "text-income" : "text-expense",
                         )}
-                        style={{ fontFamily: 'var(--font-display)' }}
+                        style={{ fontFamily: "var(--font-display)" }}
                       >
-                        {row.amount >= 0 ? '+' : ''}{formatCurrency(Math.abs(row.amount))}
+                        {row.amount >= 0 ? "+" : ""}
+                        {formatCurrency(Math.abs(row.amount))}
                       </td>
                       <td className="px-3 py-2.5 text-center">
                         {hasWarnings ? (
-                          <span title={rowWarnings.join(', ')}>
-                            <AlertTriangle size={14} className="text-warning inline" />
+                          <span title={rowWarnings.join(", ")}>
+                            <AlertTriangle
+                              size={14}
+                              className="text-warning inline"
+                            />
                           </span>
                         ) : (
                           <Check size={14} className="text-income inline" />
@@ -420,15 +468,22 @@ export function TransactionPreview({ rows, onConfirm, onBack, detectedIdentifier
                   <span>Rows</span>
                   <select
                     value={pageSize}
-                    onChange={(e) => { setPageSize(Number(e.target.value)); setPage(0); }}
+                    onChange={(e) => {
+                      setPageSize(Number(e.target.value));
+                      setPage(0);
+                    }}
                     className="text-sm bg-transparent border border-border rounded px-1 py-0.5 text-text-secondary cursor-pointer"
                   >
                     {PREVIEW_PAGE_SIZES.map((size) => (
-                      <option key={size} value={size}>{size}</option>
+                      <option key={size} value={size}>
+                        {size}
+                      </option>
                     ))}
                   </select>
                 </div>
-                <span>{start + 1}–{end} of {filteredRows.length}</span>
+                <span>
+                  {start + 1}–{end} of {filteredRows.length}
+                </span>
                 <div className="flex items-center gap-1">
                   <button
                     type="button"
@@ -460,7 +515,7 @@ export function TransactionPreview({ rows, onConfirm, onBack, detectedIdentifier
           disabled={stats.count === 0 || !accountId}
           className="btn-primary"
         >
-          Import {stats.count} transaction{stats.count !== 1 ? 's' : ''}
+          Import {stats.count} transaction{stats.count !== 1 ? "s" : ""}
         </button>
         <button onClick={onBack} className="btn-secondary">
           <X size={14} />

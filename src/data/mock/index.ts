@@ -5,24 +5,51 @@ export * from './goals';
 export * from './transactions';
 
 // Utility functions that combine data
-import type { TransactionWithDetails, MonthlyStats, CategorySpending, GoalProgress } from '../../types';
-import { TRANSACTIONS, getTransactionsSorted } from './transactions';
+import type {
+  TransactionType,
+  TransactionWithDetails,
+  MonthlyStats,
+  CategorySpending,
+  GoalProgress,
+  Transaction,
+} from '../../types';
+import { getTransactionsSorted } from './transactions';
 import { getCategoryById, CATEGORIES } from './categories';
 import { getAccountById } from './accounts';
 import { GOALS, getGoalById } from './goals';
 
-export const getTransactionsWithDetails = (): TransactionWithDetails[] => {
-  return getTransactionsSorted().map((t) => {
-    const category = getCategoryById(t.categoryId)!;
-    const goal = t.goalId ? getGoalById(t.goalId) : undefined;
+function toTransactionWithDetails(transaction: Transaction): TransactionWithDetails {
+  const inferredType: TransactionType = transaction.amount >= 0 ? 'income' : 'expense';
 
-    return {
-      ...t,
-      category,
-      account: getAccountById(t.accountId)!,
-      goal,
-    };
-  });
+  const category = getCategoryById(transaction.categoryId) ?? {
+    id: transaction.categoryId,
+    name: transaction.categoryId === 'uncategorized' ? 'Uncategorized' : 'Unknown Category',
+    type: inferredType,
+    icon: 'CircleHelp',
+  };
+
+  const account = getAccountById(transaction.accountId) ?? {
+    id: transaction.accountId,
+    name: 'Unknown Account',
+    type: 'checking',
+    balance: 0,
+    currency: transaction.currency || 'CHF',
+    color: '#64748b',
+    icon: 'Wallet',
+  };
+
+  const goal = transaction.goalId ? getGoalById(transaction.goalId) : undefined;
+
+  return {
+    ...transaction,
+    category,
+    account,
+    goal,
+  };
+}
+
+export const getTransactionsWithDetails = (): TransactionWithDetails[] => {
+  return getTransactionsSorted().map((transaction) => toTransactionWithDetails(transaction));
 };
 
 export const getMonthlyStats = (): MonthlyStats => {
@@ -99,9 +126,11 @@ export const getCategorySpending = (): CategorySpending[] => {
 };
 
 export const getGoalProgress = (): GoalProgress[] => {
+  const transactions = getTransactionsSorted();
+
   return GOALS.filter((goal) => !goal.isArchived).map((goal) => {
     // Find all transactions directly linked to this goal
-    const goalTransactions = TRANSACTIONS.filter((t) => t.goalId === goal.id);
+    const goalTransactions = transactions.filter((t) => t.goalId === goal.id);
 
     const startingAmount = goal.startingAmount ?? 0;
     const currentAmount = startingAmount + goalTransactions.reduce((sum, t) => sum + t.amount, 0);
@@ -117,7 +146,7 @@ export const getGoalProgress = (): GoalProgress[] => {
 };
 
 export const getPendingSplitTotal = (): number => {
-  return TRANSACTIONS.filter((t) => t.split?.status === 'pending').reduce(
+  return getTransactionsSorted().filter((t) => t.split?.status === 'pending').reduce(
     (sum, t) => sum + t.amount * (1 - t.split!.ratio),
     0
   );

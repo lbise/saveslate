@@ -1,26 +1,41 @@
-import { TRANSACTIONS } from '../data/mock/transactions';
 import type { Transaction, ImportBatch } from '../types';
 
 const TRANSACTIONS_KEY = 'melomoney:transactions';
 const BATCHES_KEY = 'melomoney:import-batches';
+const LEGACY_MOCK_ID_PATTERN = /^t\d+$/;
+
+function isLegacyMockTransaction(transaction: Transaction): boolean {
+  return (
+    LEGACY_MOCK_ID_PATTERN.test(transaction.id)
+    && !transaction.importBatchId
+    && !transaction.rawData
+  );
+}
 
 // ─── Transactions ─────────────────────────────────────────────
 
 /**
  * Load transactions from localStorage.
- * Falls back to mock data on first load (seeds localStorage).
+ * Returns an empty list on first load.
  */
 export function loadTransactions(): Transaction[] {
   try {
     const raw = localStorage.getItem(TRANSACTIONS_KEY);
-    if (raw) return JSON.parse(raw) as Transaction[];
+    if (!raw) return [];
 
-    // First load: seed with mock data (which now includes currency)
-    const seeded = TRANSACTIONS.map((t) => ({ ...t }));
-    localStorage.setItem(TRANSACTIONS_KEY, JSON.stringify(seeded));
-    return seeded;
+    const parsed = JSON.parse(raw) as unknown;
+    if (!Array.isArray(parsed)) return [];
+
+    const transactions = parsed as Transaction[];
+    const cleaned = transactions.filter((transaction) => !isLegacyMockTransaction(transaction));
+
+    if (cleaned.length !== transactions.length) {
+      localStorage.setItem(TRANSACTIONS_KEY, JSON.stringify(cleaned));
+    }
+
+    return cleaned;
   } catch {
-    return [...TRANSACTIONS];
+    return [];
   }
 }
 
