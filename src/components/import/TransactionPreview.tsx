@@ -1,5 +1,6 @@
 import { useState, useMemo, useEffect } from 'react';
 import { AlertTriangle, Check, ChevronLeft, ChevronRight, Filter, X } from 'lucide-react';
+import { loadTransactions } from '../../lib/transaction-storage';
 import { cn, formatCurrency, formatDate } from '../../lib/utils';
 import { ACCOUNTS } from '../../data/mock/accounts';
 import type { ParsedRow } from '../../types';
@@ -13,8 +14,34 @@ interface TransactionPreviewProps {
 }
 
 const PREVIEW_PAGE_SIZES = [20, 25, 50] as const;
+const DUPLICATE_WARNING_TEXT = 'Duplicate transaction detected';
+
+function normalizeDescription(description: string): string {
+  return description.trim().replace(/\s+/g, ' ').toLowerCase();
+}
+
+function normalizeAmount(amount: number): string {
+  return (Math.round(amount * 100) / 100).toFixed(2);
+}
+
+function buildTransactionFingerprint(
+  accountId: string,
+  date: string,
+  amount: number,
+  currency: string,
+  description: string,
+): string {
+  return [
+    accountId,
+    date,
+    normalizeAmount(amount),
+    currency,
+    normalizeDescription(description),
+  ].join('|');
+}
 
 export function TransactionPreview({ rows, onConfirm, onBack, detectedIdentifier, fileName }: TransactionPreviewProps) {
+  const existingTransactions = useMemo(() => loadTransactions(), []);
   const [selected, setSelected] = useState<Set<number>>(() => {
     // Pre-select all rows without errors
     const set = new Set<number>();
@@ -23,14 +50,12 @@ export function TransactionPreview({ rows, onConfirm, onBack, detectedIdentifier
     });
     return set;
   });
+  const [selectedDuplicateIndexes, setSelectedDuplicateIndexes] = useState<Set<number>>(new Set());
   const [accountId, setAccountId] = useState(ACCOUNTS[0]?.id ?? '');
   const [page, setPage] = useState(0);
   const [pageSize, setPageSize] = useState<number>(PREVIEW_PAGE_SIZES[0]);
   const [showWarningsOnly, setShowWarningsOnly] = useState(false);
   const [importName, setImportName] = useState(fileName ?? '');
-
-  // Reset to first page when rows or filter changes
-  useEffect(() => { setPage(0); }, [rows, showWarningsOnly]);
 
   // Find matching account ID based on detected identifier
   const matchedAccountId = useMemo(() => {
@@ -53,7 +78,108 @@ export function TransactionPreview({ rows, onConfirm, onBack, detectedIdentifier
     [rows],
   );
 
+  const selectedAccountCurrency = useMemo(
+    () => ACCOUNTS.find((acc) => acc.id === accountId)?.currency ?? 'CHF',
+    [accountId],
+  );
+
+  const duplicateIndexes = useMemo(() => {
+    const existingFingerprints = new Set<string>();
+    existingTransactions.forEach((transaction) => {
+      existingFingerprints.add(
+        buildTransactionFingerprint(
+          transaction.accountId,
+          transaction.date,
+          transaction.amount,
+          transaction.currency,
+          transaction.description,
+        ),
+      );
+    });
+
+    const seenImportFingerprints = new Set<string>();
+    const duplicates = new Set<number>();
+
+    rows.forEach((row, idx) => {
+      if (row.errors.length > 0) return;
+
+      const effectiveCurrency = row.currency || selectedAccountCurrency;
+      const fingerprint = buildTransactionFingerprint(
+        accountId,
+        row.date,
+        row.amount,
+        effectiveCurrency,
+        row.description,
+      );
+
+      if (existingFingerprints.has(fingerprint) || seenImportFingerprints.has(fingerprint)) {
+        duplicates.add(idx);
+        return;
+      }
+
+      seenImportFingerprints.add(fingerprint);
+    });
+
+    return duplicates;
+  }, [accountId, existingTransactions, rows, selectedAccountCurrency]);
+
+  const warningsByIndex = useMemo(() => {
+    const warnings = new Map<number, string[]>();
+
+    rows.forEach((row, idx) => {
+      const rowWarnings = [...row.errors];
+      if (duplicateIndexes.has(idx)) {
+        rowWarnings.push(DUPLICATE_WARNING_TEXT);
+      }
+
+      if (rowWarnings.length > 0) {
+        warnings.set(idx, rowWarnings);
+      }
+    });
+
+    return warnings;
+  }, [rows, duplicateIndexes]);
+
+  // Reset to first page when rows or warning scope changes
+  useEffect(() => { setPage(0); }, [rows, showWarningsOnly, warningsByIndex]);
+
+  const selectedWithoutDuplicates = useMemo(() => {
+    const next = new Set<number>();
+    selected.forEach((idx) => {
+      if (idx >= 0 && idx < rows.length && !duplicateIndexes.has(idx)) {
+        next.add(idx);
+      }
+    });
+    return next;
+  }, [duplicateIndexes, rows.length, selected]);
+
+  const selectedDuplicates = useMemo(() => {
+    const next = new Set<number>();
+    selectedDuplicateIndexes.forEach((idx) => {
+      if (idx >= 0 && idx < rows.length && duplicateIndexes.has(idx)) {
+        next.add(idx);
+      }
+    });
+    return next;
+  }, [duplicateIndexes, rows.length, selectedDuplicateIndexes]);
+
+  const selectedIndexes = useMemo(() => {
+    const next = new Set<number>(selectedWithoutDuplicates);
+    selectedDuplicates.forEach((idx) => next.add(idx));
+    return next;
+  }, [selectedDuplicates, selectedWithoutDuplicates]);
+
   const toggleRow = (idx: number) => {
+    if (duplicateIndexes.has(idx)) {
+      setSelectedDuplicateIndexes((prev) => {
+        const next = new Set(prev);
+        if (next.has(idx)) next.delete(idx);
+        else next.add(idx);
+        return next;
+      });
+      return;
+    }
+
     setSelected((prev) => {
       const next = new Set(prev);
       if (next.has(idx)) next.delete(idx);
@@ -63,10 +189,15 @@ export function TransactionPreview({ rows, onConfirm, onBack, detectedIdentifier
   };
 
   const toggleAll = () => {
-    if (selected.size === rows.length) {
+    const allSelectableIndexes = rows
+      .map((_, idx) => idx)
+      .filter((idx) => !duplicateIndexes.has(idx));
+
+    if (selectedWithoutDuplicates.size === allSelectableIndexes.length) {
       setSelected(new Set());
+      setSelectedDuplicateIndexes(new Set());
     } else {
-      setSelected(new Set(rows.map((_, i) => i)));
+      setSelected(new Set(allSelectableIndexes));
     }
   };
 
@@ -74,22 +205,22 @@ export function TransactionPreview({ rows, onConfirm, onBack, detectedIdentifier
     let income = 0;
     let expense = 0;
     let count = 0;
-    
-    // Count ALL errors, not just selected ones
-    const errorCount = rows.filter(r => r.errors.length > 0).length;
+
+    const warningCount = warningsByIndex.size;
+    const duplicateCount = duplicateIndexes.size;
 
     for (const [i, row] of rows.entries()) {
-      if (!selected.has(i)) continue;
+      if (!selectedIndexes.has(i)) continue;
       count++;
       if (row.amount >= 0) income += row.amount;
       else expense += Math.abs(row.amount);
     }
 
-    return { income, expense, count, errorCount };
-  }, [rows, selected]);
+    return { income, expense, count, warningCount, duplicateCount };
+  }, [duplicateIndexes, rows, selectedIndexes, warningsByIndex]);
 
   const handleConfirm = () => {
-    const selectedRows = rows.filter((_, i) => selected.has(i));
+    const selectedRows = rows.filter((_, i) => selectedIndexes.has(i));
     onConfirm(selectedRows, accountId, importName);
   };
 
@@ -150,8 +281,17 @@ export function TransactionPreview({ rows, onConfirm, onBack, detectedIdentifier
         </div>
       </div>
 
+      {stats.duplicateCount > 0 && (
+        <div className="flex items-center gap-2 px-1">
+          <AlertTriangle size={14} className="text-warning" />
+          <span className="text-ui text-warning">
+            {stats.duplicateCount} duplicate transaction{stats.duplicateCount !== 1 ? 's' : ''} detected and unchecked by default
+          </span>
+        </div>
+      )}
+
       {/* Warnings filter */}
-      {stats.errorCount > 0 && (
+      {stats.warningCount > 0 && (
         <div className="flex items-center px-1">
           <button
             onClick={() => setShowWarningsOnly(!showWarningsOnly)}
@@ -162,7 +302,7 @@ export function TransactionPreview({ rows, onConfirm, onBack, detectedIdentifier
           >
             <AlertTriangle size={14} className="text-warning" />
             <span className="text-ui text-warning font-medium hover:underline">
-              {stats.errorCount} with warnings{showWarningsOnly ? ' (filtered)' : ''}
+              {stats.warningCount} with warnings{showWarningsOnly ? ' (filtered)' : ''}
             </span>
             <Filter size={12} className="text-warning" />
           </button>
@@ -173,8 +313,11 @@ export function TransactionPreview({ rows, onConfirm, onBack, detectedIdentifier
       {(() => {
         // Filter rows if warnings-only mode is active
         const filteredRows = showWarningsOnly
-          ? rows.filter(r => r.errors.length > 0)
-          : rows;
+          ? rows.map((row, idx) => ({ row, idx })).filter(({ idx }) => warningsByIndex.has(idx))
+          : rows.map((row, idx) => ({ row, idx }));
+
+        const selectableRowCount = rows.length - duplicateIndexes.size;
+        const allSelectableSelected = selectableRowCount > 0 && selectedWithoutDuplicates.size === selectableRowCount;
 
         const totalPages = Math.max(1, Math.ceil(filteredRows.length / pageSize));
         const start = page * pageSize;
@@ -189,7 +332,7 @@ export function TransactionPreview({ rows, onConfirm, onBack, detectedIdentifier
                   <th className="px-3 py-2.5 text-left w-8">
                     <input
                       type="checkbox"
-                      checked={selected.size === rows.length}
+                      checked={allSelectableSelected}
                       onChange={toggleAll}
                       className="cursor-pointer accent-text"
                     />
@@ -205,22 +348,24 @@ export function TransactionPreview({ rows, onConfirm, onBack, detectedIdentifier
                 </tr>
               </thead>
               <tbody>
-                {displayRows.map((row) => {
-                  // Find the original index in the full rows array
-                  const idx = rows.indexOf(row);
-                  const isSelected = selected.has(idx);
-                  const hasErrors = row.errors.length > 0;
+                {displayRows.map(({ row, idx }) => {
+                  const isSelected = selectedIndexes.has(idx);
+                  const isDuplicate = duplicateIndexes.has(idx);
+                  const rowWarnings = warningsByIndex.get(idx) ?? [];
+                  const hasWarnings = rowWarnings.length > 0;
 
                   return (
                     <tr
                       key={idx}
                       onClick={() => toggleRow(idx)}
                       className={cn(
-                        'border-b border-border last:border-b-0 cursor-pointer transition-colors',
+                        'border-b border-border last:border-b-0 transition-colors',
                         isSelected
                           ? 'hover:bg-surface-hover/50'
-                          : 'opacity-40 hover:opacity-60',
-                        hasErrors && isSelected && 'bg-warning/[0.03]',
+                          : isDuplicate
+                            ? 'cursor-pointer opacity-70 hover:opacity-90'
+                            : 'cursor-pointer opacity-40 hover:opacity-60',
+                        hasWarnings && isSelected && 'bg-warning/[0.03]',
                       )}
                     >
                       <td className="px-3 py-2.5">
@@ -256,8 +401,8 @@ export function TransactionPreview({ rows, onConfirm, onBack, detectedIdentifier
                         {row.amount >= 0 ? '+' : ''}{formatCurrency(Math.abs(row.amount))}
                       </td>
                       <td className="px-3 py-2.5 text-center">
-                        {hasErrors ? (
-                          <span title={row.errors.join(', ')}>
+                        {hasWarnings ? (
+                          <span title={rowWarnings.join(', ')}>
                             <AlertTriangle size={14} className="text-warning inline" />
                           </span>
                         ) : (

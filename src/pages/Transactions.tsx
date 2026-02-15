@@ -13,6 +13,7 @@ import {
   Users,
   ChevronLeft,
   ChevronRight,
+  ChevronDown,
 } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { PageHeader } from "../components/layout/PageHeader";
@@ -23,9 +24,15 @@ import {
   getGoalById,
   CATEGORIES,
 } from "../data/mock";
-import { loadImportBatches, loadTransactions } from "../lib/transaction-storage";
+import {
+  deleteImportBatch,
+  loadImportBatches,
+  loadTransactions,
+  pruneEmptyImportBatches,
+} from "../lib/transaction-storage";
 import { formatCurrency, formatDate, cn } from "../lib/utils";
 import type {
+  ImportBatch,
   Transaction,
   TransactionType,
   TransactionWithDetails as TxDetails,
@@ -66,6 +73,15 @@ const activeTypePillStyles: Record<TransactionType, string> = {
   expense: "bg-expense/10 text-expense border-expense/20",
   transfer: "bg-transfer/10 text-transfer border-transfer/20",
 };
+
+const MANUAL_SOURCE_ID = "manual";
+
+interface SourceOption {
+  id: string;
+  label: string;
+  count: number;
+  deletable: boolean;
+}
 
 function toTransactionWithDetails(transaction: Transaction): TxDetails {
   const inferredType: TransactionType = transaction.amount >= 0 ? "income" : "expense";
@@ -112,7 +128,7 @@ export function Transactions() {
   const [searchQuery, setSearchQuery] = useState("");
   const [typeFilter, setTypeFilter] = useState<TransactionType | "all">("all");
   const [categoryFilter, setCategoryFilter] = useState<string | null>(null);
-  const [batchFilter, setBatchFilter] = useState<string | null>(null);
+  const [sourceFilterIds, setSourceFilterIds] = useState<string[]>([]);
   const [sortField, setSortField] = useState<SortField>("date");
   const [sortDirection, setSortDirection] = useState<SortDirection>("desc");
 
@@ -125,15 +141,25 @@ export function Transactions() {
   const [editingCategoryId, setEditingCategoryId] = useState<string | null>(
     null,
   );
+  const [isSourceMenuOpen, setIsSourceMenuOpen] = useState(false);
+  const [sourceToDelete, setSourceToDelete] = useState<SourceOption | null>(null);
 
   // Reset to first page when filters change
   useEffect(() => {
     setPage(0);
-  }, [searchQuery, typeFilter, categoryFilter, batchFilter, sortField, sortDirection]);
+  }, [
+    searchQuery,
+    typeFilter,
+    categoryFilter,
+    sourceFilterIds,
+    sortField,
+    sortDirection,
+  ]);
 
   const closePopovers = () => {
     setOpenActionId(null);
     setEditingCategoryId(null);
+    setIsSourceMenuOpen(false);
   };
 
   const toggleAction = (txId: string) => {
@@ -191,8 +217,110 @@ export function Transactions() {
     return CATEGORIES.filter((c) => c.type === typeFilter);
   }, [typeFilter]);
 
-  // Import batches for the dropdown
-  const importBatches = useMemo(() => loadImportBatches(), []);
+  // Import batches for source filtering
+  const [importBatches, setImportBatches] = useState<ImportBatch[]>(() => {
+    pruneEmptyImportBatches();
+    return loadImportBatches();
+  });
+
+  const sourceOptions = useMemo<SourceOption[]>(() => {
+    const sourceCounts = new Map<string, number>();
+    let manualCount = 0;
+
+    transactions.forEach((transaction) => {
+      if (transaction.importBatchId) {
+        sourceCounts.set(
+          transaction.importBatchId,
+          (sourceCounts.get(transaction.importBatchId) ?? 0) + 1,
+        );
+      } else {
+        manualCount += 1;
+      }
+    });
+
+    const options: SourceOption[] = [];
+
+    if (manualCount > 0) {
+      options.push({
+        id: MANUAL_SOURCE_ID,
+        label: "Manual entries",
+        count: manualCount,
+        deletable: false,
+      });
+    }
+
+    importBatches.forEach((batch) => {
+      const count = sourceCounts.get(batch.id) ?? 0;
+      if (count > 0) {
+        options.push({
+          id: batch.id,
+          label: batch.name || batch.fileName,
+          count,
+          deletable: true,
+        });
+      }
+    });
+
+    return options;
+  }, [importBatches, transactions]);
+
+  const availableSourceIds = useMemo(
+    () => new Set(sourceOptions.map((option) => option.id)),
+    [sourceOptions],
+  );
+
+  const activeSourceFilterIds = useMemo(
+    () => sourceFilterIds.filter((id) => availableSourceIds.has(id)),
+    [sourceFilterIds, availableSourceIds],
+  );
+
+  const sourceFilterLabel = useMemo(() => {
+    if (activeSourceFilterIds.length === 0) return "All Sources";
+    if (activeSourceFilterIds.length === 1) {
+      return sourceOptions.find((option) => option.id === activeSourceFilterIds[0])?.label
+        ?? "1 source selected";
+    }
+    return `${activeSourceFilterIds.length} sources selected`;
+  }, [activeSourceFilterIds, sourceOptions]);
+
+  const toggleSourceFilter = (sourceId: string) => {
+    setSourceFilterIds((prev) => {
+      const normalized = prev.filter((id) => availableSourceIds.has(id));
+      if (normalized.includes(sourceId)) {
+        return normalized.filter((id) => id !== sourceId);
+      }
+      return [...normalized, sourceId];
+    });
+  };
+
+  const requestDeleteSource = (sourceId: string) => {
+    if (sourceId === MANUAL_SOURCE_ID) return;
+
+    const source = sourceOptions.find((option) => option.id === sourceId);
+    if (!source) return;
+
+    setIsSourceMenuOpen(false);
+    setSourceToDelete(source);
+  };
+
+  const handleConfirmDeleteSource = () => {
+    if (!sourceToDelete) return;
+
+    const sourceId = sourceToDelete.id;
+    if (sourceId === MANUAL_SOURCE_ID) {
+      setSourceToDelete(null);
+      return;
+    }
+
+    deleteImportBatch(sourceId);
+
+    setImportBatches((prev) => prev.filter((batch) => batch.id !== sourceId));
+    setSourceFilterIds((prev) => prev.filter((id) => id !== sourceId));
+    setTransactions((prev) =>
+      prev.filter((transaction) => transaction.importBatchId !== sourceId),
+    );
+    setSourceToDelete(null);
+  };
 
   // Filtered and sorted
   const filteredTransactions = useMemo(() => {
@@ -216,10 +344,11 @@ export function Transactions() {
       result = result.filter((t) => t.categoryId === categoryFilter);
     }
 
-    if (batchFilter === "manual") {
-      result = result.filter((t) => !t.importBatchId);
-    } else if (batchFilter) {
-      result = result.filter((t) => t.importBatchId === batchFilter);
+    if (activeSourceFilterIds.length > 0) {
+      const selectedSources = new Set(activeSourceFilterIds);
+      result = result.filter((transaction) =>
+        selectedSources.has(transaction.importBatchId ?? MANUAL_SOURCE_ID),
+      );
     }
 
     result.sort((a, b) => {
@@ -238,7 +367,7 @@ export function Transactions() {
     searchQuery,
     typeFilter,
     categoryFilter,
-    batchFilter,
+    activeSourceFilterIds,
     sortField,
     sortDirection,
   ]);
@@ -279,7 +408,7 @@ export function Transactions() {
         searchQuery,
         type: typeFilter,
         categoryId: categoryFilter,
-        importBatchId: batchFilter,
+        sourceIds: activeSourceFilterIds,
         sortField,
         sortDirection,
       },
@@ -323,6 +452,41 @@ export function Transactions() {
       {/* Backdrop — closes any open popover on click */}
       {(openActionId || editingCategoryId) && (
         <div className="fixed inset-0 z-10" onClick={closePopovers} />
+      )}
+
+      {sourceToDelete && (
+        <>
+          <div
+            className="fixed inset-0 z-30 bg-bg/70"
+            onClick={() => setSourceToDelete(null)}
+          />
+          <div className="fixed inset-0 z-40 flex items-center justify-center p-4">
+            <div className="card w-full max-w-md p-5 space-y-4">
+              <h2 className="heading-2">Delete source?</h2>
+              <p className="text-body">
+                This will permanently delete <span className="text-text">{sourceToDelete.label}</span> and
+                <span className="text-expense"> {sourceToDelete.count} transaction{sourceToDelete.count === 1 ? "" : "s"}</span>.
+              </p>
+              <p className="text-ui text-text-muted">This action cannot be undone.</p>
+              <div className="flex items-center justify-end gap-2">
+                <button
+                  type="button"
+                  onClick={() => setSourceToDelete(null)}
+                  className="btn-secondary"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="button"
+                  onClick={handleConfirmDeleteSource}
+                  className="btn-secondary border-expense/40 text-expense hover:bg-expense/10 hover:border-expense"
+                >
+                  Delete source
+                </button>
+              </div>
+            </div>
+          </div>
+        </>
       )}
 
       {/* Header */}
@@ -402,7 +566,7 @@ export function Transactions() {
 
       {/* Filters */}
       <div className="space-y-4">
-        {/* Row 1: Search + Category dropdown + Batch dropdown */}
+        {/* Row 1: Search + Category dropdown + Source dropdown */}
         <div className="flex flex-col lg:flex-row gap-3">
           {/* Search */}
           <div className="flex-1 relative">
@@ -432,22 +596,98 @@ export function Transactions() {
             ))}
           </select>
 
-          {/* Import batch dropdown */}
-          <select
-            value={batchFilter ?? ""}
-            onChange={(e) =>
-              setBatchFilter(e.target.value === "" ? null : e.target.value)
-            }
-            className="select w-full lg:w-56"
-          >
-            <option value="">All Sources</option>
-            <option value="manual">Manual entries</option>
-            {importBatches.map((batch) => (
-              <option key={batch.id} value={batch.id}>
-                {batch.name || batch.fileName}
-              </option>
-            ))}
-          </select>
+          {/* Source filter dropdown */}
+          <div className="relative w-full lg:w-72">
+            <button
+              type="button"
+              onClick={() => {
+                setOpenActionId(null);
+                setEditingCategoryId(null);
+                setIsSourceMenuOpen((prev) => !prev);
+              }}
+              className="select flex items-center justify-between text-left"
+            >
+              <span className="truncate">{sourceFilterLabel}</span>
+              <ChevronDown
+                size={14}
+                className={cn(
+                  "shrink-0 transition-transform duration-150",
+                  isSourceMenuOpen && "rotate-180",
+                )}
+              />
+            </button>
+
+            {isSourceMenuOpen && (
+              <>
+                <div
+                  className="fixed inset-0 z-10"
+                  onClick={() => setIsSourceMenuOpen(false)}
+                />
+                <div className="absolute top-full left-0 mt-1 w-full min-w-[280px] bg-surface border border-border rounded-(--radius-md) p-1 z-20 shadow-(--shadow-md)">
+                  <label
+                    className={cn(
+                      "flex items-center gap-2 px-2 py-2 rounded-(--radius-sm) cursor-pointer transition-colors",
+                      activeSourceFilterIds.length === 0
+                        ? "bg-text/10 text-text"
+                        : "text-text-secondary hover:text-text hover:bg-surface-hover",
+                    )}
+                  >
+                    <input
+                      type="checkbox"
+                      checked={activeSourceFilterIds.length === 0}
+                      onChange={() => setSourceFilterIds([])}
+                      className="cursor-pointer accent-text"
+                    />
+                    <span className="text-ui flex-1 truncate">All Sources</span>
+                  </label>
+
+                  <div className="h-px bg-border mx-1 my-1" />
+
+                  <div className="max-h-64 overflow-y-auto">
+                    {sourceOptions.length === 0 ? (
+                      <div className="px-2 py-2 text-ui text-text-muted">No sources available</div>
+                    ) : (
+                      sourceOptions.map((source) => {
+                        const isSelected = activeSourceFilterIds.includes(source.id);
+                        return (
+                          <div key={source.id} className="group flex items-center gap-1">
+                            <label
+                              className={cn(
+                                "flex items-center gap-2 flex-1 px-2 py-2 rounded-(--radius-sm) cursor-pointer transition-colors",
+                                isSelected
+                                  ? "bg-text/10 text-text"
+                                  : "text-text-secondary hover:text-text hover:bg-surface-hover",
+                              )}
+                            >
+                              <input
+                                type="checkbox"
+                                checked={isSelected}
+                                onChange={() => toggleSourceFilter(source.id)}
+                                className="cursor-pointer accent-text"
+                              />
+                              <span className="text-ui flex-1 truncate">{source.label}</span>
+                              <span className="text-ui text-text-muted">{source.count}</span>
+                            </label>
+
+                            {source.deletable && (
+                              <button
+                                type="button"
+                                onClick={() => requestDeleteSource(source.id)}
+                                className="w-7 h-7 flex items-center justify-center rounded bg-transparent border-none cursor-pointer text-text-muted hover:text-expense transition-colors opacity-60 hover:opacity-100"
+                                title={`Delete source ${source.label}`}
+                              >
+                                <Trash2 size={12} />
+                              </button>
+                            )}
+                          </div>
+                        );
+                      })
+                    )}
+                  </div>
+                </div>
+              </>
+            )}
+          </div>
         </div>
 
         {/* Row 2: Type filter pills */}

@@ -69,3 +69,61 @@ export function saveImportBatch(batch: Omit<ImportBatch, 'id'>): ImportBatch {
   localStorage.setItem(BATCHES_KEY, JSON.stringify(batches));
   return newBatch;
 }
+
+/**
+ * Delete an import batch and all transactions linked to it.
+ */
+export function deleteImportBatch(batchId: string): {
+  deletedBatch: ImportBatch | null;
+  deletedTransactions: number;
+} {
+  const batches = loadImportBatches();
+  const deletedBatch = batches.find((batch) => batch.id === batchId) ?? null;
+
+  if (!deletedBatch) {
+    return {
+      deletedBatch: null,
+      deletedTransactions: 0,
+    };
+  }
+
+  const remainingBatches = batches.filter((batch) => batch.id !== batchId);
+  localStorage.setItem(BATCHES_KEY, JSON.stringify(remainingBatches));
+
+  const transactions = loadTransactions();
+  const remainingTransactions = transactions.filter(
+    (transaction) => transaction.importBatchId !== batchId,
+  );
+  const deletedTransactions = transactions.length - remainingTransactions.length;
+  saveTransactions(remainingTransactions);
+
+  return {
+    deletedBatch,
+    deletedTransactions,
+  };
+}
+
+/**
+ * Remove batches that no longer have any linked transactions.
+ */
+export function pruneEmptyImportBatches(): number {
+  const batches = loadImportBatches();
+  if (batches.length === 0) return 0;
+
+  const transactions = loadTransactions();
+  const usedBatchIds = new Set<string>();
+  transactions.forEach((transaction) => {
+    if (transaction.importBatchId) {
+      usedBatchIds.add(transaction.importBatchId);
+    }
+  });
+
+  const remainingBatches = batches.filter((batch) => usedBatchIds.has(batch.id));
+  const removedCount = batches.length - remainingBatches.length;
+
+  if (removedCount > 0) {
+    localStorage.setItem(BATCHES_KEY, JSON.stringify(remainingBatches));
+  }
+
+  return removedCount;
+}
