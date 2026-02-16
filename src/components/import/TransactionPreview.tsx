@@ -8,7 +8,7 @@ import {
   X,
 } from "lucide-react";
 import { loadTransactions } from "../../lib/transaction-storage";
-import { cn, formatCurrency, formatDate } from "../../lib/utils";
+import { cn, formatCurrency, formatDate, formatSignedCurrency } from "../../lib/utils";
 import { ACCOUNTS } from "../../data/mock/accounts";
 import type { ParsedRow } from "../../types";
 
@@ -442,8 +442,10 @@ export function TransactionPreview({
                         )}
                         style={{ fontFamily: "var(--font-display)" }}
                       >
-                        {row.amount >= 0 ? "+" : ""}
-                        {formatCurrency(Math.abs(row.amount))}
+                        {formatSignedCurrency(
+                          row.amount,
+                          row.currency || selectedAccountCurrency,
+                        )}
                       </td>
                       <td className="px-3 py-2.5 text-center">
                         {hasWarnings ? (

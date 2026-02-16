@@ -1,6 +1,8 @@
 import { useState, useMemo, useEffect } from "react";
 import {
   Search,
+  AlertTriangle,
+  Filter,
   ArrowUpDown,
   Upload,
   Download,
@@ -30,6 +32,10 @@ import {
   loadTransactions,
   pruneEmptyImportBatches,
 } from "../lib/transaction-storage";
+import {
+  inferTransactionType,
+  UNCATEGORIZED_CATEGORY_ID,
+} from "../lib/transaction-type";
 import { formatCurrency, formatDate, cn } from "../lib/utils";
 import type {
   ImportBatch,
@@ -68,6 +74,8 @@ const iconBoxStyles: Record<TransactionType, string> = {
   transfer: "bg-transfer/10 text-transfer",
 };
 
+const UNCATEGORIZED_ICON_STYLE = "bg-warning/10 text-warning";
+
 const activeTypePillStyles: Record<TransactionType, string> = {
   income: "bg-income/10 text-income border-income/20",
   expense: "bg-expense/10 text-expense border-expense/20",
@@ -84,14 +92,22 @@ interface SourceOption {
 }
 
 function toTransactionWithDetails(transaction: Transaction): TxDetails {
-  const inferredType: TransactionType = transaction.amount >= 0 ? "income" : "expense";
+  const inferredType: TransactionType = inferTransactionType(transaction);
 
-  const category = getCategoryById(transaction.categoryId) ?? {
+  const baseCategory = getCategoryById(transaction.categoryId) ?? {
     id: transaction.categoryId,
-    name: transaction.categoryId === "uncategorized" ? "Uncategorized" : "Unknown Category",
+    name:
+      transaction.categoryId === UNCATEGORIZED_CATEGORY_ID
+        ? "Uncategorized"
+        : "Unknown Category",
     type: inferredType,
     icon: "CircleHelp",
   };
+
+  const category =
+    transaction.categoryId === UNCATEGORIZED_CATEGORY_ID
+      ? { ...baseCategory, type: inferredType }
+      : baseCategory;
 
   const account = getAccountById(transaction.accountId) ?? {
     id: transaction.accountId,
@@ -129,6 +145,7 @@ export function Transactions() {
   const [typeFilter, setTypeFilter] = useState<TransactionType | "all">("all");
   const [categoryFilter, setCategoryFilter] = useState<string | null>(null);
   const [sourceFilterIds, setSourceFilterIds] = useState<string[]>([]);
+  const [showUncategorizedOnly, setShowUncategorizedOnly] = useState(false);
   const [sortField, setSortField] = useState<SortField>("date");
   const [sortDirection, setSortDirection] = useState<SortDirection>("desc");
 
@@ -152,6 +169,7 @@ export function Transactions() {
     typeFilter,
     categoryFilter,
     sourceFilterIds,
+    showUncategorizedOnly,
     sortField,
     sortDirection,
   ]);
@@ -197,7 +215,20 @@ export function Transactions() {
     const category = getCategoryById(categoryId);
     if (!category) return;
     setTransactions((prev) =>
-      prev.map((tx) => (tx.id === txId ? { ...tx, categoryId, category } : tx)),
+      prev.map((tx) => {
+        if (tx.id !== txId) return tx;
+
+        const categoryType =
+          categoryId === UNCATEGORIZED_CATEGORY_ID
+            ? inferTransactionType(tx)
+            : category.type;
+
+        return {
+          ...tx,
+          categoryId,
+          category: { ...category, type: categoryType },
+        };
+      }),
     );
     setEditingCategoryId(null);
   };
@@ -322,8 +353,8 @@ export function Transactions() {
     setSourceToDelete(null);
   };
 
-  // Filtered and sorted
-  const filteredTransactions = useMemo(() => {
+  // Filtered scope before uncategorized toggle
+  const scopedTransactions = useMemo(() => {
     let result = [...transactions];
 
     if (searchQuery) {
@@ -351,6 +382,31 @@ export function Transactions() {
       );
     }
 
+    return result;
+  }, [
+    transactions,
+    searchQuery,
+    typeFilter,
+    categoryFilter,
+    activeSourceFilterIds,
+  ]);
+
+  const uncategorizedCount = useMemo(
+    () =>
+      scopedTransactions.filter(
+        (transaction) => transaction.categoryId === UNCATEGORIZED_CATEGORY_ID,
+      ).length,
+    [scopedTransactions],
+  );
+
+  // Filtered and sorted
+  const filteredTransactions = useMemo(() => {
+    let result = showUncategorizedOnly
+      ? scopedTransactions.filter(
+          (transaction) => transaction.categoryId === UNCATEGORIZED_CATEGORY_ID,
+        )
+      : [...scopedTransactions];
+
     result.sort((a, b) => {
       let comparison = 0;
       if (sortField === "date") {
@@ -362,15 +418,7 @@ export function Transactions() {
     });
 
     return result;
-  }, [
-    transactions,
-    searchQuery,
-    typeFilter,
-    categoryFilter,
-    activeSourceFilterIds,
-    sortField,
-    sortDirection,
-  ]);
+  }, [scopedTransactions, showUncategorizedOnly, sortField, sortDirection]);
 
   const toggleSort = (field: SortField) => {
     if (sortField === field) {
@@ -383,11 +431,11 @@ export function Transactions() {
 
   const totalIncome = filteredTransactions
     .filter((t) => t.category.type === "income")
-    .reduce((sum, t) => sum + t.amount, 0);
+    .reduce((sum, t) => sum + Math.abs(t.amount), 0);
 
   const totalExpenses = filteredTransactions
     .filter((t) => t.category.type === "expense")
-    .reduce((sum, t) => sum + t.amount, 0);
+    .reduce((sum, t) => sum + Math.abs(t.amount), 0);
 
   // Paginate the filtered results
   const totalPages = Math.max(1, Math.ceil(filteredTransactions.length / pageSize));
@@ -404,14 +452,15 @@ export function Transactions() {
 
     const exportPayload = {
       exportedAt: new Date().toISOString(),
-      filters: {
-        searchQuery,
-        type: typeFilter,
-        categoryId: categoryFilter,
-        sourceIds: activeSourceFilterIds,
-        sortField,
-        sortDirection,
-      },
+        filters: {
+          searchQuery,
+          type: typeFilter,
+          categoryId: categoryFilter,
+          sourceIds: activeSourceFilterIds,
+          uncategorizedOnly: showUncategorizedOnly,
+          sortField,
+          sortDirection,
+        },
       transactionCount: filteredTransactions.length,
       transactions: filteredTransactions.map((transaction) => ({
         id: transaction.id,
@@ -717,6 +766,27 @@ export function Transactions() {
         </div>
       </div>
 
+      {(uncategorizedCount > 0 || showUncategorizedOnly) && (
+        <div className="flex items-center px-1 mt-3">
+          <button
+            type="button"
+            onClick={() => setShowUncategorizedOnly((prev) => !prev)}
+            className={cn(
+              "flex items-center gap-2 bg-transparent border-none cursor-pointer transition-opacity px-0 py-0",
+              showUncategorizedOnly ? "opacity-100" : "opacity-60 hover:opacity-100",
+            )}
+          >
+            <AlertTriangle size={14} className="text-warning" />
+            <span className="text-ui text-warning font-medium hover:underline">
+              {uncategorizedCount} uncategorized transaction
+              {uncategorizedCount === 1 ? "" : "s"}
+              {showUncategorizedOnly ? " (filtered)" : ""}
+            </span>
+            <Filter size={12} className="text-warning" />
+          </button>
+        </div>
+      )}
+
       {/* Table Header */}
       <div className="hidden lg:flex items-center gap-4 px-1 text-ui text-text-muted uppercase tracking-wider">
         <div className="w-[34px]" />
@@ -828,6 +898,10 @@ function TransactionRow({
   onAction,
 }: TransactionRowProps) {
   const type = transaction.category.type;
+  const iconStyle =
+    transaction.categoryId === UNCATEGORIZED_CATEGORY_ID
+      ? UNCATEGORIZED_ICON_STYLE
+      : iconBoxStyles[type];
 
   return (
     <div className="group flex items-center gap-3.5 py-3.5 border-b border-border last:border-b-0 transition-colors duration-150 hover:bg-surface-hover/30 relative">
@@ -839,7 +913,7 @@ function TransactionRow({
         }}
         className={cn(
           "w-[34px] h-[34px] rounded-(--radius-md) flex items-center justify-center shrink-0 hidden lg:flex cursor-pointer border-none transition-opacity hover:opacity-80",
-          iconBoxStyles[type],
+          iconStyle,
         )}
       >
         <Icon name={transaction.category.icon} size={16} />
@@ -855,7 +929,7 @@ function TransactionRow({
           }}
           className={cn(
             "w-[34px] h-[34px] rounded-(--radius-md) flex items-center justify-center shrink-0 cursor-pointer border-none transition-opacity hover:opacity-80",
-            iconBoxStyles[type],
+            iconStyle,
           )}
         >
           <Icon name={transaction.category.icon} size={16} />
@@ -920,7 +994,7 @@ function TransactionRow({
             style={{ fontFamily: "var(--font-display)" }}
           >
             {amountPrefix[type]}
-            {formatCurrency(transaction.amount, transaction.currency)}
+            {formatCurrency(Math.abs(transaction.amount), transaction.currency)}
           </span>
 
           {/* Action button — mobile */}
@@ -1009,7 +1083,7 @@ function TransactionRow({
           style={{ fontFamily: "var(--font-display)" }}
         >
           {amountPrefix[type]}
-          {formatCurrency(transaction.amount)}
+          {formatCurrency(Math.abs(transaction.amount), transaction.currency)}
         </span>
 
         {/* Action menu trigger */}

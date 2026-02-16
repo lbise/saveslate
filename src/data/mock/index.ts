@@ -17,16 +17,21 @@ import { getTransactionsSorted } from './transactions';
 import { getCategoryById, CATEGORIES } from './categories';
 import { getAccountById } from './accounts';
 import { GOALS, getGoalById } from './goals';
+import { inferTransactionType, UNCATEGORIZED_CATEGORY_ID } from '../../lib/transaction-type';
 
 function toTransactionWithDetails(transaction: Transaction): TransactionWithDetails {
-  const inferredType: TransactionType = transaction.amount >= 0 ? 'income' : 'expense';
+  const inferredType: TransactionType = inferTransactionType(transaction);
 
-  const category = getCategoryById(transaction.categoryId) ?? {
+  const baseCategory = getCategoryById(transaction.categoryId) ?? {
     id: transaction.categoryId,
-    name: transaction.categoryId === 'uncategorized' ? 'Uncategorized' : 'Unknown Category',
+    name: transaction.categoryId === UNCATEGORIZED_CATEGORY_ID ? 'Uncategorized' : 'Unknown Category',
     type: inferredType,
     icon: 'CircleHelp',
   };
+
+  const category = transaction.categoryId === UNCATEGORIZED_CATEGORY_ID
+    ? { ...baseCategory, type: inferredType }
+    : baseCategory;
 
   const account = getAccountById(transaction.accountId) ?? {
     id: transaction.accountId,

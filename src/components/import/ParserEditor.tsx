@@ -1,6 +1,6 @@
 import { useState, useMemo, useCallback, useRef, useEffect, type ChangeEvent } from 'react';
 import { Save, RotateCcw, X, ChevronDown, ChevronUp, ChevronLeft, ChevronRight, Plus, AlertTriangle, Check, Pencil, Filter, Download, Upload } from 'lucide-react';
-import { cn, formatCurrency, formatDate } from '../../lib/utils';
+import { cn, formatDate, formatSignedCurrency } from '../../lib/utils';
 import {
   detectDelimiter,
   parseRawCsv,
@@ -958,7 +958,7 @@ function ParsedTransactionPreview({ rows }: ParsedTransactionPreviewProps) {
                     )}
                     style={{ fontFamily: 'var(--font-display)' }}
                   >
-                    {row.amount >= 0 ? '+' : ''}{formatCurrency(Math.abs(row.amount))}
+                    {formatSignedCurrency(row.amount, row.currency || 'CHF')}
                   </td>
                   <td className="px-3 py-2.5 text-center">
                     {hasErrors ? (

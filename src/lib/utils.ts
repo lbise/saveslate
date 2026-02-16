@@ -11,6 +11,19 @@ export const formatCurrency = (
   }).format(amount);
 };
 
+export const formatSignedCurrency = (
+  amount: number,
+  currency: string = 'CHF',
+): string => {
+  if (amount > 0) {
+    return `+${formatCurrency(amount, currency)}`;
+  }
+  if (amount < 0) {
+    return `-${formatCurrency(Math.abs(amount), currency)}`;
+  }
+  return formatCurrency(0, currency);
+};
+
 // Format just the number part (for when you want custom currency display)
 export const formatNumber = (amount: number): string => {
   return new Intl.NumberFormat('de-CH', {
@@ -22,7 +35,7 @@ export const formatNumber = (amount: number): string => {
 // Date formatting
 export const formatDate = (dateString: string): string => {
   const date = new Date(dateString);
-  return new Intl.DateTimeFormat('de-CH', {
+  return new Intl.DateTimeFormat('en-CH', {
     day: 'numeric',
     month: 'short',
     year: 'numeric',
@@ -31,7 +44,7 @@ export const formatDate = (dateString: string): string => {
 
 export const formatDateShort = (dateString: string): string => {
   const date = new Date(dateString);
-  return new Intl.DateTimeFormat('de-CH', {
+  return new Intl.DateTimeFormat('en-CH', {
     day: 'numeric',
     month: 'short',
   }).format(date);
