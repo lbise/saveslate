@@ -5,7 +5,12 @@ import {
   Filter,
   X,
 } from "lucide-react";
-import { loadAccounts } from "../../lib/account-storage";
+import {
+  AccountFormModal,
+  DEFAULT_ACCOUNT_FORM_STATE,
+  type AccountFormSubmitPayload,
+} from "../accounts";
+import { addAccount, loadAccounts } from "../../lib/account-storage";
 import { loadTransactions } from "../../lib/transaction-storage";
 import { cn, formatCurrency, formatDate, formatSignedCurrency } from "../../lib/utils";
 import { PaginationButtons } from "../ui";
@@ -59,7 +64,9 @@ export function TransactionPreview({
   detectedIdentifier,
   fileName,
 }: TransactionPreviewProps) {
-  const accounts = useMemo(() => loadAccounts(), []);
+  const [accounts, setAccounts] = useState(() => loadAccounts());
+  const [isCreateAccountModalOpen, setIsCreateAccountModalOpen] =
+    useState(false);
   const existingTransactions = useMemo(() => loadTransactions(), []);
   const [selected, setSelected] = useState<Set<number>>(() => {
     // Pre-select all rows without errors
@@ -256,6 +263,17 @@ export function TransactionPreview({
     onConfirm(selectedRows, accountId, importName);
   };
 
+  const handleCreateAccount = (accountPayload: AccountFormSubmitPayload) => {
+    const createdAccount = addAccount({
+      id: `account-${Date.now()}`,
+      ...accountPayload,
+    });
+
+    setAccounts(loadAccounts());
+    setAccountId(createdAccount.id);
+    setIsCreateAccountModalOpen(false);
+  };
+
   return (
     <div className="space-y-5">
       {/* Summary bar */}
@@ -319,8 +337,17 @@ export function TransactionPreview({
               </select>
             </div>
           ) : (
-            <div className="card p-3 border-warning/30">
-              <p className="text-ui text-warning">No accounts available. Create one in Accounts before importing transactions.</p>
+            <div className="card p-3 border-warning/30 space-y-3">
+              <p className="text-ui text-warning">
+                No accounts available. Create one to continue importing.
+              </p>
+              <button
+                type="button"
+                onClick={() => setIsCreateAccountModalOpen(true)}
+                className="btn-secondary"
+              >
+                Create account
+              </button>
             </div>
           )}
         </div>
@@ -537,6 +564,15 @@ export function TransactionPreview({
           Back
         </button>
       </div>
+
+      {isCreateAccountModalOpen && (
+        <AccountFormModal
+          mode="create"
+          initialValues={DEFAULT_ACCOUNT_FORM_STATE}
+          onCancel={() => setIsCreateAccountModalOpen(false)}
+          onSubmit={handleCreateAccount}
+        />
+      )}
     </div>
   );
 }

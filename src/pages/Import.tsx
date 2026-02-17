@@ -5,6 +5,7 @@ import { PageHeader } from '../components/layout/PageHeader';
 import {
   StepIndicator,
   FileUpload,
+  ParserLibrary,
   ParserMatcher,
   ParserEditor,
   TransactionPreview,
@@ -204,6 +205,7 @@ export function Import() {
             </p>
           </div>
           <FileUpload onFileLoaded={handleFileLoaded} />
+          <ParserLibrary />
         </div>
       )}
 
