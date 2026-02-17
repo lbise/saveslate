@@ -16,7 +16,7 @@ import type {
 import { getTransactionsSorted } from './transactions';
 import { getCategoryById, CATEGORIES } from './categories';
 import { getAccountById } from './accounts';
-import { GOALS, getGoalById } from './goals';
+import { getActiveGoals, getGoalById } from './goals';
 import { inferTransactionType, UNCATEGORIZED_CATEGORY_ID } from '../../lib/transaction-type';
 
 function toTransactionWithDetails(transaction: Transaction): TransactionWithDetails {
@@ -133,18 +133,19 @@ export const getCategorySpending = (): CategorySpending[] => {
 export const getGoalProgress = (): GoalProgress[] => {
   const transactions = getTransactionsSorted();
 
-  return GOALS.filter((goal) => !goal.isArchived).map((goal) => {
+  return getActiveGoals().map((goal) => {
     // Find all transactions directly linked to this goal
     const goalTransactions = transactions.filter((t) => t.goalId === goal.id);
 
     const startingAmount = goal.startingAmount ?? 0;
     const currentAmount = startingAmount + goalTransactions.reduce((sum, t) => sum + t.amount, 0);
-    const percentage = goal.targetAmount > 0 ? (currentAmount / goal.targetAmount) * 100 : 0;
+    const rawPercentage = goal.targetAmount > 0 ? (currentAmount / goal.targetAmount) * 100 : 0;
+    const percentage = Math.max(0, Math.min(rawPercentage, 100));
 
     return {
       goal,
       currentAmount,
-      percentage: Math.min(percentage, 100),
+      percentage,
       transactionCount: goalTransactions.length,
     };
   });
@@ -157,4 +158,4 @@ export const getPendingSplitTotal = (): number => {
   );
 };
 
-export { CATEGORIES, GOALS };
+export { CATEGORIES };

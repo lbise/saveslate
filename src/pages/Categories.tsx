@@ -1,7 +1,7 @@
-import { useMemo, useState, type FormEvent } from 'react';
+import { useMemo, useRef, useState, type ChangeEvent, type FormEvent } from 'react';
 import * as LucideIcons from 'lucide-react';
-import { ChevronDown, Plus, Search, Trash2, X } from 'lucide-react';
-import { PageHeader } from '../components/layout/PageHeader';
+import { ChevronDown, Search, Trash2, X } from 'lucide-react';
+import { PageHeader, PageHeaderActions } from '../components/layout';
 import { Icon } from '../components/ui';
 import { CATEGORIES as DEFAULT_CATEGORIES } from '../data/mock';
 import { cn } from '../lib/utils';
@@ -19,16 +19,108 @@ const TYPE_ICON_STYLES: Record<TransactionType, { bg: string; text: string }> = 
   transfer: { bg: 'bg-transfer/10', text: 'text-transfer' },
 };
 
+interface ExportedCategoriesFile {
+  schemaVersion: number;
+  exportedAt: string;
+  categoryCount: number;
+  categories: Category[];
+}
+
+const CATEGORIES_EXPORT_SCHEMA_VERSION = 1;
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === 'object' && value !== null;
+}
+
+function isTransactionType(value: unknown): value is TransactionType {
+  return value === 'expense' || value === 'income' || value === 'transfer';
+}
+
+function parseImportedCategory(entry: unknown, index: number): Category {
+  if (!isRecord(entry)) {
+    throw new Error(`Category #${index + 1} is invalid.`);
+  }
+
+  const name = typeof entry.name === 'string' ? entry.name.trim() : '';
+  if (!name) {
+    throw new Error(`Category #${index + 1} is missing a name.`);
+  }
+
+  if (!isTransactionType(entry.type)) {
+    throw new Error(`Category #${index + 1} has an invalid type.`);
+  }
+
+  const icon = typeof entry.icon === 'string' && entry.icon.trim().length > 0
+    ? entry.icon.trim()
+    : 'CircleDot';
+
+  return {
+    id: typeof entry.id === 'string' ? entry.id.trim() : '',
+    name,
+    type: entry.type,
+    icon,
+    isDefault: false,
+  };
+}
+
+function parseImportedCategories(rawContent: string): Category[] {
+  let parsedContent: unknown;
+  try {
+    parsedContent = JSON.parse(rawContent) as unknown;
+  } catch {
+    throw new Error('Invalid JSON file.');
+  }
+
+  if (!Array.isArray(parsedContent) && !isRecord(parsedContent)) {
+    throw new Error('Invalid categories file format.');
+  }
+
+  if (
+    isRecord(parsedContent)
+    && 'schemaVersion' in parsedContent
+    && parsedContent.schemaVersion !== CATEGORIES_EXPORT_SCHEMA_VERSION
+  ) {
+    throw new Error('Unsupported categories file version.');
+  }
+
+  const rawCategories = Array.isArray(parsedContent)
+    ? parsedContent
+    : parsedContent.categories;
+
+  if (!Array.isArray(rawCategories)) {
+    throw new Error('Categories file is missing a categories array.');
+  }
+
+  const importedCategories = rawCategories.map((category, index) => parseImportedCategory(category, index));
+  if (importedCategories.length === 0) {
+    throw new Error('No categories found in file.');
+  }
+
+  return importedCategories;
+}
+
+function createUniqueCategoryId(existingIds: Set<string>): string {
+  let candidate = '';
+  do {
+    candidate = `custom-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
+  } while (existingIds.has(candidate));
+
+  return candidate;
+}
+
 export function Categories() {
   const [categories, setCategories] = useState<Category[]>(DEFAULT_CATEGORIES);
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
   const [isIconPickerOpen, setIsIconPickerOpen] = useState(false);
   const [iconSearchQuery, setIconSearchQuery] = useState('');
+  const [importError, setImportError] = useState<string | null>(null);
+  const [isImporting, setIsImporting] = useState(false);
   const [form, setForm] = useState<{ name: string; type: TransactionType; icon: string }>({
     name: '',
     type: 'expense',
     icon: 'CircleDot',
   });
+  const importInputRef = useRef<HTMLInputElement>(null);
 
   const allIconNames = useMemo(
     () => Object.keys(LucideIcons.icons).sort((a, b) => a.localeCompare(b)),
@@ -69,14 +161,109 @@ export function Categories() {
     setIsCreateModalOpen(false);
   };
 
+  const handleOpenImportPicker = () => {
+    setImportError(null);
+    importInputRef.current?.click();
+  };
+
+  const handleExportCategories = () => {
+    if (categories.length === 0) {
+      return;
+    }
+
+    const exportPayload: ExportedCategoriesFile = {
+      schemaVersion: CATEGORIES_EXPORT_SCHEMA_VERSION,
+      exportedAt: new Date().toISOString(),
+      categoryCount: categories.length,
+      categories,
+    };
+
+    const fileDate = new Date().toISOString().split('T')[0];
+    const fileName = `categories-${fileDate}.json`;
+    const blob = new Blob([JSON.stringify(exportPayload, null, 2)], {
+      type: 'application/json',
+    });
+    const downloadUrl = URL.createObjectURL(blob);
+    const anchor = document.createElement('a');
+    anchor.href = downloadUrl;
+    anchor.download = fileName;
+    document.body.appendChild(anchor);
+    anchor.click();
+    anchor.remove();
+    URL.revokeObjectURL(downloadUrl);
+  };
+
+  const handleImportCategoriesFile = async (event: ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    event.target.value = '';
+    if (!file) {
+      return;
+    }
+
+    setIsImporting(true);
+    setImportError(null);
+
+    try {
+      const fileContent = await file.text();
+      const importedCategories = parseImportedCategories(fileContent);
+
+      setCategories((previousCategories) => {
+        const existingCategoryIds = new Set(previousCategories.map((category) => category.id));
+
+        return [
+          ...previousCategories,
+          ...importedCategories.map((category) => {
+            const nextId = category.id && !existingCategoryIds.has(category.id)
+              ? category.id
+              : createUniqueCategoryId(existingCategoryIds);
+
+            existingCategoryIds.add(nextId);
+
+            if (nextId === category.id) {
+              return category;
+            }
+
+            return {
+              ...category,
+              id: nextId,
+            };
+          }),
+        ];
+      });
+      setImportError(null);
+    } catch (error) {
+      setImportError(error instanceof Error ? error.message : 'Failed to import categories file.');
+    } finally {
+      setIsImporting(false);
+    }
+  };
+
   return (
     <div className="page-container">
       <PageHeader title="Categories">
-        <button className="btn-primary" onClick={() => openCreateModal('expense')}>
-          <Plus size={16} />
-          New Category
-        </button>
+        <PageHeaderActions
+          onImport={handleOpenImportPicker}
+          onExport={handleExportCategories}
+          onCreate={() => openCreateModal('expense')}
+          importDisabled={isImporting}
+          exportDisabled={categories.length === 0}
+          importLabel={isImporting ? 'Importing...' : 'Import'}
+        />
       </PageHeader>
+
+      <input
+        ref={importInputRef}
+        type="file"
+        accept="application/json,.json"
+        onChange={(event) => {
+          void handleImportCategoriesFile(event);
+        }}
+        className="hidden"
+      />
+
+      {importError && (
+        <p className="text-ui text-expense mb-3">{importError}</p>
+      )}
 
       {isCreateModalOpen && (
         <>
@@ -225,15 +412,7 @@ export function Categories() {
           <section key={type}>
             <div className="section-header">
               <h2 className="section-title">{label}</h2>
-              <div className="flex items-center gap-3">
-                <span className="text-ui text-text-muted">{typeCats.length} categories</span>
-                <button
-                  onClick={() => openCreateModal(type)}
-                  className="section-action"
-                >
-                  <Plus size={10} /> Add
-                </button>
-              </div>
+              <span className="text-ui text-text-muted">{typeCats.length} categories</span>
             </div>
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
               {typeCats.map((cat) => {

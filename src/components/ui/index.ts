@@ -1,6 +1,7 @@
 export { Card, CardHeader, CardTitle, CardContent } from './Card';
 export { Badge } from './Badge';
 export { CategoryPicker } from './CategoryPicker';
+export { GoalPicker } from './GoalPicker';
 export { Icon } from './Icon';
 export { SplitBadge } from './SplitBadge';
 export { StatCard } from './StatCard';

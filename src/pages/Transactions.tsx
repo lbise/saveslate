@@ -4,9 +4,6 @@ import {
   AlertTriangle,
   Filter,
   ArrowUpDown,
-  Upload,
-  Download,
-  Plus,
   Target,
   MoreHorizontal,
   Pencil,
@@ -18,8 +15,8 @@ import {
   ChevronDown,
 } from "lucide-react";
 import { useNavigate } from "react-router-dom";
-import { PageHeader } from "../components/layout/PageHeader";
-import { Badge, CategoryPicker, Icon } from "../components/ui";
+import { PageHeader, PageHeaderActions } from "../components/layout";
+import { Badge, CategoryPicker, GoalPicker, Icon } from "../components/ui";
 import {
   getAccountById,
   getCategoryById,
@@ -31,6 +28,7 @@ import {
   loadImportBatches,
   loadTransactions,
   pruneEmptyImportBatches,
+  saveTransactions,
 } from "../lib/transaction-storage";
 import {
   inferTransactionType,
@@ -133,6 +131,15 @@ function loadTransactionsWithDetails(): TxDetails[] {
   return loadTransactions().map((transaction) => toTransactionWithDetails(transaction));
 }
 
+function toStoredTransaction(transaction: TxDetails): Transaction {
+  const { category, account, goal, ...storedTransaction } = transaction;
+  return storedTransaction;
+}
+
+function persistTransactions(transactions: TxDetails[]): void {
+  saveTransactions(transactions.map((transaction) => toStoredTransaction(transaction)));
+}
+
 export function Transactions() {
   const navigate = useNavigate();
   // Mutable local state so inline actions (delete, duplicate) work
@@ -158,6 +165,7 @@ export function Transactions() {
   const [editingCategoryId, setEditingCategoryId] = useState<string | null>(
     null,
   );
+  const [editingGoalId, setEditingGoalId] = useState<string | null>(null);
   const [isSourceMenuOpen, setIsSourceMenuOpen] = useState(false);
   const [sourceToDelete, setSourceToDelete] = useState<SourceOption | null>(null);
 
@@ -177,17 +185,26 @@ export function Transactions() {
   const closePopovers = () => {
     setOpenActionId(null);
     setEditingCategoryId(null);
+    setEditingGoalId(null);
     setIsSourceMenuOpen(false);
   };
 
   const toggleAction = (txId: string) => {
     setEditingCategoryId(null);
+    setEditingGoalId(null);
     setOpenActionId((prev) => (prev === txId ? null : txId));
   };
 
   const toggleEditCategory = (txId: string) => {
     setOpenActionId(null);
+    setEditingGoalId(null);
     setEditingCategoryId((prev) => (prev === txId ? null : txId));
+  };
+
+  const toggleEditGoal = (txId: string) => {
+    setOpenActionId(null);
+    setEditingCategoryId(null);
+    setEditingGoalId((prev) => (prev === txId ? null : txId));
   };
 
   const handleAction = (
@@ -196,7 +213,11 @@ export function Transactions() {
   ) => {
     closePopovers();
     if (action === "delete") {
-      setTransactions((prev) => prev.filter((tx) => tx.id !== txId));
+      setTransactions((prev) => {
+        const nextTransactions = prev.filter((tx) => tx.id !== txId);
+        persistTransactions(nextTransactions);
+        return nextTransactions;
+      });
     } else if (action === "duplicate") {
       setTransactions((prev) => {
         const tx = prev.find((t) => t.id === txId);
@@ -205,6 +226,7 @@ export function Transactions() {
         const idx = prev.findIndex((t) => t.id === txId);
         const next = [...prev];
         next.splice(idx + 1, 0, dup);
+        persistTransactions(next);
         return next;
       });
     }
@@ -214,8 +236,8 @@ export function Transactions() {
   const handleCategoryChange = (txId: string, categoryId: string) => {
     const category = getCategoryById(categoryId);
     if (!category) return;
-    setTransactions((prev) =>
-      prev.map((tx) => {
+    setTransactions((prev) => {
+      const nextTransactions = prev.map((tx) => {
         if (tx.id !== txId) return tx;
 
         const categoryType =
@@ -228,9 +250,38 @@ export function Transactions() {
           categoryId,
           category: { ...category, type: categoryType },
         };
-      }),
-    );
+      });
+
+      persistTransactions(nextTransactions);
+      return nextTransactions;
+    });
+
     setEditingCategoryId(null);
+  };
+
+  const handleGoalChange = (txId: string, goalId: string | null) => {
+    const goal = goalId ? getGoalById(goalId) : undefined;
+    if (goalId && !goal) {
+      return;
+    }
+
+    setTransactions((prev) => {
+      const nextTransactions = prev.map((tx) => {
+        if (tx.id !== txId) return tx;
+
+        return {
+          ...tx,
+          goalId: goalId ?? undefined,
+          goal,
+        };
+      });
+
+      persistTransactions(nextTransactions);
+      return nextTransactions;
+    });
+
+    setEditingGoalId(null);
+    setOpenActionId(null);
   };
 
   // Computed stats from local state
@@ -499,7 +550,7 @@ export function Transactions() {
   return (
     <div className="page-container">
       {/* Backdrop — closes any open popover on click */}
-      {(openActionId || editingCategoryId) && (
+      {(openActionId || editingCategoryId || editingGoalId) && (
         <div className="fixed inset-0 z-10" onClick={closePopovers} />
       )}
 
@@ -540,23 +591,12 @@ export function Transactions() {
 
       {/* Header */}
       <PageHeader title="Transactions">
-        <button className="btn-ghost">
-          <Plus size={16} />
-          New
-        </button>
-        <button className="btn-primary" onClick={() => navigate("/import")}>
-          <Upload size={16} />
-          Import
-        </button>
-        <button
-          type="button"
-          onClick={handleExportJson}
-          disabled={filteredTransactions.length === 0}
-          className="btn-ghost"
-        >
-          <Download size={16} />
-          Export
-        </button>
+        <PageHeaderActions
+          onImport={() => navigate("/import")}
+          onExport={handleExportJson}
+          onCreate={() => undefined}
+          exportDisabled={filteredTransactions.length === 0}
+        />
       </PageHeader>
 
       {/* Quick Stats */}
@@ -652,6 +692,7 @@ export function Transactions() {
               onClick={() => {
                 setOpenActionId(null);
                 setEditingCategoryId(null);
+                setEditingGoalId(null);
                 setIsSourceMenuOpen((prev) => !prev);
               }}
               className="select flex items-center justify-between text-left"
@@ -823,9 +864,12 @@ export function Transactions() {
               transaction={tx}
               isActionOpen={openActionId === tx.id}
               isEditingCategory={editingCategoryId === tx.id}
+              isEditingGoal={editingGoalId === tx.id}
               onToggleAction={() => toggleAction(tx.id)}
               onToggleEditCategory={() => toggleEditCategory(tx.id)}
+              onToggleEditGoal={() => toggleEditGoal(tx.id)}
               onCategoryChange={(catId) => handleCategoryChange(tx.id, catId)}
+              onGoalChange={(goalId) => handleGoalChange(tx.id, goalId)}
               onAction={(action) => handleAction(tx.id, action)}
             />
           ))
@@ -882,9 +926,12 @@ interface TransactionRowProps {
   transaction: TxDetails;
   isActionOpen: boolean;
   isEditingCategory: boolean;
+  isEditingGoal: boolean;
   onToggleAction: () => void;
   onToggleEditCategory: () => void;
+  onToggleEditGoal: () => void;
   onCategoryChange: (categoryId: string) => void;
+  onGoalChange: (goalId: string | null) => void;
   onAction: (action: "edit" | "duplicate" | "delete") => void;
 }
 
@@ -892,9 +939,12 @@ function TransactionRow({
   transaction,
   isActionOpen,
   isEditingCategory,
+  isEditingGoal,
   onToggleAction,
   onToggleEditCategory,
+  onToggleEditGoal,
   onCategoryChange,
+  onGoalChange,
   onAction,
 }: TransactionRowProps) {
   const type = transaction.category.type;
@@ -965,9 +1015,9 @@ function TransactionRow({
               )}
             </div>
             {transaction.goal && (
-              <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-full bg-surface text-ui border border-border">
-                <Target size={9} />
-                {transaction.goal.name}
+              <span className="inline-flex items-center gap-1 text-ui text-goal max-w-36">
+                <Target size={10} className="shrink-0" />
+                <span className="truncate">{transaction.goal.name}</span>
               </span>
             )}
             {transaction.split && (
@@ -1012,7 +1062,21 @@ function TransactionRow({
               <MoreHorizontal size={14} />
             </button>
             {isActionOpen && (
-              <ActionMenu onAction={onAction} className="right-0" />
+              <ActionMenu
+                onAction={onAction}
+                onEditGoal={onToggleEditGoal}
+                onRemoveGoal={() => onGoalChange(null)}
+                hasGoal={Boolean(transaction.goalId)}
+                className="right-0"
+              />
+            )}
+            {isEditingGoal && (
+              <GoalPicker
+                currentGoalId={transaction.goalId}
+                onSelect={onGoalChange}
+                onClose={onToggleEditGoal}
+                className="top-full right-0 mt-1"
+              />
             )}
           </div>
         </div>
@@ -1029,12 +1093,6 @@ function TransactionRow({
             >
               {transaction.description}
             </span>
-            {transaction.goal && (
-              <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-full bg-surface text-ui border border-border shrink-0">
-                <Target size={9} />
-                {transaction.goal.name}
-              </span>
-            )}
             {transaction.split && (
               <span className="inline-flex items-center gap-1 text-ui text-text-muted shrink-0">
                 <Users size={9} />
@@ -1048,7 +1106,7 @@ function TransactionRow({
               </span>
             )}
           </div>
-          <div className="flex items-center gap-1 text-ui text-text-muted relative">
+          <div className="flex items-center gap-1 text-ui text-text-muted relative flex-wrap">
             <span>{transaction.account.name}</span>
             <span>&middot;</span>
             <button
@@ -1067,6 +1125,15 @@ function TransactionRow({
                 onClose={onToggleEditCategory}
                 className="top-full left-0 mt-1"
               />
+            )}
+            {transaction.goal && (
+              <>
+                <span>&middot;</span>
+                <span className="inline-flex items-center gap-1 text-goal max-w-40">
+                  <Target size={10} className="shrink-0" />
+                  <span className="truncate">{transaction.goal.name}</span>
+                </span>
+              </>
             )}
           </div>
         </div>
@@ -1103,7 +1170,21 @@ function TransactionRow({
             <MoreHorizontal size={14} />
           </button>
           {isActionOpen && (
-            <ActionMenu onAction={onAction} className="right-0" />
+            <ActionMenu
+              onAction={onAction}
+              onEditGoal={onToggleEditGoal}
+              onRemoveGoal={() => onGoalChange(null)}
+              hasGoal={Boolean(transaction.goalId)}
+              className="right-0"
+            />
+          )}
+          {isEditingGoal && (
+            <GoalPicker
+              currentGoalId={transaction.goalId}
+              onSelect={onGoalChange}
+              onClose={onToggleEditGoal}
+              className="top-full right-0 mt-1"
+            />
           )}
         </div>
       </div>
@@ -1117,21 +1198,47 @@ function TransactionRow({
 
 interface ActionMenuProps {
   onAction: (action: "edit" | "duplicate" | "delete") => void;
+  onEditGoal: () => void;
+  onRemoveGoal: () => void;
+  hasGoal: boolean;
   className?: string;
 }
 
-function ActionMenu({ onAction, className }: ActionMenuProps) {
+function ActionMenu({
+  onAction,
+  onEditGoal,
+  onRemoveGoal,
+  hasGoal,
+  className,
+}: ActionMenuProps) {
   const itemClass =
     "flex items-center gap-2.5 w-full px-3 py-2 text-left bg-transparent border-none cursor-pointer text-ui hover:bg-surface-hover transition-colors";
 
   return (
     <div
       className={cn(
-        "absolute top-full w-40 bg-surface border border-border rounded-(--radius-md) py-1 z-20 shadow-(--shadow-md)",
+        "absolute top-full w-44 bg-surface border border-border rounded-(--radius-md) py-1 z-20 shadow-(--shadow-md)",
         className,
       )}
       onClick={(e) => e.stopPropagation()}
     >
+      <button
+        onClick={onEditGoal}
+        className={cn(itemClass, "text-text-secondary hover:text-text")}
+      >
+        <Target size={12} />
+        {hasGoal ? "Change goal" : "Set goal"}
+      </button>
+      {hasGoal && (
+        <button
+          onClick={onRemoveGoal}
+          className={cn(itemClass, "text-text-muted hover:text-text")}
+        >
+          <Target size={12} />
+          Unlink goal
+        </button>
+      )}
+      <div className="h-px bg-border mx-2 my-1" />
       <button
         onClick={() => onAction("edit")}
         className={cn(itemClass, "text-text-secondary hover:text-text")}

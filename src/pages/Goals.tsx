@@ -1,12 +1,13 @@
-import { useMemo, useState, type FormEvent } from 'react';
+import { useMemo, useRef, useState, type ChangeEvent, type FormEvent } from 'react';
 import * as LucideIcons from 'lucide-react';
-import { Calendar, ChevronDown, Plus, Search, Target, X } from 'lucide-react';
-import { PageHeader } from '../components/layout/PageHeader';
+import { Calendar, ChevronDown, Search, Target, X } from 'lucide-react';
+import { PageHeader, PageHeaderActions } from '../components/layout';
 import { Icon, TransactionItem } from '../components/ui';
 import {
   getGoalProgress,
   getTransactionsWithDetails,
 } from '../data/mock';
+import { addGoal, mergeGoals } from '../lib/goal-storage';
 import { formatCurrency, formatDate } from '../lib/utils';
 import type { ContributionFrequency, Goal, GoalProgress } from '../types';
 
@@ -35,6 +36,183 @@ const DEFAULT_FORM_STATE: GoalFormState = {
   expectedContributionAmount: '',
   expectedContributionFrequency: 'monthly',
 };
+
+interface ExportedGoalProgress {
+  goal: Goal;
+  currentAmount: number;
+  transactionCount: number;
+}
+
+interface ExportedGoalsFile {
+  schemaVersion: number;
+  exportedAt: string;
+  goalCount: number;
+  goals: ExportedGoalProgress[];
+}
+
+const GOALS_EXPORT_SCHEMA_VERSION = 1;
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === 'object' && value !== null;
+}
+
+function parseNonNegativeNumber(value: unknown, fallback = 0): number {
+  if (
+    typeof value !== 'number'
+    || Number.isNaN(value)
+    || !Number.isFinite(value)
+    || value < 0
+  ) {
+    return fallback;
+  }
+
+  return value;
+}
+
+function parseFiniteNumber(value: unknown, fallback = 0): number {
+  if (typeof value !== 'number' || Number.isNaN(value) || !Number.isFinite(value)) {
+    return fallback;
+  }
+
+  return value;
+}
+
+function parseNonNegativeInteger(value: unknown, fallback = 0): number {
+  if (typeof value !== 'number' || !Number.isInteger(value) || value < 0) {
+    return fallback;
+  }
+
+  return value;
+}
+
+function parseDateString(value: unknown): string | undefined {
+  if (typeof value !== 'string' || value.trim() === '') {
+    return undefined;
+  }
+
+  const normalized = value.trim();
+  const parsedDate = new Date(normalized);
+  if (Number.isNaN(parsedDate.getTime())) {
+    return undefined;
+  }
+
+  return normalized;
+}
+
+function isContributionFrequency(value: unknown): value is ContributionFrequency {
+  return value === 'weekly' || value === 'monthly';
+}
+
+function parseExpectedContribution(value: unknown): Goal['expectedContribution'] {
+  if (!isRecord(value)) {
+    return undefined;
+  }
+
+  const amount = parseNonNegativeNumber(value.amount, 0);
+  if (amount <= 0 || !isContributionFrequency(value.frequency)) {
+    return undefined;
+  }
+
+  return {
+    amount,
+    frequency: value.frequency,
+  };
+}
+
+function calculateGoalPercentage(goal: Goal, currentAmount: number): number {
+  if (goal.hasTarget === false || goal.targetAmount <= 0) {
+    return 0;
+  }
+
+  return Math.max(0, Math.min((currentAmount / goal.targetAmount) * 100, 100));
+}
+
+function parseImportedGoalEntry(entry: unknown, index: number): GoalProgress {
+  if (!isRecord(entry) || !isRecord(entry.goal)) {
+    throw new Error(`Goal #${index + 1} is missing goal details.`);
+  }
+
+  const rawGoal = entry.goal;
+  const name = typeof rawGoal.name === 'string' ? rawGoal.name.trim() : '';
+  if (!name) {
+    throw new Error(`Goal #${index + 1} is missing a name.`);
+  }
+
+  const icon = typeof rawGoal.icon === 'string' && rawGoal.icon.trim().length > 0
+    ? rawGoal.icon.trim()
+    : 'Target';
+  const targetAmount = parseNonNegativeNumber(rawGoal.targetAmount, 0);
+  const hasTarget = typeof rawGoal.hasTarget === 'boolean'
+    ? rawGoal.hasTarget && targetAmount > 0
+    : targetAmount > 0;
+  const createdAt = parseDateString(rawGoal.createdAt) ?? new Date().toISOString().split('T')[0];
+  const startingAmount = parseFiniteNumber(rawGoal.startingAmount, 0);
+  const expectedContribution = parseExpectedContribution(rawGoal.expectedContribution);
+  const description = typeof rawGoal.description === 'string'
+    ? rawGoal.description.trim() || undefined
+    : undefined;
+
+  const goal: Goal = {
+    id: typeof rawGoal.id === 'string' ? rawGoal.id.trim() : '',
+    name,
+    description,
+    icon,
+    startingAmount,
+    targetAmount: hasTarget ? targetAmount : 0,
+    hasTarget,
+    deadline: parseDateString(rawGoal.deadline),
+    expectedContribution,
+    createdAt,
+    isArchived: typeof rawGoal.isArchived === 'boolean' ? rawGoal.isArchived : false,
+  };
+
+  const importedCurrentAmount = parseFiniteNumber(entry.currentAmount, startingAmount);
+  const currentAmount = importedCurrentAmount;
+  const transactionCount = parseNonNegativeInteger(entry.transactionCount, 0);
+
+  return {
+    goal,
+    currentAmount,
+    percentage: calculateGoalPercentage(goal, currentAmount),
+    transactionCount,
+  };
+}
+
+function parseImportedGoals(rawContent: string): GoalProgress[] {
+  let parsedContent: unknown;
+  try {
+    parsedContent = JSON.parse(rawContent) as unknown;
+  } catch {
+    throw new Error('Invalid JSON file.');
+  }
+
+  if (!Array.isArray(parsedContent) && !isRecord(parsedContent)) {
+    throw new Error('Invalid goals file format.');
+  }
+
+  if (
+    isRecord(parsedContent)
+    && 'schemaVersion' in parsedContent
+    && parsedContent.schemaVersion !== GOALS_EXPORT_SCHEMA_VERSION
+  ) {
+    throw new Error('Unsupported goals file version.');
+  }
+
+  const rawGoals = Array.isArray(parsedContent)
+    ? parsedContent
+    : parsedContent.goals;
+
+  if (!Array.isArray(rawGoals)) {
+    throw new Error('Goals file is missing a goals array.');
+  }
+
+  const importedGoals = rawGoals.map((goalEntry, index) => parseImportedGoalEntry(goalEntry, index));
+  if (importedGoals.length === 0) {
+    throw new Error('No goals found in file.');
+  }
+
+  return importedGoals;
+}
 
 function parseAmount(value: string): number {
   const parsed = Number(value);
@@ -92,7 +270,10 @@ export function Goals() {
   const [isCreateMenuOpen, setIsCreateMenuOpen] = useState(false);
   const [isIconPickerOpen, setIsIconPickerOpen] = useState(false);
   const [iconSearchQuery, setIconSearchQuery] = useState('');
+  const [importError, setImportError] = useState<string | null>(null);
+  const [isImporting, setIsImporting] = useState(false);
   const [form, setForm] = useState<GoalFormState>(DEFAULT_FORM_STATE);
+  const importInputRef = useRef<HTMLInputElement>(null);
 
   const allTransactions = getTransactionsWithDetails();
   const allIconNames = useMemo(
@@ -154,6 +335,69 @@ export function Goals() {
     setIsIconPickerOpen(false);
   };
 
+  const handleOpenImportPicker = () => {
+    setImportError(null);
+    importInputRef.current?.click();
+  };
+
+  const handleExportGoals = () => {
+    if (goals.length === 0) {
+      return;
+    }
+
+    const exportPayload: ExportedGoalsFile = {
+      schemaVersion: GOALS_EXPORT_SCHEMA_VERSION,
+      exportedAt: new Date().toISOString(),
+      goalCount: goals.length,
+      goals: goals.map((goalProgress) => ({
+        goal: goalProgress.goal,
+        currentAmount: goalProgress.currentAmount,
+        transactionCount: goalProgress.transactionCount,
+      })),
+    };
+
+    const fileDate = new Date().toISOString().split('T')[0];
+    const fileName = `goals-${fileDate}.json`;
+    const blob = new Blob([JSON.stringify(exportPayload, null, 2)], {
+      type: 'application/json',
+    });
+    const downloadUrl = URL.createObjectURL(blob);
+    const anchor = document.createElement('a');
+    anchor.href = downloadUrl;
+    anchor.download = fileName;
+    document.body.appendChild(anchor);
+    anchor.click();
+    anchor.remove();
+    URL.revokeObjectURL(downloadUrl);
+  };
+
+  const handleImportGoalsFile = async (event: ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    event.target.value = '';
+    if (!file) {
+      return;
+    }
+
+    setIsImporting(true);
+    setImportError(null);
+
+    try {
+      const fileContent = await file.text();
+      const importedGoals = parseImportedGoals(fileContent).map((goalProgress) => ({
+        ...goalProgress.goal,
+        startingAmount: goalProgress.currentAmount,
+      }));
+
+      mergeGoals(importedGoals);
+      setGoals(getGoalProgress());
+      setImportError(null);
+    } catch (error) {
+      setImportError(error instanceof Error ? error.message : 'Failed to import goals file.');
+    } finally {
+      setIsImporting(false);
+    }
+  };
+
   const handleCreateGoal = (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
 
@@ -181,20 +425,8 @@ export function Goals() {
       isArchived: false,
     };
 
-    const initialPercentage =
-      hasTarget && previewTargetAmount > 0
-        ? Math.min((startingAmount / previewTargetAmount) * 100, 100)
-        : 0;
-
-    setGoals((previousGoals) => [
-      ...previousGoals,
-      {
-        goal: newGoal,
-        currentAmount: startingAmount,
-        percentage: initialPercentage,
-        transactionCount: 0,
-      },
-    ]);
+    addGoal(newGoal);
+    setGoals(getGoalProgress());
 
     resetForm();
     setIsCreateMenuOpen(false);
@@ -203,17 +435,32 @@ export function Goals() {
   return (
     <div className="page-container">
       <PageHeader title="Goals">
-        <button
-          className="btn-primary"
-          onClick={() => setIsCreateMenuOpen(true)}
-        >
-          <Plus size={16} />
-          New Goal
-        </button>
+        <PageHeaderActions
+          onImport={handleOpenImportPicker}
+          onExport={handleExportGoals}
+          onCreate={() => setIsCreateMenuOpen(true)}
+          importDisabled={isImporting}
+          exportDisabled={goals.length === 0}
+          importLabel={isImporting ? 'Importing...' : 'Import'}
+        />
       </PageHeader>
 
+      <input
+        ref={importInputRef}
+        type="file"
+        accept="application/json,.json"
+        onChange={(event) => {
+          void handleImportGoalsFile(event);
+        }}
+        className="hidden"
+      />
+
+      {importError && (
+        <p className="text-ui text-expense mb-3">{importError}</p>
+      )}
+
       {isCreateMenuOpen && (
-        <section className="card p-5" style={{ marginTop: '-32px' }}>
+        <section className="card p-5" style={{ marginTop: importError ? 0 : '-32px' }}>
           <div className="section-header mb-4">
             <h2 className="heading-3 text-text">Create Goal</h2>
             <button className="btn-icon" onClick={() => setIsCreateMenuOpen(false)}>
@@ -463,7 +710,7 @@ export function Goals() {
         </section>
       )}
 
-      <div className="flex flex-wrap gap-8 mb-2" style={{ marginTop: isCreateMenuOpen ? 0 : '-32px' }}>
+      <div className="flex flex-wrap gap-8 mb-2" style={{ marginTop: isCreateMenuOpen || importError ? 0 : '-32px' }}>
         <div className="flex items-center gap-3">
           <div className="w-2 h-2 rounded-full bg-text-secondary" />
           <div className="flex flex-col gap-0.5">
@@ -556,7 +803,7 @@ export function Goals() {
               )}
 
               <div className="flex justify-between text-ui mb-5">
-                <span className="text-text-secondary">
+                <span className={gp.currentAmount < 0 ? 'text-expense' : 'text-text-secondary'}>
                   {formatCurrency(gp.currentAmount)} saved
                 </span>
                 {isOpenEnded ? (

@@ -8,6 +8,8 @@ interface GoalCardProps {
 }
 
 export function GoalCard({ name, percentage, currentAmount, targetAmount }: GoalCardProps) {
+  const progressWidth = Math.max(0, Math.min(percentage, 100));
+
   return (
     <div className="p-4 bg-surface rounded-(--radius-lg) transition-colors duration-150 hover:bg-surface-hover cursor-pointer">
       {/* Header */}
@@ -25,13 +27,13 @@ export function GoalCard({ name, percentage, currentAmount, targetAmount }: Goal
       <div className="h-1 bg-border rounded-full overflow-hidden mb-2.5">
         <div
           className="h-full bg-text rounded-full transition-[width] duration-400 ease-out"
-          style={{ width: `${percentage}%` }}
+          style={{ width: `${progressWidth}%` }}
         />
       </div>
 
       {/* Amounts */}
       <div className="flex justify-between text-ui text-text-muted">
-        <span>{formatCurrency(currentAmount)}</span>
+        <span className={currentAmount < 0 ? 'text-expense' : undefined}>{formatCurrency(currentAmount)}</span>
         <span>{formatCurrency(targetAmount)}</span>
       </div>
     </div>
