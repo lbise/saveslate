@@ -2,14 +2,13 @@ import { useState, useMemo, useEffect } from "react";
 import {
   AlertTriangle,
   Check,
-  ChevronLeft,
-  ChevronRight,
   Filter,
   X,
 } from "lucide-react";
 import { loadTransactions } from "../../lib/transaction-storage";
 import { cn, formatCurrency, formatDate, formatSignedCurrency } from "../../lib/utils";
 import { ACCOUNTS } from "../../data/mock/accounts";
+import { PaginationButtons } from "../ui";
 import type { ParsedRow } from "../../types";
 
 interface TransactionPreviewProps {
@@ -38,6 +37,7 @@ function normalizeAmount(amount: number): string {
 function buildTransactionFingerprint(
   accountId: string,
   date: string,
+  time: string | undefined,
   amount: number,
   currency: string,
   description: string,
@@ -45,6 +45,7 @@ function buildTransactionFingerprint(
   return [
     accountId,
     date,
+    time ?? "00:00:00",
     normalizeAmount(amount),
     currency,
     normalizeDescription(description),
@@ -93,6 +94,7 @@ export function TransactionPreview({
   }, [matchedAccountId]);
 
   const hasCurrency = useMemo(() => rows.some((r) => r.currency), [rows]);
+  const hasTime = useMemo(() => rows.some((r) => r.time), [rows]);
 
   const selectedAccountCurrency = useMemo(
     () => ACCOUNTS.find((acc) => acc.id === accountId)?.currency ?? "CHF",
@@ -106,6 +108,7 @@ export function TransactionPreview({
         buildTransactionFingerprint(
           transaction.accountId,
           transaction.date,
+          transaction.time,
           transaction.amount,
           transaction.currency,
           transaction.description,
@@ -123,6 +126,7 @@ export function TransactionPreview({
       const fingerprint = buildTransactionFingerprint(
         accountId,
         row.date,
+        row.time,
         row.amount,
         effectiveCurrency,
         row.description,
@@ -370,6 +374,11 @@ export function TransactionPreview({
                   <th className="px-3 py-2.5 text-left text-text-muted font-medium">
                     Date
                   </th>
+                  {hasTime && (
+                    <th className="px-3 py-2.5 text-left text-text-muted font-medium">
+                      Time
+                    </th>
+                  )}
                   <th className="px-3 py-2.5 text-left text-text-muted font-medium">
                     Description
                   </th>
@@ -422,6 +431,11 @@ export function TransactionPreview({
                       <td className="px-3 py-2.5 text-text-secondary whitespace-nowrap">
                         {row.date ? formatDate(row.date) : "—"}
                       </td>
+                      {hasTime && (
+                        <td className="px-3 py-2.5 text-text-secondary whitespace-nowrap">
+                          {row.time ? row.time.slice(0, 5) : "—"}
+                        </td>
+                      )}
                       <td className="px-3 py-2.5 text-text">
                         <span className="break-words">
                           {row.description || "—"}
@@ -486,24 +500,7 @@ export function TransactionPreview({
                 <span>
                   {start + 1}–{end} of {filteredRows.length}
                 </span>
-                <div className="flex items-center gap-1">
-                  <button
-                    type="button"
-                    onClick={() => setPage((p) => p - 1)}
-                    disabled={page === 0}
-                    className="p-0.5 rounded hover:bg-surface-hover disabled:opacity-30 disabled:cursor-not-allowed transition-colors cursor-pointer bg-transparent border-none text-text-muted"
-                  >
-                    <ChevronLeft size={16} />
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => setPage((p) => p + 1)}
-                    disabled={page >= totalPages - 1}
-                    className="p-0.5 rounded hover:bg-surface-hover disabled:opacity-30 disabled:cursor-not-allowed transition-colors cursor-pointer bg-transparent border-none text-text-muted"
-                  >
-                    <ChevronRight size={16} />
-                  </button>
-                </div>
+                <PaginationButtons page={page} totalPages={totalPages} onPageChange={setPage} />
               </div>
             )}
           </div>

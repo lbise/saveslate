@@ -237,12 +237,13 @@ export function findBestParserFromRaw(
 
 /**
  * Parse a date string according to a format pattern.
- * Supported tokens: DD, MM, YYYY, YY.
+ * Supported tokens: DD, MM, YYYY, YY, HH, mm, ss.
  * Common formats: "DD.MM.YYYY", "YYYY-MM-DD", "MM/DD/YYYY", "DD/MM/YYYY"
  */
-export function parseDate(value: string, format: string): string | null {
+export function parseDateTime(value: string, format: string): { date: string; time?: string } | null {
   const trimmed = value.trim();
   if (!trimmed) return null;
+  const hasTimeToken = /HH|mm|ss/.test(format);
 
   // Build a regex from the format, capturing groups for each token
   const regexStr = format
@@ -250,7 +251,10 @@ export function parseDate(value: string, format: string): string | null {
     .replace('YYYY', '(?<year>\\d{4})')
     .replace('YY', '(?<year2>\\d{2})')
     .replace('MM', '(?<month>\\d{1,2})')
-    .replace('DD', '(?<day>\\d{1,2})');
+    .replace('DD', '(?<day>\\d{1,2})')
+    .replace('HH', '(?<hour>\\d{1,2})')
+    .replace('mm', '(?<minute>\\d{1,2})')
+    .replace('ss', '(?<second>\\d{1,2})');
 
   try {
     const re = new RegExp(`^${regexStr}$`);
@@ -268,8 +272,59 @@ export function parseDate(value: string, format: string): string | null {
     if (year == null || month == null || day == null) return null;
     if (month < 1 || month > 12 || day < 1 || day > 31) return null;
 
-    // Return ISO date string
-    return `${year}-${String(month).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
+    const date = `${year}-${String(month).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
+
+    if (!hasTimeToken) {
+      return { date };
+    }
+
+    const hour = m.groups.hour ? parseInt(m.groups.hour) : 0;
+    const minute = m.groups.minute ? parseInt(m.groups.minute) : 0;
+    const second = m.groups.second ? parseInt(m.groups.second) : 0;
+
+    if (hour < 0 || hour > 23 || minute < 0 || minute > 59 || second < 0 || second > 59) {
+      return null;
+    }
+
+    return {
+      date,
+      time: `${String(hour).padStart(2, '0')}:${String(minute).padStart(2, '0')}:${String(second).padStart(2, '0')}`,
+    };
+  } catch {
+    return null;
+  }
+}
+
+export function parseDate(value: string, format: string): string | null {
+  return parseDateTime(value, format)?.date ?? null;
+}
+
+export function parseTime(value: string, format: string): string | null {
+  const trimmed = value.trim();
+  if (!trimmed) return null;
+
+  const regexStr = format
+    .replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
+    .replace('HH', '(?<hour>\\d{1,2})')
+    .replace('mm', '(?<minute>\\d{1,2})')
+    .replace('ss', '(?<second>\\d{1,2})');
+
+  try {
+    const re = new RegExp(`^${regexStr}$`);
+    const match = re.exec(trimmed);
+    if (!match?.groups) {
+      return null;
+    }
+
+    const hour = match.groups.hour ? parseInt(match.groups.hour) : 0;
+    const minute = match.groups.minute ? parseInt(match.groups.minute) : 0;
+    const second = match.groups.second ? parseInt(match.groups.second) : 0;
+
+    if (hour < 0 || hour > 23 || minute < 0 || minute > 59 || second < 0 || second > 59) {
+      return null;
+    }
+
+    return `${String(hour).padStart(2, '0')}:${String(minute).padStart(2, '0')}:${String(second).padStart(2, '0')}`;
   } catch {
     return null;
   }
@@ -336,6 +391,7 @@ export function applyParser(
       columnIndices: [columnIndex],
     }))
     ?? [];
+  const timeMode = parser.timeMode ?? 'none';
 
   /** Read a single column value (first index). Used for numeric/date fields. */
   const readSingle = (row: string[], mapping: ColumnMapping): string =>
@@ -366,16 +422,38 @@ export function applyParser(
     // Extract date (single column)
     const dateMapping = mappingByField.get('date');
     let date = '';
+    let time: string | undefined;
     if (dateMapping) {
       const rawDate = readSingle(row, dateMapping);
-      const parsed = parseDate(rawDate, parser.dateFormat);
-      if (parsed) {
-        date = parsed;
+      if (timeMode === 'in-date-column') {
+        const parsed = parseDateTime(rawDate, parser.dateFormat);
+        if (parsed) {
+          date = parsed.date;
+          time = parsed.time;
+        } else {
+          errors.push(`Invalid date/time: "${rawDate}"`);
+        }
       } else {
-        errors.push(`Invalid date: "${rawDate}"`);
+        const parsed = parseDate(rawDate, parser.dateFormat);
+        if (parsed) {
+          date = parsed;
+        } else {
+          errors.push(`Invalid date: "${rawDate}"`);
+        }
       }
     } else {
       errors.push('No date mapping');
+    }
+
+    if (timeMode === 'separate-column') {
+      const timeMapping = mappingByField.get('time');
+      const rawTime = timeMapping ? readSingle(row, timeMapping) : '';
+      if (rawTime) {
+        const parsedTime = parseTime(rawTime, parser.timeFormat ?? 'HH:mm');
+        if (parsedTime) {
+          time = parsedTime;
+        }
+      }
     }
 
     // Extract amount
@@ -500,6 +578,7 @@ export function applyParser(
       description,
       amount,
       date,
+      time,
       category,
       currency,
       metadata: metadata && metadata.length > 0 ? metadata : undefined,
@@ -592,6 +671,7 @@ export function applyTransforms(row: ParsedRow, transforms: FieldTransform[]): v
 export function validateMappings(
   mappings: ColumnMapping[],
   amountFormat: AmountFormat,
+  timeMode: CsvParser['timeMode'] = 'none',
 ): Map<string, string> {
   const errors = new Map<string, string>();
 
@@ -601,6 +681,9 @@ export function validateMappings(
 
   if (!fields.has('description')) errors.set('description', 'Required');
   if (!fields.has('date')) errors.set('date', 'Required');
+  if (timeMode === 'separate-column' && !fields.has('time')) {
+    errors.set('time', 'Required');
+  }
 
   if (amountFormat === 'single') {
     if (!fields.has('amount')) errors.set('amount', 'Required');
@@ -625,4 +708,19 @@ export const DATE_FORMAT_PRESETS = [
   { label: 'MM/DD/YYYY', value: 'MM/DD/YYYY', example: '12/31/2025' },
   { label: 'DD/MM/YYYY', value: 'DD/MM/YYYY', example: '31/12/2025' },
   { label: 'DD-MM-YYYY', value: 'DD-MM-YYYY', example: '31-12-2025' },
+];
+
+export const DATE_TIME_FORMAT_PRESETS = [
+  { label: 'DD.MM.YYYY HH:mm', value: 'DD.MM.YYYY HH:mm', example: '31.12.2025 14:30' },
+  { label: 'DD.MM.YYYY HH:mm:ss', value: 'DD.MM.YYYY HH:mm:ss', example: '31.12.2025 14:30:45' },
+  { label: 'YYYY-MM-DD HH:mm:ss', value: 'YYYY-MM-DD HH:mm:ss', example: '2025-12-31 14:30:45' },
+  { label: 'YYYY-MM-DDTHH:mm:ss', value: 'YYYY-MM-DDTHH:mm:ss', example: '2025-12-31T14:30:45' },
+  { label: 'DD/MM/YYYY HH:mm', value: 'DD/MM/YYYY HH:mm', example: '31/12/2025 14:30' },
+];
+
+export const TIME_FORMAT_PRESETS = [
+  { label: 'HH:mm', value: 'HH:mm', example: '14:30' },
+  { label: 'HH:mm:ss', value: 'HH:mm:ss', example: '14:30:45' },
+  { label: 'HHmm', value: 'HHmm', example: '1430' },
+  { label: 'HHmmss', value: 'HHmmss', example: '143045' },
 ];

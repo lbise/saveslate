@@ -123,6 +123,7 @@ export function Import() {
       categoryId: 'uncategorized',
       description: row.description,
       date: row.date,
+      time: row.time,
       accountId,
       importBatchId: batch.id,
       metadata: row.metadata && row.metadata.length > 0 ? row.metadata : undefined,

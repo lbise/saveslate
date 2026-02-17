@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { ChevronLeft, ChevronRight } from 'lucide-react';
+import { PaginationButtons } from '../ui';
 import { cn } from '../../lib/utils';
 
 const PAGE_SIZE_OPTIONS = [5, 10, 25] as const;
@@ -96,24 +96,7 @@ export function CsvPreviewTable({
             </select>
           </div>
           <span>{start + 1}–{end} of {rows.length}</span>
-          <div className="flex items-center gap-1">
-            <button
-              type="button"
-              onClick={() => setPage((p) => p - 1)}
-              disabled={page === 0}
-              className="p-0.5 rounded hover:bg-surface-hover disabled:opacity-30 disabled:cursor-not-allowed transition-colors cursor-pointer bg-transparent border-none text-text-muted"
-            >
-              <ChevronLeft size={16} />
-            </button>
-            <button
-              type="button"
-              onClick={() => setPage((p) => p + 1)}
-              disabled={page >= totalPages - 1}
-              className="p-0.5 rounded hover:bg-surface-hover disabled:opacity-30 disabled:cursor-not-allowed transition-colors cursor-pointer bg-transparent border-none text-text-muted"
-            >
-              <ChevronRight size={16} />
-            </button>
-          </div>
+          <PaginationButtons page={page} totalPages={totalPages} onPageChange={setPage} />
         </div>
       )}
     </div>

@@ -10,13 +10,11 @@ import {
   Copy,
   Trash2,
   Users,
-  ChevronLeft,
-  ChevronRight,
   ChevronDown,
 } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { PageHeader, PageHeaderActions } from "../components/layout";
-import { Badge, CategoryPicker, GoalPicker, Icon } from "../components/ui";
+import { Badge, CategoryPicker, GoalPicker, Icon, PaginationButtons } from "../components/ui";
 import {
   getAccountById,
   getCategoryById,
@@ -461,7 +459,11 @@ export function Transactions() {
     result.sort((a, b) => {
       let comparison = 0;
       if (sortField === "date") {
-        comparison = new Date(a.date).getTime() - new Date(b.date).getTime();
+        const aWithTime = new Date(`${a.date}T${a.time ?? "00:00:00"}`).getTime();
+        const bWithTime = new Date(`${b.date}T${b.time ?? "00:00:00"}`).getTime();
+        const aTimestamp = Number.isNaN(aWithTime) ? new Date(a.date).getTime() : aWithTime;
+        const bTimestamp = Number.isNaN(bWithTime) ? new Date(b.date).getTime() : bWithTime;
+        comparison = aTimestamp - bTimestamp;
       } else if (sortField === "amount") {
         comparison = a.amount - b.amount;
       }
@@ -516,6 +518,7 @@ export function Transactions() {
       transactions: filteredTransactions.map((transaction) => ({
         id: transaction.id,
         date: transaction.date,
+        time: transaction.time ?? null,
         description: transaction.description,
         amount: transaction.amount,
         currency: transaction.currency,
@@ -854,9 +857,15 @@ export function Transactions() {
       <div className="flex flex-col">
         {filteredTransactions.length === 0 ? (
           <div className="py-16 text-center">
-            <p className="text-muted">
-              No transactions found. Try adjusting your filters.
-            </p>
+            {transactions.length === 0 ? (
+              <p className="text-muted">
+                No transactions yet. Import transactions or create a new one manually.
+              </p>
+            ) : (
+              <p className="text-muted">
+                No transactions found. Try adjusting your filters.
+              </p>
+            )}
           </div>
         ) : (
           paginatedTransactions.map((tx) => (
@@ -895,24 +904,7 @@ export function Transactions() {
           <span>
             {page * pageSize + 1}–{Math.min((page + 1) * pageSize, filteredTransactions.length)} of {filteredTransactions.length}
           </span>
-          <div className="flex items-center gap-1">
-            <button
-              type="button"
-              onClick={() => setPage(p => p - 1)}
-              disabled={page === 0}
-              className="p-0.5 rounded hover:bg-surface-hover disabled:opacity-30 disabled:cursor-not-allowed transition-colors cursor-pointer bg-transparent border-none text-text-muted"
-            >
-              <ChevronLeft size={16} />
-            </button>
-            <button
-              type="button"
-              onClick={() => setPage(p => p + 1)}
-              disabled={page >= totalPages - 1}
-              className="p-0.5 rounded hover:bg-surface-hover disabled:opacity-30 disabled:cursor-not-allowed transition-colors cursor-pointer bg-transparent border-none text-text-muted"
-            >
-              <ChevronRight size={16} />
-            </button>
-          </div>
+          <PaginationButtons page={page} totalPages={totalPages} onPageChange={setPage} />
         </div>
       )}
     </div>

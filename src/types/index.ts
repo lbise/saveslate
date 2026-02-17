@@ -52,6 +52,7 @@ export interface Transaction {
   categoryId: string;
   description: string;
   date: string; // ISO date string
+  time?: string; // Optional transaction time in HH:mm:ss
   accountId: string;
   goalId?: string; // Direct link to a goal this transaction contributes to
   importBatchId?: string; // Links to an ImportBatch if imported from CSV
@@ -129,6 +130,8 @@ export type AmountFormat = 'single' | 'debit-credit' | 'amount-type';
 
 export type CsvDelimiter = ',' | ';' | '\t' | '|';
 
+export type TimeMode = 'none' | 'separate-column' | 'in-date-column';
+
 export type TransactionField =
   | 'description'
   | 'amount'
@@ -136,6 +139,7 @@ export type TransactionField =
   | 'credit'
   | 'amountType'
   | 'date'
+  | 'time'
   | 'category'
   | 'currency'
   | 'ignore';
@@ -147,6 +151,7 @@ export const TRANSACTION_FIELD_LABELS: Record<TransactionField, string> = {
   credit: 'Credit',
   amountType: 'Debit/Credit indicator',
   date: 'Date',
+  time: 'Time',
   category: 'Category',
   currency: 'Currency',
   ignore: 'Ignore',
@@ -173,6 +178,8 @@ export interface CsvParser {
   headerPatterns: string[]; // regex patterns for matching headers (case-insensitive)
   columnMappings: ColumnMapping[];
   amountFormat: AmountFormat;
+  timeMode: TimeMode;
+  timeFormat?: string; // e.g. "HH:mm", used when timeMode is separate-column
   dateFormat: string; // e.g. "DD.MM.YYYY", "YYYY-MM-DD"
   decimalSeparator: '.' | ',';
   /** Separator used when concatenating multiple CSV columns into one field. Defaults to ' '. */
@@ -190,6 +197,7 @@ export interface ParsedRow {
   description: string;
   amount: number;
   date: string; // normalized to ISO
+  time?: string; // normalized to HH:mm:ss
   category?: string;
   currency?: string;
   metadata?: TransactionMetadataEntry[];

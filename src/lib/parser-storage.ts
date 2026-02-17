@@ -4,8 +4,9 @@ const STORAGE_KEY = 'melomoney:csv-parsers';
 const PARSER_EXPORT_SCHEMA_VERSION = 1;
 const DELIMITERS: CsvParser['delimiter'][] = [',', ';', '\t', '|'];
 const AMOUNT_FORMATS: CsvParser['amountFormat'][] = ['single', 'debit-credit', 'amount-type'];
+const TIME_MODES: CsvParser['timeMode'][] = ['none', 'separate-column', 'in-date-column'];
 const DECIMAL_SEPARATORS: CsvParser['decimalSeparator'][] = ['.', ','];
-const TRANSACTION_FIELDS = ['description', 'amount', 'debit', 'credit', 'amountType', 'date', 'category', 'currency', 'ignore'] as const;
+const TRANSACTION_FIELDS = ['description', 'amount', 'debit', 'credit', 'amountType', 'date', 'time', 'category', 'currency', 'ignore'] as const;
 const TRANSFORMABLE_FIELDS = ['description', 'category', 'currency'] as const;
 
 interface ExportedParserFile {
@@ -26,6 +27,10 @@ function isDelimiter(value: unknown): value is CsvParser['delimiter'] {
 
 function isAmountFormat(value: unknown): value is CsvParser['amountFormat'] {
   return typeof value === 'string' && AMOUNT_FORMATS.includes(value as CsvParser['amountFormat']);
+}
+
+function isTimeMode(value: unknown): value is CsvParser['timeMode'] {
+  return typeof value === 'string' && TIME_MODES.includes(value as CsvParser['timeMode']);
 }
 
 function isDecimalSeparator(value: unknown): value is CsvParser['decimalSeparator'] {
@@ -183,8 +188,14 @@ function getParserDraftFromImport(value: unknown): ParserDraft {
   if (!isAmountFormat(payload.amountFormat)) {
     throw new Error('Parser file has an invalid amount format.');
   }
+  if (payload.timeMode !== undefined && !isTimeMode(payload.timeMode)) {
+    throw new Error('Parser file has an invalid time mode.');
+  }
   if (typeof payload.dateFormat !== 'string' || payload.dateFormat.trim() === '') {
     throw new Error('Parser file has an invalid date format.');
+  }
+  if (payload.timeFormat !== undefined && typeof payload.timeFormat !== 'string') {
+    throw new Error('Parser file has an invalid time format.');
   }
   if (!isDecimalSeparator(payload.decimalSeparator)) {
     throw new Error('Parser file has an invalid decimal separator.');
@@ -198,6 +209,10 @@ function getParserDraftFromImport(value: unknown): ParserDraft {
 
   const skipRows = payload.skipRows as number;
   const headerPatterns = payload.headerPatterns as string[];
+  const timeMode = isTimeMode(payload.timeMode) ? payload.timeMode : 'none';
+  const timeFormat = timeMode === 'separate-column' && typeof payload.timeFormat === 'string'
+    ? payload.timeFormat.trim() || 'HH:mm'
+    : undefined;
   const metadataMappings = parseMetadataMappings(payload.metadataMappings);
   const legacyMetadataColumnIndices = parseLegacyMetadataColumnIndices(payload.metadataColumnIndices);
 
@@ -209,6 +224,8 @@ function getParserDraftFromImport(value: unknown): ParserDraft {
     headerPatterns,
     columnMappings: parseColumnMappings(payload.columnMappings),
     amountFormat: payload.amountFormat,
+    timeMode,
+    timeFormat,
     dateFormat: payload.dateFormat,
     decimalSeparator: payload.decimalSeparator,
     multiColumnSeparator: payload.multiColumnSeparator,
@@ -267,6 +284,21 @@ export function loadParsers(): CsvParser[] {
       if ('ibanPattern' in p && !('accountPattern' in p)) {
         (p as Record<string, unknown>).accountPattern = (p as Record<string, unknown>).ibanPattern;
         delete (p as Record<string, unknown>).ibanPattern;
+        migrated = true;
+      }
+
+      if (!isTimeMode((p as Partial<CsvParser>).timeMode)) {
+        (p as CsvParser).timeMode = 'none';
+        migrated = true;
+      }
+
+      if ((p as CsvParser).timeMode === 'separate-column') {
+        if (typeof (p as CsvParser).timeFormat !== 'string' || !(p as CsvParser).timeFormat?.trim()) {
+          (p as CsvParser).timeFormat = 'HH:mm';
+          migrated = true;
+        }
+      } else if ('timeFormat' in p) {
+        delete (p as Partial<CsvParser>).timeFormat;
         migrated = true;
       }
 

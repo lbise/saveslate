@@ -17,25 +17,18 @@ export function StepIndicator({ currentStep }: StepIndicatorProps) {
   const currentIdx = STEPS.findIndex((s) => s.key === currentStep);
 
   return (
-    <div className="flex items-center gap-2">
+    <div className="flex items-center flex-nowrap">
       {STEPS.map((step, idx) => {
         const isCompleted = idx < currentIdx;
         const isCurrent = idx === currentIdx;
+        const isLast = idx === STEPS.length - 1;
 
         return (
-          <div key={step.key} className="flex items-center gap-2">
-            {idx > 0 && (
+          <div key={step.key} className="flex items-center shrink-0">
+            <div className="flex items-center min-h-6">
               <div
                 className={cn(
-                  'w-8 h-px',
-                  isCompleted ? 'bg-text' : 'bg-border',
-                )}
-              />
-            )}
-            <div className="flex items-center gap-2">
-              <div
-                className={cn(
-                  'w-6 h-6 rounded-full flex items-center justify-center text-ui font-medium transition-colors duration-150',
+                  'w-6 h-6 rounded-full flex items-center justify-center text-ui font-medium leading-none tabular-nums transition-colors duration-150 shrink-0',
                   isCompleted && 'bg-text text-bg',
                   isCurrent && 'bg-text/15 text-text border border-text/30',
                   !isCompleted && !isCurrent && 'bg-surface text-text-muted border border-border',
@@ -45,13 +38,23 @@ export function StepIndicator({ currentStep }: StepIndicatorProps) {
               </div>
               <span
                 className={cn(
-                  'text-ui font-medium hidden sm:inline',
+                  'ml-2 text-ui font-medium leading-none hidden sm:inline-block',
                   isCurrent ? 'text-text' : isCompleted ? 'text-text-secondary' : 'text-text-muted',
                 )}
               >
                 {step.label}
               </span>
             </div>
+            {!isLast && (
+              <div className="mx-2 h-6 flex items-center">
+                <div
+                  className={cn(
+                    'w-8 h-px shrink-0',
+                    idx < currentIdx ? 'bg-text' : 'bg-border',
+                  )}
+                />
+              </div>
+            )}
           </div>
         );
       })}

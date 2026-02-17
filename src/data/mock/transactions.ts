@@ -3,7 +3,13 @@ import type { Transaction } from '../../types';
 
 function sortTransactionsByDate(transactions: Transaction[]): Transaction[] {
   return [...transactions].sort(
-    (a, b) => new Date(b.date).getTime() - new Date(a.date).getTime(),
+    (a, b) => {
+      const leftWithTime = new Date(`${a.date}T${a.time ?? '00:00:00'}`).getTime();
+      const rightWithTime = new Date(`${b.date}T${b.time ?? '00:00:00'}`).getTime();
+      const left = Number.isNaN(leftWithTime) ? new Date(a.date).getTime() : leftWithTime;
+      const right = Number.isNaN(rightWithTime) ? new Date(b.date).getTime() : rightWithTime;
+      return right - left;
+    },
   );
 }
 
