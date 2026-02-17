@@ -125,6 +125,7 @@ export function Import() {
       date: row.date,
       accountId,
       importBatchId: batch.id,
+      metadata: row.metadata && row.metadata.length > 0 ? row.metadata : undefined,
       rawData: row.raw,
     }));
 

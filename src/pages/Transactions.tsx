@@ -528,6 +528,7 @@ export function Transactions() {
         goalName: transaction.goal?.name ?? null,
         importBatchId: transaction.importBatchId ?? null,
         split: transaction.split ?? null,
+        metadata: transaction.metadata ?? null,
         rawData: transaction.rawData ?? null,
       })),
     };

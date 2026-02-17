@@ -100,6 +100,58 @@ function parseTransforms(value: unknown): ParserDraft['transforms'] {
   });
 }
 
+function parseMetadataMappings(value: unknown): ParserDraft['metadataMappings'] {
+  if (value === undefined) return undefined;
+  if (!Array.isArray(value)) {
+    throw new Error('Parser metadata mappings must be an array.');
+  }
+
+  return value.map((mapping, index) => {
+    if (!isRecord(mapping)) {
+      throw new Error(`Metadata mapping #${index + 1} is invalid.`);
+    }
+
+    if (typeof mapping.key !== 'string' || mapping.key.trim() === '') {
+      throw new Error(`Metadata mapping #${index + 1} is missing a key.`);
+    }
+
+    if (
+      !Array.isArray(mapping.columnIndices)
+      || !mapping.columnIndices.every((idx) => Number.isInteger(idx) && (idx as number) >= 0)
+    ) {
+      throw new Error(`Metadata mapping #${index + 1} has invalid column indices.`);
+    }
+
+    const columnIndices = Array.from(new Set(mapping.columnIndices as number[])).sort((a, b) => a - b);
+    if (columnIndices.length === 0) {
+      throw new Error(`Metadata mapping #${index + 1} must map at least one column.`);
+    }
+
+    return {
+      key: mapping.key.trim(),
+      columnIndices,
+    };
+  });
+}
+
+function parseLegacyMetadataColumnIndices(value: unknown): number[] | undefined {
+  if (value === undefined) return undefined;
+  if (!Array.isArray(value)) {
+    throw new Error('Legacy metadata columns must be an array.');
+  }
+
+  const indices = value.map((index, itemIndex) => {
+    if (!Number.isInteger(index) || (index as number) < 0) {
+      throw new Error(`Legacy metadata column #${itemIndex + 1} is invalid.`);
+    }
+
+    return index as number;
+  });
+
+  const uniqueIndices = Array.from(new Set(indices)).sort((a, b) => a - b);
+  return uniqueIndices.length > 0 ? uniqueIndices : undefined;
+}
+
 function getParserDraftFromImport(value: unknown): ParserDraft {
   if (!isRecord(value)) {
     throw new Error('Invalid parser file format.');
@@ -146,6 +198,8 @@ function getParserDraftFromImport(value: unknown): ParserDraft {
 
   const skipRows = payload.skipRows as number;
   const headerPatterns = payload.headerPatterns as string[];
+  const metadataMappings = parseMetadataMappings(payload.metadataMappings);
+  const legacyMetadataColumnIndices = parseLegacyMetadataColumnIndices(payload.metadataColumnIndices);
 
   const draft: ParserDraft = {
     name: payload.name.trim(),
@@ -158,6 +212,11 @@ function getParserDraftFromImport(value: unknown): ParserDraft {
     dateFormat: payload.dateFormat,
     decimalSeparator: payload.decimalSeparator,
     multiColumnSeparator: payload.multiColumnSeparator,
+    metadataMappings: metadataMappings
+      ?? legacyMetadataColumnIndices?.map((columnIndex, index) => ({
+        key: `Metadata ${index + 1}`,
+        columnIndices: [columnIndex],
+      })),
     transforms: parseTransforms(payload.transforms),
     accountPattern: payload.accountPattern,
   };
@@ -208,6 +267,39 @@ export function loadParsers(): CsvParser[] {
       if ('ibanPattern' in p && !('accountPattern' in p)) {
         (p as Record<string, unknown>).accountPattern = (p as Record<string, unknown>).ibanPattern;
         delete (p as Record<string, unknown>).ibanPattern;
+        migrated = true;
+      }
+
+      const parserRecord = p as unknown as Record<string, unknown>;
+      const existingMappingsSnapshot = JSON.stringify(parserRecord.metadataMappings ?? null);
+
+      let normalizedMappings: CsvParser['metadataMappings'] | undefined;
+      try {
+        normalizedMappings = parseMetadataMappings(parserRecord.metadataMappings);
+      } catch {
+        normalizedMappings = undefined;
+      }
+
+      if (!normalizedMappings) {
+        try {
+          const legacyIndices = parseLegacyMetadataColumnIndices(parserRecord.metadataColumnIndices);
+          normalizedMappings = legacyIndices?.map((columnIndex, index) => ({
+            key: `Metadata ${index + 1}`,
+            columnIndices: [columnIndex],
+          }));
+        } catch {
+          normalizedMappings = undefined;
+        }
+      }
+
+      const nextMappingsSnapshot = JSON.stringify(normalizedMappings ?? null);
+      if (existingMappingsSnapshot !== nextMappingsSnapshot) {
+        parserRecord.metadataMappings = normalizedMappings;
+        migrated = true;
+      }
+
+      if ('metadataColumnIndices' in parserRecord) {
+        delete parserRecord.metadataColumnIndices;
         migrated = true;
       }
     }

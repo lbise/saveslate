@@ -318,13 +318,24 @@ export function applyParser(
   parser: CsvParser,
 ): ParsedRow[] {
   const mappingByField = new Map<string, ColumnMapping>();
+  const mappedColumnIndices = new Set<number>();
+
   for (const m of parser.columnMappings) {
+    m.columnIndices.forEach((index) => mappedColumnIndices.add(index));
+
     if (m.field !== 'ignore') {
       mappingByField.set(m.field, m);
     }
   }
 
   const separator = parser.multiColumnSeparator ?? ' ';
+  const legacyMetadataColumnIndices = (parser as unknown as { metadataColumnIndices?: number[] }).metadataColumnIndices;
+  const metadataMappings = parser.metadataMappings
+    ?? legacyMetadataColumnIndices?.map((columnIndex, index) => ({
+      key: headers[columnIndex] ?? `Metadata ${index + 1}`,
+      columnIndices: [columnIndex],
+    }))
+    ?? [];
 
   /** Read a single column value (first index). Used for numeric/date fields. */
   const readSingle = (row: string[], mapping: ColumnMapping): string =>
@@ -456,7 +467,45 @@ export function applyParser(
     const currMapping = mappingByField.get('currency');
     const currency = currMapping ? readSingle(row, currMapping) || undefined : undefined;
 
-    return { description, amount, date, category, currency, raw, errors };
+    // Extract metadata from parser-defined mappings
+    const metadata = metadataMappings.reduce<Array<{ key: string; value: string; source: 'import' }>>(
+      (entries, mapping) => {
+        const key = mapping.key.trim();
+        if (!key) {
+          return entries;
+        }
+
+        const value = mapping.columnIndices
+          .filter((index) => index >= 0 && index < headers.length && !mappedColumnIndices.has(index))
+          .map((index) => (row[index] ?? '').trim())
+          .filter(Boolean)
+          .join(separator)
+          .trim();
+
+        if (!value) {
+          return entries;
+        }
+
+        entries.push({
+          key,
+          value,
+          source: 'import',
+        });
+        return entries;
+      },
+      [],
+    );
+
+    return {
+      description,
+      amount,
+      date,
+      category,
+      currency,
+      metadata: metadata && metadata.length > 0 ? metadata : undefined,
+      raw,
+      errors,
+    };
   });
 
   // Apply field transforms if defined

@@ -1,5 +1,5 @@
-import { useState, useMemo, useCallback, useRef, useEffect, type ChangeEvent } from 'react';
-import { Save, RotateCcw, X, ChevronDown, ChevronUp, ChevronLeft, ChevronRight, Plus, AlertTriangle, Check, Pencil, Filter, Download, Upload } from 'lucide-react';
+import { useState, useMemo, useCallback, useRef, useEffect } from 'react';
+import { Save, RotateCcw, X, ChevronDown, ChevronUp, ChevronLeft, ChevronRight, Plus, AlertTriangle, Check, Pencil, Filter } from 'lucide-react';
 import { cn, formatDate, formatSignedCurrency } from '../../lib/utils';
 import {
   detectDelimiter,
@@ -10,7 +10,7 @@ import {
   extractAccountIdentifier,
   DATE_FORMAT_PRESETS,
 } from '../../lib/csv';
-import { exportParser, importParserFromFile, saveParser, updateParser } from '../../lib/parser-storage';
+import { saveParser, updateParser } from '../../lib/parser-storage';
 import { CsvPreviewTable } from './CsvPreviewTable';
 import type {
   CsvDelimiter,
@@ -21,6 +21,7 @@ import type {
   ParsedRow,
   FieldTransform,
   TransformableField,
+  MetadataMapping,
 } from '../../types';
 import { TRANSACTION_FIELD_LABELS } from '../../types';
 
@@ -93,33 +94,27 @@ export function ParserEditor({
   const [dateFormat, setDateFormat] = useState(existingParser?.dateFormat ?? 'DD.MM.YYYY');
   const [decimalSeparator, setDecimalSeparator] = useState<'.' | ','>(existingParser?.decimalSeparator ?? '.');
   const [multiColumnSeparator, setMultiColumnSeparator] = useState(existingParser?.multiColumnSeparator ?? ' ');
-  const [accountPattern, setAccountPattern] = useState(existingParser?.accountPattern ?? '');
-  const [isImportingParser, setIsImportingParser] = useState(false);
-  const [importParserError, setImportParserError] = useState<string | null>(null);
-  const parserImportInputRef = useRef<HTMLInputElement>(null);
-
-  const handleOpenImportPicker = () => {
-    setImportParserError(null);
-    parserImportInputRef.current?.click();
-  };
-
-  const handleImportParser = async (event: ChangeEvent<HTMLInputElement>) => {
-    const file = event.target.files?.[0];
-    event.target.value = '';
-    if (!file) return;
-
-    setIsImportingParser(true);
-    setImportParserError(null);
-
-    try {
-      const importedParser = await importParserFromFile(file);
-      onSave(importedParser);
-    } catch (error) {
-      setImportParserError(error instanceof Error ? error.message : 'Failed to import parser file.');
-    } finally {
-      setIsImportingParser(false);
+  const [metadataMappings, setMetadataMappings] = useState<MetadataMapping[]>(() => {
+    if (existingParser?.metadataMappings) {
+      return existingParser.metadataMappings.map((mapping) => ({
+        key: mapping.key,
+        columnIndices: [...mapping.columnIndices],
+      }));
     }
-  };
+
+    const legacyMetadataColumnIndices = (existingParser as CsvParser & { metadataColumnIndices?: number[] } | undefined)
+      ?.metadataColumnIndices;
+
+    if (!legacyMetadataColumnIndices || legacyMetadataColumnIndices.length === 0) {
+      return [];
+    }
+
+    return legacyMetadataColumnIndices.map((columnIndex, index) => ({
+      key: `Metadata ${index + 1}`,
+      columnIndices: [columnIndex],
+    }));
+  });
+  const [accountPattern, setAccountPattern] = useState(existingParser?.accountPattern ?? '');
 
   // ─── Parse raw CSV with current settings ───────────────────
   const rawRows = useMemo(() => parseRawCsv(rawContent, delimiter), [rawContent, delimiter]);
@@ -232,6 +227,111 @@ export function ParserEditor({
     return result;
   }, [fieldMappings]);
 
+  const mappedColumnIndices = useMemo(() => {
+    const set = new Set<number>();
+    columnMappings.forEach((mapping) => {
+      mapping.columnIndices.forEach((index) => set.add(index));
+    });
+    return set;
+  }, [columnMappings]);
+
+  const normalizedMetadataMappings = useMemo(() => {
+    return metadataMappings
+      .map((mapping) => ({
+        key: mapping.key.trim(),
+        columnIndices: Array.from(
+          new Set(
+            mapping.columnIndices.filter(
+              (index) => index >= 0 && index < headers.length && !mappedColumnIndices.has(index),
+            ),
+          ),
+        ).sort((a, b) => a - b),
+      }))
+      .filter((mapping) => mapping.key && mapping.columnIndices.length > 0);
+  }, [headers.length, mappedColumnIndices, metadataMappings]);
+
+  useEffect(() => {
+    setMetadataMappings((previousMappings) => {
+      let changed = false;
+
+      const nextMappings = previousMappings.map((mapping) => {
+        const nextColumnIndices = Array.from(
+          new Set(
+            mapping.columnIndices.filter(
+              (index) => index >= 0 && index < headers.length && !mappedColumnIndices.has(index),
+            ),
+          ),
+        ).sort((a, b) => a - b);
+
+        const hasSameLength = nextColumnIndices.length === mapping.columnIndices.length;
+        const hasSameValues = hasSameLength
+          && nextColumnIndices.every((index, position) => index === mapping.columnIndices[position]);
+
+        if (hasSameValues) {
+          return mapping;
+        }
+
+        changed = true;
+        return {
+          ...mapping,
+          columnIndices: nextColumnIndices,
+        };
+      });
+
+      return changed ? nextMappings : previousMappings;
+    });
+  }, [headers.length, mappedColumnIndices]);
+
+  const addMetadataMapping = useCallback(() => {
+    setMetadataMappings((previousMappings) => [
+      ...previousMappings,
+      {
+        key: '',
+        columnIndices: [],
+      },
+    ]);
+  }, []);
+
+  const updateMetadataMappingKey = useCallback((mappingIndex: number, key: string) => {
+    setMetadataMappings((previousMappings) => previousMappings.map((mapping, index) => (
+      index === mappingIndex ? { ...mapping, key } : mapping
+    )));
+  }, []);
+
+  const removeMetadataMapping = useCallback((mappingIndex: number) => {
+    setMetadataMappings((previousMappings) => previousMappings.filter((_, index) => index !== mappingIndex));
+  }, []);
+
+  const toggleMetadataMappingColumn = useCallback((mappingIndex: number, columnIndex: number) => {
+    if (columnIndex < 0 || columnIndex >= headers.length) {
+      return;
+    }
+
+    setMetadataMappings((previousMappings) => previousMappings.map((mapping, index) => {
+      if (index !== mappingIndex) {
+        return mapping;
+      }
+
+      const isMappedColumn = mappedColumnIndices.has(columnIndex);
+      const isAlreadyAssigned = mapping.columnIndices.includes(columnIndex);
+      if (isMappedColumn && !isAlreadyAssigned) {
+        return mapping;
+      }
+
+      if (isAlreadyAssigned) {
+        return {
+          ...mapping,
+          columnIndices: mapping.columnIndices.filter((idx) => idx !== columnIndex),
+        };
+      }
+
+      return {
+        ...mapping,
+        columnIndices: [...mapping.columnIndices, columnIndex].sort((a, b) => a - b),
+      };
+    }));
+  }, [headers.length, mappedColumnIndices]);
+
   // ─── Validation ────────────────────────────────────────────
   const fieldErrors = useMemo(
     () => validateMappings(columnMappings, amountFormat),
@@ -283,13 +383,28 @@ export function ParserEditor({
       dateFormat,
       decimalSeparator,
       multiColumnSeparator,
+      metadataMappings: normalizedMetadataMappings,
       transforms: transforms.filter((t) => t.matchPattern && t.extractPattern),
       createdAt: '',
       updatedAt: '',
     } satisfies CsvParser;
 
     return applyParser(dataRows, headers, tempParser);
-  }, [hasValidationErrors, columnMappings, dataRows, headers, delimiter, hasHeaderRow, skipRows, amountFormat, dateFormat, decimalSeparator, multiColumnSeparator, transforms]);
+  }, [
+    hasValidationErrors,
+    columnMappings,
+    dataRows,
+    headers,
+    delimiter,
+    hasHeaderRow,
+    skipRows,
+    amountFormat,
+    dateFormat,
+    decimalSeparator,
+    multiColumnSeparator,
+    normalizedMetadataMappings,
+    transforms,
+  ]);
 
   // ─── Pre-transform rows (for transform match previews) ─────
   const preTransformRows: ParsedRow[] = useMemo(() => {
@@ -307,13 +422,27 @@ export function ParserEditor({
       dateFormat,
       decimalSeparator,
       multiColumnSeparator,
+      metadataMappings: normalizedMetadataMappings,
       accountPattern: accountPattern.trim() || undefined,
       createdAt: '',
       updatedAt: '',
     } satisfies CsvParser;
 
     return applyParser(dataRows, headers, tempParser);
-  }, [columnMappings, dataRows, headers, delimiter, hasHeaderRow, skipRows, amountFormat, dateFormat, decimalSeparator, multiColumnSeparator, accountPattern]);
+  }, [
+    normalizedMetadataMappings,
+    columnMappings,
+    dataRows,
+    headers,
+    delimiter,
+    hasHeaderRow,
+    skipRows,
+    amountFormat,
+    dateFormat,
+    decimalSeparator,
+    multiColumnSeparator,
+    accountPattern,
+  ]);
 
   // ─── Save handler ──────────────────────────────────────────
   const handleSave = () => {
@@ -339,6 +468,9 @@ export function ParserEditor({
       dateFormat,
       decimalSeparator,
       multiColumnSeparator,
+      metadataMappings: normalizedMetadataMappings.length > 0
+        ? normalizedMetadataMappings
+        : undefined,
       transforms: transforms.filter((t) => t.matchPattern && t.extractPattern),
       accountPattern: accountPattern.trim() || undefined,
     };
@@ -567,6 +699,43 @@ export function ParserEditor({
         </div>
       </div>
 
+      {/* Metadata fields */}
+      <div>
+        <div className="flex items-center justify-between mb-3">
+          <label className="label">
+            Metadata fields
+            <span className="text-text-muted font-normal ml-2">
+              Optional key/value data extracted from selected CSV columns
+            </span>
+          </label>
+          <button type="button" onClick={addMetadataMapping} className="btn-ghost">
+            <Plus size={14} />
+            Add metadata
+          </button>
+        </div>
+
+        {metadataMappings.length === 0 ? (
+          <p className="text-ui text-text-muted">
+            No metadata fields configured. Add a field to map one or more CSV columns.
+          </p>
+        ) : (
+          <div className="space-y-2">
+            {metadataMappings.map((mapping, index) => (
+              <MetadataMappingRow
+                key={`metadata-${index}`}
+                mapping={mapping}
+                headers={headers}
+                dataRows={dataRows}
+                mappedColumnIndices={mappedColumnIndices}
+                onKeyChange={(value) => updateMetadataMappingKey(index, value)}
+                onToggleColumn={(columnIndex) => toggleMetadataMappingColumn(index, columnIndex)}
+                onRemove={() => removeMetadataMapping(index)}
+              />
+            ))}
+          </div>
+        )}
+      </div>
+
       {/* Field transforms */}
       <div>
         <div className="flex items-center justify-between mb-3">
@@ -622,16 +791,6 @@ export function ParserEditor({
       )}
 
       {/* Actions */}
-      <input
-        ref={parserImportInputRef}
-        type="file"
-        accept="application/json,.json"
-        onChange={(event) => {
-          void handleImportParser(event);
-        }}
-        className="hidden"
-      />
-
       <div className="flex gap-3 flex-wrap">
         <button
           onClick={handleSave}
@@ -641,31 +800,171 @@ export function ParserEditor({
           <Save size={14} />
           Save parser
         </button>
-        <button
-          type="button"
-          onClick={handleOpenImportPicker}
-          className="btn-secondary"
-          disabled={isImportingParser}
-        >
-          <Upload size={14} />
-          {isImportingParser ? 'Importing...' : 'Import parser'}
-        </button>
         <button onClick={onCancel} className="btn-secondary">
           Cancel
         </button>
-        {existingParser && (
-          <button
-            type="button"
-            onClick={() => exportParser(existingParser)}
-            className="btn-secondary"
-          >
-            <Download size={14} />
-            Export parser
-          </button>
+      </div>
+    </div>
+  );
+}
+
+interface MetadataMappingRowProps {
+  mapping: MetadataMapping;
+  headers: string[];
+  dataRows: string[][];
+  mappedColumnIndices: Set<number>;
+  onKeyChange: (value: string) => void;
+  onToggleColumn: (columnIndex: number) => void;
+  onRemove: () => void;
+}
+
+function MetadataMappingRow({
+  mapping,
+  headers,
+  dataRows,
+  mappedColumnIndices,
+  onKeyChange,
+  onToggleColumn,
+  onRemove,
+}: MetadataMappingRowProps) {
+  const [dropdownOpen, setDropdownOpen] = useState(false);
+  const containerRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (!dropdownOpen) return;
+
+    function handleClick(event: MouseEvent) {
+      if (containerRef.current && !containerRef.current.contains(event.target as Node)) {
+        setDropdownOpen(false);
+      }
+    }
+
+    document.addEventListener('mousedown', handleClick);
+    return () => document.removeEventListener('mousedown', handleClick);
+  }, [dropdownOpen]);
+
+  const hasColumns = mapping.columnIndices.length > 0;
+  const hasKey = mapping.key.trim().length > 0;
+
+  return (
+    <div
+      className={cn(
+        'p-3 rounded-(--radius-md) border',
+        hasColumns && hasKey
+          ? 'border-text/15 bg-text/[0.03]'
+          : 'border-border bg-surface',
+      )}
+    >
+      <div className="flex items-center gap-2 mb-2">
+        <input
+          type="text"
+          value={mapping.key}
+          onChange={(event) => onKeyChange(event.target.value)}
+          placeholder="Metadata field name (e.g. Merchant)"
+          className="input text-sm flex-1"
+        />
+        <button
+          type="button"
+          onClick={onRemove}
+          className="btn-icon w-7 h-7 text-text-muted hover:text-expense"
+          title="Remove metadata field"
+        >
+          <X size={12} />
+        </button>
+      </div>
+
+      <div className="relative" ref={containerRef}>
+        <button
+          type="button"
+          onClick={() => setDropdownOpen((previous) => !previous)}
+          className={cn(
+            'flex items-center flex-wrap gap-1.5 w-full min-h-[36px] px-3 py-1.5 rounded-(--radius-md) border text-left cursor-pointer transition-colors',
+            dropdownOpen
+              ? 'border-text/30 bg-surface'
+              : hasColumns
+                ? 'border-text/15 bg-surface hover:border-text/25'
+                : 'border-border bg-surface hover:border-text-muted',
+          )}
+        >
+          {!hasColumns && (
+            <span className="text-ui text-text-muted">Select one or more columns...</span>
+          )}
+          {mapping.columnIndices.map((columnIndex) => (
+            <span
+              key={columnIndex}
+              className="inline-flex items-center gap-1 px-2 py-0.5 rounded-(--radius-sm) bg-text/10 text-ui text-text"
+            >
+              <span className="truncate max-w-[140px]">{headers[columnIndex] ?? `Col ${columnIndex + 1}`}</span>
+              <button
+                type="button"
+                onClick={(event) => {
+                  event.stopPropagation();
+                  onToggleColumn(columnIndex);
+                }}
+                className="shrink-0 hover:text-expense transition-colors"
+              >
+                <X size={12} />
+              </button>
+            </span>
+          ))}
+          <ChevronDown
+            size={14}
+            className={cn(
+              'ml-auto shrink-0 text-text-muted transition-transform',
+              dropdownOpen && 'rotate-180',
+            )}
+          />
+        </button>
+
+        {dropdownOpen && (
+          <div className="absolute top-full left-0 right-0 mt-1 bg-surface border border-border rounded-(--radius-md) py-1 z-20 shadow-(--shadow-md) max-h-80 overflow-y-auto">
+            {headers.map((header, columnIndex) => {
+              const isSelected = mapping.columnIndices.includes(columnIndex);
+              const isMapped = mappedColumnIndices.has(columnIndex);
+              const isDisabled = isMapped && !isSelected;
+              const sampleValue = dataRows.find((row) => (row[columnIndex] ?? '').trim() !== '')?.[columnIndex] ?? '';
+
+              return (
+                <button
+                  key={`${header}-${columnIndex}`}
+                  type="button"
+                  disabled={isDisabled}
+                  onClick={() => onToggleColumn(columnIndex)}
+                  className={cn(
+                    'flex flex-col w-full px-3 py-2 text-left bg-transparent border-none transition-colors',
+                    isDisabled
+                      ? 'opacity-40 cursor-not-allowed'
+                      : 'cursor-pointer hover:bg-surface-hover',
+                    isSelected && 'bg-text/5',
+                  )}
+                >
+                  <span className="flex items-center gap-2">
+                    <span className={cn('text-ui', isSelected ? 'text-text font-medium' : 'text-text')}>
+                      {header || `Column ${columnIndex + 1}`}
+                    </span>
+                    {isDisabled && (
+                      <span className="text-ui text-text-muted">Mapped field</span>
+                    )}
+                    {isSelected && (
+                      <span className="text-ui text-income">selected</span>
+                    )}
+                  </span>
+                  {sampleValue && (
+                    <span className="text-ui text-text-muted truncate mt-0.5 max-w-full">
+                      {sampleValue}
+                    </span>
+                  )}
+                </button>
+              );
+            })}
+          </div>
         )}
       </div>
-      {importParserError && (
-        <p className="text-ui text-expense">{importParserError}</p>
+
+      {(!hasKey || !hasColumns) && (
+        <p className="text-ui text-text-muted mt-2">
+          Set a field name and choose at least one column.
+        </p>
       )}
     </div>
   );

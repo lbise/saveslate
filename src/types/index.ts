@@ -39,6 +39,12 @@ export interface SplitInfo {
   status: SplitStatus;
 }
 
+export interface TransactionMetadataEntry {
+  key: string;
+  value: string;
+  source: 'import' | 'user';
+}
+
 export interface Transaction {
   id: string;
   amount: number;
@@ -50,6 +56,7 @@ export interface Transaction {
   goalId?: string; // Direct link to a goal this transaction contributes to
   importBatchId?: string; // Links to an ImportBatch if imported from CSV
   split?: SplitInfo;
+  metadata?: TransactionMetadataEntry[]; // Curated key/value metadata shown in-app
   rawData?: Record<string, string>; // Original CSV row data (header -> value)
 }
 
@@ -151,6 +158,12 @@ export interface ColumnMapping {
   columnIndices: number[];
 }
 
+export interface MetadataMapping {
+  key: string;
+  /** One or more CSV columns concatenated with parser separator. */
+  columnIndices: number[];
+}
+
 export interface CsvParser {
   id: string;
   name: string;
@@ -164,6 +177,8 @@ export interface CsvParser {
   decimalSeparator: '.' | ',';
   /** Separator used when concatenating multiple CSV columns into one field. Defaults to ' '. */
   multiColumnSeparator?: string;
+  /** Optional metadata mappings to persist as key/value pairs on transactions. */
+  metadataMappings?: MetadataMapping[];
   transforms?: FieldTransform[];
   /** Regex pattern to extract an account identifier (e.g. IBAN) from skipped header rows (optional) */
   accountPattern?: string;
@@ -177,6 +192,7 @@ export interface ParsedRow {
   date: string; // normalized to ISO
   category?: string;
   currency?: string;
+  metadata?: TransactionMetadataEntry[];
   raw: Record<string, string>; // original row data
   errors: string[]; // per-row parsing issues
 }
