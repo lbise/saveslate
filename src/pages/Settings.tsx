@@ -1,11 +1,40 @@
+import {
+  useMemo,
+  useState,
+  type ChangeEvent,
+  type ComponentType,
+  type ReactNode,
+} from 'react';
 import { Globe, DollarSign, Bell, Shield, Download, Trash2 } from 'lucide-react';
 import { PageHeader } from '../components/layout/PageHeader';
+import { getCurrencyOptionsWithFallback } from '../lib/currencies';
+
+const DEFAULT_CURRENCY_STORAGE_KEY = 'melomoney:settings:default-currency';
+const FALLBACK_CURRENCY = 'CHF';
+
+function loadDefaultCurrencySetting(): string {
+  try {
+    const rawCurrency = localStorage.getItem(DEFAULT_CURRENCY_STORAGE_KEY);
+    if (!rawCurrency) {
+      return FALLBACK_CURRENCY;
+    }
+
+    const normalizedCurrency = rawCurrency.trim().toUpperCase();
+    return normalizedCurrency || FALLBACK_CURRENCY;
+  } catch {
+    return FALLBACK_CURRENCY;
+  }
+}
+
+function saveDefaultCurrencySetting(currencyCode: string): void {
+  localStorage.setItem(DEFAULT_CURRENCY_STORAGE_KEY, currencyCode);
+}
 
 interface SettingRowProps {
-  icon: React.ComponentType<{ size?: number; className?: string }>;
+  icon: ComponentType<{ size?: number; className?: string }>;
   label: string;
   description: string;
-  children: React.ReactNode;
+  children: ReactNode;
 }
 
 function SettingRow({ icon: IconComp, label, description, children }: SettingRowProps) {
@@ -26,6 +55,18 @@ function SettingRow({ icon: IconComp, label, description, children }: SettingRow
 }
 
 export function Settings() {
+  const [defaultCurrency, setDefaultCurrency] = useState(loadDefaultCurrencySetting);
+  const currencyOptions = useMemo(
+    () => getCurrencyOptionsWithFallback(defaultCurrency),
+    [defaultCurrency],
+  );
+
+  function handleDefaultCurrencyChange(event: ChangeEvent<HTMLSelectElement>) {
+    const nextCurrency = event.target.value;
+    setDefaultCurrency(nextCurrency);
+    saveDefaultCurrencySetting(nextCurrency);
+  }
+
   return (
     <div className="page-container">
       <PageHeader title="Settings" />
@@ -52,10 +93,16 @@ export function Settings() {
             label="Currency"
             description="Default currency for transactions"
           >
-            <select className="select w-auto text-sm py-2 px-3">
-              <option>CHF</option>
-              <option>EUR</option>
-              <option>USD</option>
+            <select
+              className="select w-auto text-sm py-2 px-3"
+              value={defaultCurrency}
+              onChange={handleDefaultCurrencyChange}
+            >
+              {currencyOptions.map((currency) => (
+                <option key={currency.code} value={currency.code}>
+                  {currency.label} ({currency.code})
+                </option>
+              ))}
             </select>
           </SettingRow>
           <SettingRow

@@ -5,9 +5,9 @@ import {
   Filter,
   X,
 } from "lucide-react";
+import { loadAccounts } from "../../lib/account-storage";
 import { loadTransactions } from "../../lib/transaction-storage";
 import { cn, formatCurrency, formatDate, formatSignedCurrency } from "../../lib/utils";
-import { ACCOUNTS } from "../../data/mock/accounts";
 import { PaginationButtons } from "../ui";
 import type { ParsedRow } from "../../types";
 
@@ -59,6 +59,7 @@ export function TransactionPreview({
   detectedIdentifier,
   fileName,
 }: TransactionPreviewProps) {
+  const accounts = useMemo(() => loadAccounts(), []);
   const existingTransactions = useMemo(() => loadTransactions(), []);
   const [selected, setSelected] = useState<Set<number>>(() => {
     // Pre-select all rows without errors
@@ -71,7 +72,7 @@ export function TransactionPreview({
   const [selectedDuplicateIndexes, setSelectedDuplicateIndexes] = useState<
     Set<number>
   >(new Set());
-  const [accountId, setAccountId] = useState(ACCOUNTS[0]?.id ?? "");
+  const [accountId, setAccountId] = useState(accounts[0]?.id ?? "");
   const [page, setPage] = useState(0);
   const [pageSize, setPageSize] = useState<number>(PREVIEW_PAGE_SIZES[0]);
   const [showWarningsOnly, setShowWarningsOnly] = useState(false);
@@ -81,10 +82,10 @@ export function TransactionPreview({
   const matchedAccountId = useMemo(() => {
     if (!detectedIdentifier) return undefined;
     const normalized = detectedIdentifier.replace(/\s/g, "");
-    return ACCOUNTS.find(
+    return accounts.find(
       (acc) => acc.accountIdentifier?.replace(/\s/g, "") === normalized,
     )?.id;
-  }, [detectedIdentifier]);
+  }, [accounts, detectedIdentifier]);
 
   // Auto-select account when an identifier is detected
   useEffect(() => {
@@ -97,9 +98,11 @@ export function TransactionPreview({
   const hasTime = useMemo(() => rows.some((r) => r.time), [rows]);
 
   const selectedAccountCurrency = useMemo(
-    () => ACCOUNTS.find((acc) => acc.id === accountId)?.currency ?? "CHF",
-    [accountId],
+    () => accounts.find((acc) => acc.id === accountId)?.currency ?? "CHF",
+    [accountId, accounts],
   );
+
+  const hasAccounts = accounts.length > 0;
 
   const duplicateIndexes = useMemo(() => {
     const existingFingerprints = new Set<string>();
@@ -245,6 +248,10 @@ export function TransactionPreview({
   }, [duplicateIndexes, rows, selectedIndexes, warningsByIndex]);
 
   const handleConfirm = () => {
+    if (!accountId) {
+      return;
+    }
+
     const selectedRows = rows.filter((_, i) => selectedIndexes.has(i));
     onConfirm(selectedRows, accountId, importName);
   };
@@ -295,21 +302,27 @@ export function TransactionPreview({
         </div>
 
         <div className="flex flex-col gap-1.5">
-          <div className="flex items-center gap-3">
-            <label className="label whitespace-nowrap">Import into</label>
-            <select
-              value={accountId}
-              onChange={(e) => setAccountId(e.target.value)}
-              className="select text-sm max-w-xs"
-            >
-              {ACCOUNTS.map((acc) => (
-                <option key={acc.id} value={acc.id}>
-                  {acc.name} ({acc.type})
-                  {acc.id === matchedAccountId ? " — matched" : ""}
-                </option>
-              ))}
-            </select>
-          </div>
+          {hasAccounts ? (
+            <div className="flex items-center gap-3">
+              <label className="label whitespace-nowrap">Import into</label>
+              <select
+                value={accountId}
+                onChange={(e) => setAccountId(e.target.value)}
+                className="select text-sm max-w-xs"
+              >
+                {accounts.map((acc) => (
+                  <option key={acc.id} value={acc.id}>
+                    {acc.name} ({acc.type})
+                    {acc.id === matchedAccountId ? " — matched" : ""}
+                  </option>
+                ))}
+              </select>
+            </div>
+          ) : (
+            <div className="card p-3 border-warning/30">
+              <p className="text-ui text-warning">No accounts available. Create one in Accounts before importing transactions.</p>
+            </div>
+          )}
         </div>
       </div>
 
@@ -359,125 +372,128 @@ export function TransactionPreview({
         const displayRows = filteredRows.slice(start, end);
 
         return (
-          <div className="overflow-x-auto rounded-(--radius-md) border border-border">
-            <table className="w-full text-sm">
-              <thead>
-                <tr className="border-b border-border bg-surface">
-                  <th className="px-3 py-2.5 text-left w-8">
-                    <input
-                      type="checkbox"
-                      checked={allSelectableSelected}
-                      onChange={toggleAll}
-                      className="cursor-pointer accent-text"
-                    />
-                  </th>
-                  <th className="px-3 py-2.5 text-left text-text-muted font-medium">
-                    Date
-                  </th>
-                  {hasTime && (
-                    <th className="px-3 py-2.5 text-left text-text-muted font-medium">
-                      Time
+          <div className="rounded-(--radius-md) border border-border overflow-hidden">
+            <div className="overflow-x-auto">
+              <table className="w-full text-sm">
+                <thead>
+                  <tr className="border-b border-border bg-surface">
+                    <th className="px-3 py-2.5 text-left w-8">
+                      <input
+                        type="checkbox"
+                        checked={allSelectableSelected}
+                        onChange={toggleAll}
+                        className="cursor-pointer accent-text"
+                      />
                     </th>
-                  )}
-                  <th className="px-3 py-2.5 text-left text-text-muted font-medium">
-                    Description
-                  </th>
-                  <th className="px-3 py-2.5 text-left text-text-muted font-medium">
-                    Category
-                  </th>
-                  {hasCurrency && (
                     <th className="px-3 py-2.5 text-left text-text-muted font-medium">
-                      Currency
+                      Date
                     </th>
-                  )}
-                  <th className="px-3 py-2.5 text-right text-text-muted font-medium">
-                    Amount
-                  </th>
-                  <th className="px-3 py-2.5 text-center text-text-muted font-medium w-10">
-                    Status
-                  </th>
-                </tr>
-              </thead>
-              <tbody>
-                {displayRows.map(({ row, idx }) => {
-                  const isSelected = selectedIndexes.has(idx);
-                  const isDuplicate = duplicateIndexes.has(idx);
-                  const rowWarnings = warningsByIndex.get(idx) ?? [];
-                  const hasWarnings = rowWarnings.length > 0;
+                    {hasTime && (
+                      <th className="px-3 py-2.5 text-left text-text-muted font-medium">
+                        Time
+                      </th>
+                    )}
+                    <th className="px-3 py-2.5 text-left text-text-muted font-medium">
+                      Description
+                    </th>
+                    <th className="px-3 py-2.5 text-left text-text-muted font-medium">
+                      Category
+                    </th>
+                    {hasCurrency && (
+                      <th className="px-3 py-2.5 text-left text-text-muted font-medium">
+                        Currency
+                      </th>
+                    )}
+                    <th className="px-3 py-2.5 text-right text-text-muted font-medium">
+                      Amount
+                    </th>
+                    <th className="px-3 py-2.5 text-center text-text-muted font-medium w-10">
+                      Status
+                    </th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {displayRows.map(({ row, idx }) => {
+                    const isSelected = selectedIndexes.has(idx);
+                    const isDuplicate = duplicateIndexes.has(idx);
+                    const rowWarnings = warningsByIndex.get(idx) ?? [];
+                    const hasWarnings = rowWarnings.length > 0;
 
-                  return (
-                    <tr
-                      key={idx}
-                      onClick={() => toggleRow(idx)}
-                      className={cn(
-                        "border-b border-border last:border-b-0 transition-colors",
-                        isSelected
-                          ? "hover:bg-surface-hover/50"
-                          : isDuplicate
-                            ? "cursor-pointer opacity-70 hover:opacity-90"
-                            : "cursor-pointer opacity-40 hover:opacity-60",
-                        hasWarnings && isSelected && "bg-warning/[0.03]",
-                      )}
-                    >
-                      <td className="px-3 py-2.5">
-                        <input
-                          type="checkbox"
-                          checked={isSelected}
-                          onChange={() => toggleRow(idx)}
-                          onClick={(e) => e.stopPropagation()}
-                          className="cursor-pointer accent-text"
-                        />
-                      </td>
-                      <td className="px-3 py-2.5 text-text-secondary whitespace-nowrap">
-                        {row.date ? formatDate(row.date) : "—"}
-                      </td>
-                      {hasTime && (
-                        <td className="px-3 py-2.5 text-text-secondary whitespace-nowrap">
-                          {row.time ? row.time.slice(0, 5) : "—"}
-                        </td>
-                      )}
-                      <td className="px-3 py-2.5 text-text">
-                        <span className="break-words">
-                          {row.description || "—"}
-                        </span>
-                      </td>
-                      <td className="px-3 py-2.5 text-text-muted">
-                        {row.category || "—"}
-                      </td>
-                      {hasCurrency && (
-                        <td className="px-3 py-2.5 text-text-muted">
-                          {row.currency || "—"}
-                        </td>
-                      )}
-                      <td
+                    return (
+                      <tr
+                        key={idx}
+                        onClick={() => toggleRow(idx)}
                         className={cn(
-                          "px-3 py-2.5 text-right font-medium whitespace-nowrap",
-                          row.amount >= 0 ? "text-income" : "text-expense",
+                          "border-b border-border last:border-b-0 transition-colors",
+                          isSelected
+                            ? "hover:bg-surface-hover/50"
+                            : isDuplicate
+                              ? "cursor-pointer opacity-70 hover:opacity-90"
+                              : "cursor-pointer opacity-40 hover:opacity-60",
+                          hasWarnings && isSelected && "bg-warning/[0.03]",
                         )}
-                        style={{ fontFamily: "var(--font-display)" }}
                       >
-                        {formatSignedCurrency(
-                          row.amount,
-                          row.currency || selectedAccountCurrency,
+                        <td className="px-3 py-2.5">
+                          <input
+                            type="checkbox"
+                            checked={isSelected}
+                            onChange={() => toggleRow(idx)}
+                            onClick={(e) => e.stopPropagation()}
+                            className="cursor-pointer accent-text"
+                          />
+                        </td>
+                        <td className="px-3 py-2.5 text-text-secondary whitespace-nowrap">
+                          {row.date ? formatDate(row.date) : "—"}
+                        </td>
+                        {hasTime && (
+                          <td className="px-3 py-2.5 text-text-secondary whitespace-nowrap">
+                            {row.time ? row.time.slice(0, 5) : "—"}
+                          </td>
                         )}
-                      </td>
-                      <td className="px-3 py-2.5 text-center">
-                        {hasWarnings ? (
-                          <span title={rowWarnings.join(", ")}>
-                            <AlertTriangle
-                              size={14}
-                              className="text-warning inline"
-                            />
+                        <td className="px-3 py-2.5 text-text">
+                          <span className="break-words">
+                            {row.description || "—"}
                           </span>
-                        ) : (
-                          <Check size={14} className="text-income inline" />
+                        </td>
+                        <td className="px-3 py-2.5 text-text-muted">
+                          {row.category || "—"}
+                        </td>
+                        {hasCurrency && (
+                          <td className="px-3 py-2.5 text-text-muted">
+                            {row.currency || "—"}
+                          </td>
                         )}
-                      </td>
-                    </tr>
-                  );
-                })}
-              </tbody>
-            </table>
+                        <td
+                          className={cn(
+                            "px-3 py-2.5 text-right font-medium whitespace-nowrap",
+                            row.amount >= 0 ? "text-income" : "text-expense",
+                          )}
+                          style={{ fontFamily: "var(--font-display)" }}
+                        >
+                          {formatSignedCurrency(
+                            row.amount,
+                            row.currency || selectedAccountCurrency,
+                          )}
+                        </td>
+                        <td className="px-3 py-2.5 text-center">
+                          {hasWarnings ? (
+                            <span title={rowWarnings.join(", ")}>
+                              <AlertTriangle
+                                size={14}
+                                className="text-warning inline"
+                              />
+                            </span>
+                          ) : (
+                            <Check size={14} className="text-income inline" />
+                          )}
+                        </td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
+
             {filteredRows.length > PREVIEW_PAGE_SIZES[0] && (
               <div className="flex items-center justify-between px-3 py-2 text-ui text-text-muted bg-surface border-t border-border">
                 <div className="flex items-center gap-1.5">
@@ -511,7 +527,7 @@ export function TransactionPreview({
       <div className="flex gap-3">
         <button
           onClick={handleConfirm}
-          disabled={stats.count === 0 || !accountId}
+          disabled={stats.count === 0 || !accountId || !hasAccounts}
           className="btn-primary"
         >
           Import {stats.count} transaction{stats.count !== 1 ? "s" : ""}

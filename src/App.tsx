@@ -6,6 +6,7 @@ import {
   Accounts,
   Goals,
   Categories,
+  Rules,
   Settings,
   Help,
   Import,
@@ -47,6 +48,7 @@ function App() {
           <Route path="/accounts" element={<Accounts />} />
           <Route path="/goals" element={<Goals />} />
           <Route path="/categories" element={<Categories />} />
+          <Route path="/rules" element={<Rules />} />
           <Route path="/settings" element={<Settings />} />
           <Route path="/help" element={<Help />} />
         </Route>

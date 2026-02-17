@@ -7,10 +7,10 @@ interface PageHeaderProps {
 
 export function PageHeader({ title, children }: PageHeaderProps) {
   return (
-    <header className="flex items-center justify-between" style={{ marginBottom: '56px' }}>
+    <header className="flex items-start justify-between gap-4" style={{ marginBottom: '56px' }}>
       <h1 className="heading-1">{title}</h1>
       {children && (
-        <div className="flex gap-3">
+        <div className="flex items-start gap-3">
           {children}
         </div>
       )}

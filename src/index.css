@@ -63,6 +63,7 @@
            disabled:opacity-50 disabled:cursor-not-allowed;
     font-size: 15px;
     font-weight: 500;
+    line-height: 1;
   }
 
   .btn-primary {
@@ -93,11 +94,12 @@
   /* ---------- Form Elements ---------- */
   .input,
   .select {
-    @apply w-full px-4 py-2.5 rounded-md
+    @apply w-full px-4 h-10 rounded-md
            bg-surface border border-border
            text-text placeholder:text-text-muted
            focus:outline-none focus:ring-1 focus:ring-text-muted focus:border-text-muted
            transition-all duration-150;
+    line-height: 1.2;
   }
 
   .select {

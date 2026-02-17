@@ -78,9 +78,76 @@ export interface Account {
   type: AccountType;
   balance: number;
   currency: string;
-  color: string; // For visual distinction
   icon: string; // Lucide icon name
   accountIdentifier?: string; // Optional identifier (e.g. IBAN, account number) for matching imported transactions
+}
+
+export type AutomationTrigger = 'on-import' | 'manual-run' | 'on-create';
+
+export type AutomationMatchMode = 'all' | 'any';
+
+export type AutomationConditionOperator =
+  | 'equals'
+  | 'not-equals'
+  | 'contains'
+  | 'not-contains'
+  | 'starts-with'
+  | 'ends-with'
+  | 'regex'
+  | 'not-regex'
+  | 'gt'
+  | 'gte'
+  | 'lt'
+  | 'lte'
+  | 'exists'
+  | 'not-exists';
+
+export interface AutomationCondition {
+  id: string;
+  field: string;
+  operator: AutomationConditionOperator;
+  value?: string;
+}
+
+export interface SetCategoryAutomationAction {
+  type: 'set-category';
+  categoryId: string;
+}
+
+export type AutomationAction = SetCategoryAutomationAction;
+
+export interface AutomationRule {
+  id: string;
+  name: string;
+  isEnabled: boolean;
+  triggers: AutomationTrigger[];
+  matchMode: AutomationMatchMode;
+  conditions: AutomationCondition[];
+  action: AutomationAction;
+  applyToUncategorizedOnly?: boolean;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface AutomationRulePrefillCondition {
+  field: string;
+  operator: AutomationConditionOperator;
+  value?: string;
+}
+
+export interface AutomationRulePrefillDraft {
+  name?: string;
+  categoryId?: string;
+  isEnabled?: boolean;
+  triggers?: AutomationTrigger[];
+  matchMode?: AutomationMatchMode;
+  applyToUncategorizedOnly?: boolean;
+  conditions?: AutomationRulePrefillCondition[];
+  mergeIntoExistingCategoryRule?: boolean;
+}
+
+export interface RulesRouteState {
+  prefillRuleDraft?: AutomationRulePrefillDraft;
 }
 
 // Computed/derived types

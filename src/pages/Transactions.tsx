@@ -35,6 +35,7 @@ import {
 import { formatCurrency, formatDate, cn } from "../lib/utils";
 import type {
   ImportBatch,
+  AutomationRulePrefillDraft,
   Transaction,
   TransactionType,
   TransactionWithDetails as TxDetails,
@@ -111,7 +112,6 @@ function toTransactionWithDetails(transaction: Transaction): TxDetails {
     type: "checking",
     balance: 0,
     currency: transaction.currency || "CHF",
-    color: "#64748b",
     icon: "Wallet",
   };
 
@@ -280,6 +280,43 @@ export function Transactions() {
 
     setEditingGoalId(null);
     setOpenActionId(null);
+  };
+
+  const openQuickAutoRuleModal = (transaction: TxDetails) => {
+    closePopovers();
+
+    const fallbackCategoryId = CATEGORIES.find((category) => {
+      return category.type === inferTransactionType(transaction);
+    })?.id ?? CATEGORIES[0]?.id ?? UNCATEGORIZED_CATEGORY_ID;
+
+    const prefillCategoryId = transaction.categoryId === UNCATEGORIZED_CATEGORY_ID
+      ? fallbackCategoryId
+      : transaction.categoryId;
+
+    const prefillDraft: AutomationRulePrefillDraft = {
+      name: transaction.categoryId === UNCATEGORIZED_CATEGORY_ID
+        ? ''
+        : `Auto category: ${transaction.category.name}`,
+      categoryId: prefillCategoryId,
+      isEnabled: true,
+      triggers: ['on-import', 'manual-run'],
+      matchMode: 'any',
+      applyToUncategorizedOnly: true,
+      mergeIntoExistingCategoryRule: true,
+      conditions: [
+        {
+          field: 'description',
+          operator: 'contains',
+          value: transaction.description.trim(),
+        },
+      ],
+    };
+
+    navigate('/rules', {
+      state: {
+        prefillRuleDraft: prefillDraft,
+      },
+    });
   };
 
   // Computed stats from local state
@@ -880,6 +917,7 @@ export function Transactions() {
               onToggleEditGoal={() => toggleEditGoal(tx.id)}
               onCategoryChange={(catId) => handleCategoryChange(tx.id, catId)}
               onGoalChange={(goalId) => handleGoalChange(tx.id, goalId)}
+              onAddToAutoCategorization={() => openQuickAutoRuleModal(tx)}
               onAction={(action) => handleAction(tx.id, action)}
             />
           ))
@@ -925,6 +963,7 @@ interface TransactionRowProps {
   onToggleEditGoal: () => void;
   onCategoryChange: (categoryId: string) => void;
   onGoalChange: (goalId: string | null) => void;
+  onAddToAutoCategorization: () => void;
   onAction: (action: "edit" | "duplicate" | "delete") => void;
 }
 
@@ -938,6 +977,7 @@ function TransactionRow({
   onToggleEditGoal,
   onCategoryChange,
   onGoalChange,
+  onAddToAutoCategorization,
   onAction,
 }: TransactionRowProps) {
   const type = transaction.category.type;
@@ -1059,6 +1099,7 @@ function TransactionRow({
                 onAction={onAction}
                 onEditGoal={onToggleEditGoal}
                 onRemoveGoal={() => onGoalChange(null)}
+                onAddToAutoCategorization={onAddToAutoCategorization}
                 hasGoal={Boolean(transaction.goalId)}
                 className="right-0"
               />
@@ -1167,6 +1208,7 @@ function TransactionRow({
               onAction={onAction}
               onEditGoal={onToggleEditGoal}
               onRemoveGoal={() => onGoalChange(null)}
+              onAddToAutoCategorization={onAddToAutoCategorization}
               hasGoal={Boolean(transaction.goalId)}
               className="right-0"
             />
@@ -1193,6 +1235,7 @@ interface ActionMenuProps {
   onAction: (action: "edit" | "duplicate" | "delete") => void;
   onEditGoal: () => void;
   onRemoveGoal: () => void;
+  onAddToAutoCategorization: () => void;
   hasGoal: boolean;
   className?: string;
 }
@@ -1201,6 +1244,7 @@ function ActionMenu({
   onAction,
   onEditGoal,
   onRemoveGoal,
+  onAddToAutoCategorization,
   hasGoal,
   className,
 }: ActionMenuProps) {
@@ -1231,6 +1275,13 @@ function ActionMenu({
           Unlink goal
         </button>
       )}
+      <button
+        onClick={onAddToAutoCategorization}
+        className={cn(itemClass, "text-text-secondary hover:text-text")}
+      >
+        <Filter size={12} />
+        Add to auto-categorization
+      </button>
       <div className="h-px bg-border mx-2 my-1" />
       <button
         onClick={() => onAction("edit")}

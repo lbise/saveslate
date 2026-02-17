@@ -6,6 +6,7 @@ import {
   Wallet,
   Target,
   Tags,
+  Bot,
   Settings,
   HelpCircle,
   LogOut,
@@ -26,6 +27,7 @@ const mainNavItems: NavItem[] = [
   { label: 'Accounts', path: '/accounts', icon: Wallet },
   { label: 'Goals', path: '/goals', icon: Target },
   { label: 'Categories', path: '/categories', icon: Tags },
+  { label: 'Rules', path: '/rules', icon: Bot },
 ];
 
 const bottomNavItems: NavItem[] = [

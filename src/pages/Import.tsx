@@ -16,8 +16,9 @@ import {
   applyParser,
   extractAccountIdentifier,
 } from '../lib/csv';
+import { getAccountById } from '../lib/account-storage';
+import { applyAutomationRules, loadAutomationRules } from '../lib/automation-rules';
 import { addTransactions, saveImportBatch } from '../lib/transaction-storage';
-import { getAccountById } from '../data/mock/accounts';
 import { formatCurrency } from '../lib/utils';
 import type { CsvParser, ImportStep, ParsedRow, Transaction } from '../types';
 
@@ -130,8 +131,12 @@ export function Import() {
       rawData: row.raw,
     }));
 
+    // Apply automation rules (if configured) before persisting
+    const automationRules = loadAutomationRules();
+    const automationResult = applyAutomationRules(transactions, automationRules, 'on-import');
+
     // Persist to localStorage
-    addTransactions(transactions);
+    addTransactions(automationResult.transactions);
 
     // Calculate stats for the success screen
     let income = 0;

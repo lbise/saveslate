@@ -39,7 +39,6 @@ function toTransactionWithDetails(transaction: Transaction): TransactionWithDeta
     type: 'checking',
     balance: 0,
     currency: transaction.currency || 'CHF',
-    color: '#64748b',
     icon: 'Wallet',
   };
 

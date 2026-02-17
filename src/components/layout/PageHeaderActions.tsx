@@ -24,10 +24,10 @@ export function PageHeaderActions({
   createLabel = 'New',
 }: PageHeaderActionsProps) {
   return (
-    <div className="flex items-center gap-2">
+    <div className="flex items-center gap-2 self-start">
       <button
         type="button"
-        className="btn-secondary h-9 px-3.5 leading-none whitespace-nowrap"
+        className="btn-secondary h-9 px-3.5 py-0 whitespace-nowrap"
         onClick={onImport}
         disabled={importDisabled}
       >
@@ -36,7 +36,7 @@ export function PageHeaderActions({
       </button>
       <button
         type="button"
-        className="btn-secondary h-9 px-3.5 leading-none whitespace-nowrap"
+        className="btn-secondary h-9 px-3.5 py-0 whitespace-nowrap"
         onClick={onExport}
         disabled={exportDisabled}
       >
@@ -45,7 +45,7 @@ export function PageHeaderActions({
       </button>
       <button
         type="button"
-        className="btn-primary h-9 px-4 leading-none whitespace-nowrap"
+        className="btn-primary h-9 px-4 py-0 whitespace-nowrap"
         onClick={onCreate}
         disabled={createDisabled}
       >
