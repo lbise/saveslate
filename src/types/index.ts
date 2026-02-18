@@ -47,6 +47,7 @@ export interface TransactionMetadataEntry {
 
 export interface Transaction {
   id: string;
+  transactionId?: string; // Bank-provided stable transaction identifier for deduplication
   amount: number;
   currency: string;
   categoryId: string;
@@ -201,6 +202,7 @@ export type TimeMode = 'none' | 'separate-column' | 'in-date-column';
 
 export type TransactionField =
   | 'description'
+  | 'transactionId'
   | 'amount'
   | 'debit'
   | 'credit'
@@ -213,6 +215,7 @@ export type TransactionField =
 
 export const TRANSACTION_FIELD_LABELS: Record<TransactionField, string> = {
   description: 'Description',
+  transactionId: 'Transaction ID',
   amount: 'Amount',
   debit: 'Debit',
   credit: 'Credit',
@@ -262,6 +265,7 @@ export interface CsvParser {
 
 export interface ParsedRow {
   description: string;
+  transactionId?: string;
   amount: number;
   date: string; // normalized to ISO
   time?: string; // normalized to HH:mm:ss

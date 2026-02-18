@@ -377,7 +377,7 @@ export function Rules() {
     };
 
     const fileDate = new Date().toISOString().split("T")[0];
-    const fileName = `rules-${fileDate}.json`;
+    const fileName = `melomoney-rules-${fileDate}.json`;
     const blob = new Blob([JSON.stringify(exportPayload, null, 2)], {
       type: "application/json",
     });

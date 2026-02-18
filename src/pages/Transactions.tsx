@@ -26,6 +26,7 @@ import {
   loadImportBatches,
   loadTransactions,
   pruneEmptyImportBatches,
+  renameImportBatch,
   saveTransactions,
 } from "../lib/transaction-storage";
 import {
@@ -166,6 +167,8 @@ export function Transactions() {
   const [editingGoalId, setEditingGoalId] = useState<string | null>(null);
   const [isSourceMenuOpen, setIsSourceMenuOpen] = useState(false);
   const [sourceToDelete, setSourceToDelete] = useState<SourceOption | null>(null);
+  const [sourceToRename, setSourceToRename] = useState<SourceOption | null>(null);
+  const [sourceRenameValue, setSourceRenameValue] = useState("");
 
   // Reset to first page when filters change
   useEffect(() => {
@@ -420,6 +423,36 @@ export function Transactions() {
     setSourceToDelete(source);
   };
 
+  const requestRenameSource = (sourceId: string) => {
+    if (sourceId === MANUAL_SOURCE_ID) return;
+
+    const source = sourceOptions.find((option) => option.id === sourceId);
+    if (!source || !source.deletable) return;
+
+    setIsSourceMenuOpen(false);
+    setSourceToRename(source);
+    setSourceRenameValue(source.label);
+  };
+
+  const handleConfirmRenameSource = () => {
+    if (!sourceToRename) {
+      return;
+    }
+
+    const renamedBatch = renameImportBatch(sourceToRename.id, sourceRenameValue);
+    if (!renamedBatch) {
+      setSourceToRename(null);
+      setSourceRenameValue("");
+      return;
+    }
+
+    setImportBatches((prev) =>
+      prev.map((batch) => (batch.id === renamedBatch.id ? renamedBatch : batch)),
+    );
+    setSourceToRename(null);
+    setSourceRenameValue("");
+  };
+
   const handleConfirmDeleteSource = () => {
     if (!sourceToDelete) return;
 
@@ -574,7 +607,7 @@ export function Transactions() {
     };
 
     const fileDate = new Date().toISOString().split("T")[0];
-    const fileName = `transactions-filtered-${fileDate}.json`;
+    const fileName = `melomoney-transactions-filtered-${fileDate}.json`;
     const blob = new Blob([JSON.stringify(exportPayload, null, 2)], {
       type: "application/json",
     });
@@ -623,6 +656,59 @@ export function Transactions() {
                   className="btn-secondary border-expense/40 text-expense hover:bg-expense/10 hover:border-expense"
                 >
                   Delete source
+                </button>
+              </div>
+            </div>
+          </div>
+        </>
+      )}
+
+      {sourceToRename && (
+        <>
+          <div
+            className="fixed inset-0 z-30 bg-bg/70"
+            onClick={() => {
+              setSourceToRename(null);
+              setSourceRenameValue("");
+            }}
+          />
+          <div className="fixed inset-0 z-40 flex items-center justify-center p-4">
+            <div className="card w-full max-w-md p-5 space-y-4">
+              <h2 className="heading-2">Rename source</h2>
+              <div className="space-y-2">
+                <label className="label" htmlFor="rename-source-input">
+                  Source name
+                </label>
+                <input
+                  id="rename-source-input"
+                  type="text"
+                  value={sourceRenameValue}
+                  onChange={(event) => setSourceRenameValue(event.target.value)}
+                  className="input"
+                  placeholder="Source name"
+                  autoFocus
+                />
+              </div>
+              <p className="text-ui text-text-muted">
+                Leave empty to use the original file name.
+              </p>
+              <div className="flex items-center justify-end gap-2">
+                <button
+                  type="button"
+                  onClick={() => {
+                    setSourceToRename(null);
+                    setSourceRenameValue("");
+                  }}
+                  className="btn-secondary"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="button"
+                  onClick={handleConfirmRenameSource}
+                  className="btn-primary"
+                >
+                  Save name
                 </button>
               </div>
             </div>
@@ -801,14 +887,24 @@ export function Transactions() {
                             </label>
 
                             {source.deletable && (
-                              <button
-                                type="button"
-                                onClick={() => requestDeleteSource(source.id)}
-                                className="w-7 h-7 flex items-center justify-center rounded bg-transparent border-none cursor-pointer text-text-muted hover:text-expense transition-colors opacity-60 hover:opacity-100"
-                                title={`Delete source ${source.label}`}
-                              >
-                                <Trash2 size={12} />
-                              </button>
+                              <>
+                                <button
+                                  type="button"
+                                  onClick={() => requestRenameSource(source.id)}
+                                  className="w-7 h-7 flex items-center justify-center rounded bg-transparent border-none cursor-pointer text-text-muted hover:text-text transition-colors opacity-60 hover:opacity-100"
+                                  title={`Rename source ${source.label}`}
+                                >
+                                  <Pencil size={12} />
+                                </button>
+                                <button
+                                  type="button"
+                                  onClick={() => requestDeleteSource(source.id)}
+                                  className="w-7 h-7 flex items-center justify-center rounded bg-transparent border-none cursor-pointer text-text-muted hover:text-expense transition-colors opacity-60 hover:opacity-100"
+                                  title={`Delete source ${source.label}`}
+                                >
+                                  <Trash2 size={12} />
+                                </button>
+                              </>
                             )}
                           </div>
                         );

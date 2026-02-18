@@ -78,24 +78,32 @@ export function Import() {
   const handleCreateNew = useCallback(() => {
     setParserToEdit(null);
     setIsCreatingParser(true);
+    setStep('parser');
   }, []);
 
   const handleEditParser = useCallback((parser: CsvParser) => {
     setParserToEdit(parser);
     setIsCreatingParser(true);
+    setStep('parser');
   }, []);
 
   const handleParserSaved = useCallback((parser: CsvParser) => {
-    setSelectedParser(parser);
     setParserToEdit(null);
     setIsCreatingParser(false);
-    setStep('preview');
-  }, []);
+    if (rawContent) {
+      setSelectedParser(parser);
+      setStep('preview');
+      return;
+    }
+
+    setStep('upload');
+  }, [rawContent]);
 
   const handleCancelCreate = useCallback(() => {
     setIsCreatingParser(false);
     setParserToEdit(null);
-  }, []);
+    setStep(rawContent ? 'parser' : 'upload');
+  }, [rawContent]);
 
   // ─── Step 3: Import confirmed ──────────────────────────────
   const handleConfirmImport = useCallback((selectedRows: ParsedRow[], accountId: string, importName: string) => {
@@ -120,6 +128,7 @@ export function Import() {
     const now = Date.now();
     const transactions: Transaction[] = selectedRows.map((row, idx) => ({
       id: `txn-${now}-${idx}-${Math.random().toString(36).slice(2, 8)}`,
+      transactionId: row.transactionId,
       amount: row.amount,
       currency: row.currency || fallbackCurrency,
       categoryId: 'uncategorized',
@@ -205,7 +214,10 @@ export function Import() {
             </p>
           </div>
           <FileUpload onFileLoaded={handleFileLoaded} />
-          <ParserLibrary />
+          <ParserLibrary
+            onCreateParser={handleCreateNew}
+            onEditParser={handleEditParser}
+          />
         </div>
       )}
 

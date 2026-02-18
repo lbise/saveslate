@@ -14,14 +14,20 @@ export const CATEGORIES: Category[] = [
   { id: 'travel', name: 'Travel', type: 'expense', icon: 'Mountain', isDefault: true },
   { id: 'gifts', name: 'Gifts', type: 'expense', icon: 'Gift', isDefault: true },
   { id: 'insurance', name: 'Insurance', type: 'expense', icon: 'Shield', isDefault: true },
+  { id: 'fees', name: 'Fees', type: 'expense', icon: 'ReceiptText', isDefault: true },
+  { id: 'taxes', name: 'Taxes', type: 'expense', icon: 'Landmark', isDefault: true },
+  { id: 'education', name: 'Education', type: 'expense', icon: 'GraduationCap', isDefault: true },
+  { id: 'charity', name: 'Charity', type: 'expense', icon: 'HeartHandshake', isDefault: true },
   { id: 'personal', name: 'Personal', type: 'expense', icon: 'User', isDefault: true },
   { id: 'utilities', name: 'Utilities', type: 'expense', icon: 'Zap', isDefault: true },
 
   // Income categories
   { id: 'salary', name: 'Salary', type: 'income', icon: 'Briefcase', isDefault: true },
   { id: 'freelance', name: 'Freelance', type: 'income', icon: 'Laptop', isDefault: true },
+  { id: 'interest', name: 'Interest', type: 'income', icon: 'Percent', isDefault: true },
   { id: 'investments', name: 'Investments', type: 'income', icon: 'TrendingUp', isDefault: true },
   { id: 'gifts-received', name: 'Gifts Received', type: 'income', icon: 'PartyPopper', isDefault: true },
+  { id: 'income-other', name: 'Other', type: 'income', icon: 'CircleEllipsis', isDefault: true },
 
   // Transfer categories
   { id: 'savings', name: 'Savings', type: 'transfer', icon: 'PiggyBank', isDefault: true },

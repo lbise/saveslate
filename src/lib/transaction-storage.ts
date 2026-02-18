@@ -86,6 +86,34 @@ export function saveImportBatch(batch: Omit<ImportBatch, 'id'>): ImportBatch {
 }
 
 /**
+ * Rename an import batch. Empty names clear the custom name.
+ */
+export function renameImportBatch(batchId: string, name: string): ImportBatch | null {
+  const batches = loadImportBatches();
+  const normalizedName = name.trim();
+  let renamedBatch: ImportBatch | null = null;
+
+  const updatedBatches = batches.map((batch) => {
+    if (batch.id !== batchId) {
+      return batch;
+    }
+
+    renamedBatch = {
+      ...batch,
+      name: normalizedName || undefined,
+    };
+    return renamedBatch;
+  });
+
+  if (!renamedBatch) {
+    return null;
+  }
+
+  localStorage.setItem(BATCHES_KEY, JSON.stringify(updatedBatches));
+  return renamedBatch;
+}
+
+/**
  * Delete an import batch and all transactions linked to it.
  */
 export function deleteImportBatch(batchId: string): {

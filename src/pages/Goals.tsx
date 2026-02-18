@@ -357,7 +357,7 @@ export function Goals() {
     };
 
     const fileDate = new Date().toISOString().split('T')[0];
-    const fileName = `goals-${fileDate}.json`;
+    const fileName = `melomoney-goals-${fileDate}.json`;
     const blob = new Blob([JSON.stringify(exportPayload, null, 2)], {
       type: 'application/json',
     });

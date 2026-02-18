@@ -1,5 +1,5 @@
 import { useMemo, useRef, useState, type ChangeEvent } from 'react';
-import { Download, Upload } from 'lucide-react';
+import { Download, Edit, Plus, Upload } from 'lucide-react';
 import {
   exportParser,
   importParserFromFile,
@@ -9,21 +9,15 @@ import type { CsvParser } from '../../types';
 
 interface ParserLibraryProps {
   onParserImported?: (parser: CsvParser) => void;
+  onEditParser?: (parser: CsvParser) => void;
+  onCreateParser?: () => void;
 }
 
-function getAmountFormatLabel(amountFormat: CsvParser['amountFormat']): string {
-  if (amountFormat === 'single') {
-    return 'Single amount';
-  }
-
-  if (amountFormat === 'amount-type') {
-    return 'Amount + indicator';
-  }
-
-  return 'Debit / Credit';
-}
-
-export function ParserLibrary({ onParserImported }: ParserLibraryProps) {
+export function ParserLibrary({
+  onParserImported,
+  onEditParser,
+  onCreateParser,
+}: ParserLibraryProps) {
   const parserFileInputRef = useRef<HTMLInputElement>(null);
   const [parsers, setParsers] = useState<CsvParser[]>(() => loadParsers());
   const [isImporting, setIsImporting] = useState(false);
@@ -84,15 +78,27 @@ export function ParserLibrary({ onParserImported }: ParserLibraryProps) {
           </p>
         </div>
 
-        <button
-          type="button"
-          onClick={handleOpenImportPicker}
-          className="btn-secondary"
-          disabled={isImporting}
-        >
-          <Upload size={14} />
-          {isImporting ? 'Importing...' : 'Import parser'}
-        </button>
+        <div className="flex items-center gap-2">
+          {onCreateParser && (
+            <button
+              type="button"
+              onClick={onCreateParser}
+              className="btn-secondary"
+            >
+              <Plus size={14} />
+              Create parser
+            </button>
+          )}
+          <button
+            type="button"
+            onClick={handleOpenImportPicker}
+            className="btn-secondary"
+            disabled={isImporting}
+          >
+            <Upload size={14} />
+            {isImporting ? 'Importing...' : 'Import parser'}
+          </button>
+        </div>
       </div>
 
       {importError && <p className="text-ui text-expense">{importError}</p>}
@@ -110,22 +116,30 @@ export function ParserLibrary({ onParserImported }: ParserLibraryProps) {
             >
               <div className="flex-1 min-w-0">
                 <p className="text-ui text-text font-medium truncate">{parser.name}</p>
-                <p className="text-ui text-text-muted mt-0.5">
-                  {parser.columnMappings.filter((mapping) => mapping.field !== 'ignore').length} mapped columns
-                  &middot; delimiter: {parser.delimiter === '\t' ? 'tab' : `"${parser.delimiter}"`}
-                  &middot; {getAmountFormatLabel(parser.amountFormat)}
-                </p>
               </div>
 
-              <button
-                type="button"
-                onClick={() => exportParser(parser)}
-                className="btn-secondary"
-                title={`Export parser ${parser.name}`}
-              >
-                <Download size={14} />
-                Export
-              </button>
+              <div className="flex items-center gap-2">
+                {onEditParser && (
+                  <button
+                    type="button"
+                    onClick={() => onEditParser(parser)}
+                    className="btn-secondary"
+                    title={`Edit parser ${parser.name}`}
+                  >
+                    <Edit size={14} />
+                    Edit
+                  </button>
+                )}
+                <button
+                  type="button"
+                  onClick={() => exportParser(parser)}
+                  className="btn-secondary"
+                  title={`Export parser ${parser.name}`}
+                >
+                  <Download size={14} />
+                  Export
+                </button>
+              </div>
             </div>
           ))}
         </div>

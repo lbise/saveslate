@@ -79,6 +79,7 @@ function getFieldRows(
 ): { field: AssignableField; required: boolean }[] {
   const rows: { field: AssignableField; required: boolean }[] = [
     { field: "description", required: true },
+    { field: "transactionId", required: false },
     { field: "date", required: true },
   ];
 
@@ -108,6 +109,8 @@ export function ParserEditor({
   onSave,
   onCancel,
 }: ParserEditorProps) {
+  const hasSampleData = rawContent.trim().length > 0;
+
   // ─── Parser configuration state ────────────────────────────
   const detectedDelimiter = useMemo(
     () => detectDelimiter(rawContent),
@@ -197,8 +200,8 @@ export function ParserEditor({
 
   // ─── Parse raw CSV with current settings ───────────────────
   const rawRows = useMemo(
-    () => parseRawCsv(rawContent, delimiter),
-    [rawContent, delimiter],
+    () => (hasSampleData ? parseRawCsv(rawContent, delimiter) : []),
+    [delimiter, hasSampleData, rawContent],
   );
   const { headers, dataRows, skippedRows } = useMemo(
     () => extractHeadersAndData(rawRows, hasHeaderRow, skipRows),
@@ -370,7 +373,7 @@ export function ParserEditor({
             mapping.columnIndices.filter(
               (index) =>
                 index >= 0 &&
-                index < headers.length &&
+                (headers.length === 0 || index < headers.length) &&
                 !mappedColumnIndices.has(index),
             ),
           ),
@@ -380,6 +383,10 @@ export function ParserEditor({
   }, [headers.length, mappedColumnIndices, metadataMappings]);
 
   useEffect(() => {
+    if (headers.length === 0) {
+      return;
+    }
+
     setMetadataMappings((previousMappings) => {
       let changed = false;
 
@@ -882,6 +889,11 @@ export function ParserEditor({
         </div>
 
         <div className="space-y-2 mb-4">
+          {!hasSampleData && (
+            <p className="text-ui text-text-muted">
+              No sample CSV loaded. You can still update parser settings, but mapping and preview require a file.
+            </p>
+          )}
           {fieldRows.map(({ field, required }) => {
             const isMulti = MULTI_COLUMN_FIELDS.has(field);
             const assignedIndices = fieldMappings.get(field) ?? [];
@@ -989,17 +1001,21 @@ export function ParserEditor({
       </div>
 
       {/* Preview table with highlights */}
-      <div>
-        <label className="label mb-2 block">Data preview</label>
-        <CsvPreviewTable
-          headers={headers}
-          rows={dataRows}
-          columnHighlights={columnHighlights}
-        />
-      </div>
+      {hasSampleData && (
+        <div>
+          <label className="label mb-2 block">Data preview</label>
+          <CsvPreviewTable
+            headers={headers}
+            rows={dataRows}
+            columnHighlights={columnHighlights}
+          />
+        </div>
+      )}
 
       {/* Parsed transaction preview */}
-      {parsedRows.length > 0 && <ParsedTransactionPreview rows={parsedRows} />}
+      {hasSampleData && parsedRows.length > 0 && (
+        <ParsedTransactionPreview rows={parsedRows} />
+      )}
 
       {/* Actions */}
       <div className="flex gap-3 flex-wrap">
@@ -1283,12 +1299,22 @@ function FieldMappingRow({
       )}
     >
       {/* Field label */}
-      <div className="w-28 shrink-0">
+      <div
+        className={cn(
+          "shrink-0",
+          field === "transactionId" ? "w-56" : "w-28",
+        )}
+      >
         <span className="text-ui font-medium text-text">
           {TRANSACTION_FIELD_LABELS[field]}
         </span>
         {required && <span className="text-expense ml-0.5">*</span>}
         {error && <p className="text-ui text-expense mt-0.5">{error}</p>}
+        {field === "transactionId" && (
+          <span className="inline-flex items-center ml-1.5 align-middle">
+            <FieldHelpTooltip text="Recommended for reliable deduplication. Without it, imports only show possible matches." />
+          </span>
+        )}
       </div>
 
       {/* Column picker area */}

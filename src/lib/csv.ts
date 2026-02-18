@@ -419,6 +419,12 @@ export function applyParser(
     const description = descMapping ? readMulti(row, descMapping) : '';
     if (!description) errors.push('Missing description');
 
+    // Extract optional stable transaction identifier
+    const transactionIdMapping = mappingByField.get('transactionId');
+    const transactionId = transactionIdMapping
+      ? readMulti(row, transactionIdMapping) || undefined
+      : undefined;
+
     // Extract date (single column)
     const dateMapping = mappingByField.get('date');
     let date = '';
@@ -576,6 +582,7 @@ export function applyParser(
 
     return {
       description,
+      transactionId,
       amount,
       date,
       time,

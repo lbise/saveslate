@@ -6,7 +6,7 @@ const DELIMITERS: CsvParser['delimiter'][] = [',', ';', '\t', '|'];
 const AMOUNT_FORMATS: CsvParser['amountFormat'][] = ['single', 'debit-credit', 'amount-type'];
 const TIME_MODES: CsvParser['timeMode'][] = ['none', 'separate-column', 'in-date-column'];
 const DECIMAL_SEPARATORS: CsvParser['decimalSeparator'][] = ['.', ','];
-const TRANSACTION_FIELDS = ['description', 'amount', 'debit', 'credit', 'amountType', 'date', 'time', 'category', 'currency', 'ignore'] as const;
+const TRANSACTION_FIELDS = ['description', 'transactionId', 'amount', 'debit', 'credit', 'amountType', 'date', 'time', 'category', 'currency', 'ignore'] as const;
 const TRANSFORMABLE_FIELDS = ['description', 'category', 'currency'] as const;
 
 interface ExportedParserFile {

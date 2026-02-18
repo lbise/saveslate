@@ -1,6 +1,6 @@
 import { useMemo, useRef, useState, type ChangeEvent, type FormEvent } from 'react';
 import * as LucideIcons from 'lucide-react';
-import { ChevronDown, Search, Trash2, X } from 'lucide-react';
+import { ChevronDown, Pencil, Search, Trash2, X } from 'lucide-react';
 import { PageHeader, PageHeaderActions } from '../components/layout';
 import { Icon } from '../components/ui';
 import { CATEGORIES as DEFAULT_CATEGORIES } from '../data/mock';
@@ -111,6 +111,7 @@ function createUniqueCategoryId(existingIds: Set<string>): string {
 export function Categories() {
   const [categories, setCategories] = useState<Category[]>(DEFAULT_CATEGORIES);
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
+  const [editingCategoryId, setEditingCategoryId] = useState<string | null>(null);
   const [isIconPickerOpen, setIsIconPickerOpen] = useState(false);
   const [iconSearchQuery, setIconSearchQuery] = useState('');
   const [importError, setImportError] = useState<string | null>(null);
@@ -135,9 +136,24 @@ export function Categories() {
 
   const openCreateModal = (type: TransactionType) => {
     setForm({ name: '', type, icon: 'CircleDot' });
+    setEditingCategoryId(null);
     setIconSearchQuery('');
     setIsIconPickerOpen(false);
     setIsCreateModalOpen(true);
+  };
+
+  const openEditModal = (category: Category) => {
+    setForm({ name: category.name, type: category.type, icon: category.icon });
+    setEditingCategoryId(category.id);
+    setIconSearchQuery('');
+    setIsIconPickerOpen(false);
+    setIsCreateModalOpen(true);
+  };
+
+  const closeModal = () => {
+    setIsCreateModalOpen(false);
+    setEditingCategoryId(null);
+    setIsIconPickerOpen(false);
   };
 
   const handleDelete = (categoryId: string) => {
@@ -149,6 +165,21 @@ export function Categories() {
     const categoryName = form.name.trim();
     if (!categoryName) return;
 
+    if (editingCategoryId) {
+      setCategories((prev) => prev.map((category) => (
+        category.id === editingCategoryId
+          ? {
+            ...category,
+            name: categoryName,
+            type: form.type,
+            icon: form.icon,
+          }
+          : category
+      )));
+      closeModal();
+      return;
+    }
+
     const newCategory: Category = {
       id: `custom-${Date.now()}`,
       name: categoryName,
@@ -158,7 +189,7 @@ export function Categories() {
     };
 
     setCategories((prev) => [...prev, newCategory]);
-    setIsCreateModalOpen(false);
+    closeModal();
   };
 
   const handleOpenImportPicker = () => {
@@ -179,7 +210,7 @@ export function Categories() {
     };
 
     const fileDate = new Date().toISOString().split('T')[0];
-    const fileName = `categories-${fileDate}.json`;
+    const fileName = `melomoney-categories-${fileDate}.json`;
     const blob = new Blob([JSON.stringify(exportPayload, null, 2)], {
       type: 'application/json',
     });
@@ -269,22 +300,18 @@ export function Categories() {
         <>
           <div
             className="fixed inset-0 z-30 bg-bg/70"
-            onClick={() => {
-              setIsCreateModalOpen(false);
-              setIsIconPickerOpen(false);
-            }}
+            onClick={closeModal}
           />
           <div className="fixed inset-0 z-40 flex items-center justify-center p-4">
             <section className="card w-full max-w-xl p-5">
               <div className="section-header mb-4">
-                <h2 className="heading-3 text-text">Create Category</h2>
+                <h2 className="heading-3 text-text">
+                  {editingCategoryId ? 'Edit Category' : 'Create Category'}
+                </h2>
                 <button
                   type="button"
                   className="btn-icon"
-                  onClick={() => {
-                    setIsCreateModalOpen(false);
-                    setIsIconPickerOpen(false);
-                  }}
+                  onClick={closeModal}
                 >
                   <X size={16} />
                 </button>
@@ -388,15 +415,12 @@ export function Categories() {
                   <button
                     type="button"
                     className="btn-secondary"
-                    onClick={() => {
-                      setIsCreateModalOpen(false);
-                      setIsIconPickerOpen(false);
-                    }}
+                    onClick={closeModal}
                   >
                     Cancel
                   </button>
                   <button type="submit" className="btn-primary">
-                    Create Category
+                    {editingCategoryId ? 'Save Changes' : 'Create Category'}
                   </button>
                 </div>
               </form>
@@ -426,19 +450,31 @@ export function Categories() {
                     </div>
                     <div className="flex-1 min-w-0">
                       <div className="text-body text-text">{cat.name}</div>
-                      <div className="text-ui text-text-muted capitalize">{type}</div>
                     </div>
-                    {!cat.isDefault && (
+                    <div className="flex items-center gap-1">
                       <button
+                        type="button"
+                        onClick={() => openEditModal(cat)}
+                        className={cn(
+                          'w-7 h-7 flex items-center justify-center rounded bg-transparent border-none cursor-pointer text-text-muted hover:text-expense transition-opacity',
+                          'opacity-0 group-hover:opacity-100',
+                        )}
+                        title={`Edit category ${cat.name}`}
+                      >
+                        <Pencil size={14} />
+                      </button>
+                      <button
+                        type="button"
                         onClick={() => handleDelete(cat.id)}
                         className={cn(
                           'w-7 h-7 flex items-center justify-center rounded bg-transparent border-none cursor-pointer text-text-muted hover:text-expense transition-opacity',
                           'opacity-0 group-hover:opacity-100',
                         )}
+                        title={`Delete category ${cat.name}`}
                       >
                         <Trash2 size={14} />
                       </button>
-                    )}
+                    </div>
                   </div>
                 );
               })}

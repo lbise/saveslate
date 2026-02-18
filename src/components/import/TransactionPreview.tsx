@@ -30,6 +30,7 @@ interface TransactionPreviewProps {
 
 const PREVIEW_PAGE_SIZES = [20, 25, 50] as const;
 const DUPLICATE_WARNING_TEXT = "Duplicate transaction detected";
+const POSSIBLE_MATCH_WARNING_TEXT = "Possible existing match (no transaction ID)";
 
 function normalizeDescription(description: string): string {
   return description.trim().replace(/\s+/g, " ").toLowerCase();
@@ -37,6 +38,15 @@ function normalizeDescription(description: string): string {
 
 function normalizeAmount(amount: number): string {
   return (Math.round(amount * 100) / 100).toFixed(2);
+}
+
+function normalizeTransactionId(value: string | undefined): string | undefined {
+  if (!value) {
+    return undefined;
+  }
+
+  const normalized = value.trim().toLowerCase();
+  return normalized || undefined;
 }
 
 function buildTransactionFingerprint(
@@ -103,6 +113,10 @@ export function TransactionPreview({
 
   const hasCurrency = useMemo(() => rows.some((r) => r.currency), [rows]);
   const hasTime = useMemo(() => rows.some((r) => r.time), [rows]);
+  const hasTransactionId = useMemo(
+    () => rows.some((r) => Boolean(normalizeTransactionId(r.transactionId))),
+    [rows],
+  );
 
   const selectedAccountCurrency = useMemo(
     () => accounts.find((acc) => acc.id === accountId)?.currency ?? "CHF",
@@ -112,8 +126,16 @@ export function TransactionPreview({
   const hasAccounts = accounts.length > 0;
 
   const duplicateIndexes = useMemo(() => {
+    const existingTransactionIds = new Set<string>();
     const existingFingerprints = new Set<string>();
     existingTransactions.forEach((transaction) => {
+      if (transaction.accountId === accountId) {
+        const transactionId = normalizeTransactionId(transaction.transactionId);
+        if (transactionId) {
+          existingTransactionIds.add(transactionId);
+        }
+      }
+
       existingFingerprints.add(
         buildTransactionFingerprint(
           transaction.accountId,
@@ -126,11 +148,54 @@ export function TransactionPreview({
       );
     });
 
-    const seenImportFingerprints = new Set<string>();
     const duplicates = new Set<number>();
 
     rows.forEach((row, idx) => {
       if (row.errors.length > 0) return;
+
+      const transactionId = normalizeTransactionId(row.transactionId);
+      if (!transactionId) {
+        return;
+      }
+
+      if (existingTransactionIds.has(transactionId)) {
+        duplicates.add(idx);
+      }
+    });
+
+    return duplicates;
+  }, [accountId, existingTransactions, rows]);
+
+  const possibleMatchIndexes = useMemo(() => {
+    const existingFingerprints = new Set<string>();
+
+    existingTransactions.forEach((transaction) => {
+      if (transaction.accountId !== accountId) {
+        return;
+      }
+
+      existingFingerprints.add(
+        buildTransactionFingerprint(
+          transaction.accountId,
+          transaction.date,
+          transaction.time,
+          transaction.amount,
+          transaction.currency,
+          transaction.description,
+        ),
+      );
+    });
+
+    const possibleMatches = new Set<number>();
+
+    rows.forEach((row, idx) => {
+      if (row.errors.length > 0 || duplicateIndexes.has(idx)) {
+        return;
+      }
+
+      if (normalizeTransactionId(row.transactionId)) {
+        return;
+      }
 
       const effectiveCurrency = row.currency || selectedAccountCurrency;
       const fingerprint = buildTransactionFingerprint(
@@ -142,19 +207,19 @@ export function TransactionPreview({
         row.description,
       );
 
-      if (
-        existingFingerprints.has(fingerprint) ||
-        seenImportFingerprints.has(fingerprint)
-      ) {
-        duplicates.add(idx);
-        return;
+      if (existingFingerprints.has(fingerprint)) {
+        possibleMatches.add(idx);
       }
-
-      seenImportFingerprints.add(fingerprint);
     });
 
-    return duplicates;
-  }, [accountId, existingTransactions, rows, selectedAccountCurrency]);
+    return possibleMatches;
+  }, [
+    accountId,
+    duplicateIndexes,
+    existingTransactions,
+    rows,
+    selectedAccountCurrency,
+  ]);
 
   const warningsByIndex = useMemo(() => {
     const warnings = new Map<number, string[]>();
@@ -164,6 +229,9 @@ export function TransactionPreview({
       if (duplicateIndexes.has(idx)) {
         rowWarnings.push(DUPLICATE_WARNING_TEXT);
       }
+      if (possibleMatchIndexes.has(idx)) {
+        rowWarnings.push(POSSIBLE_MATCH_WARNING_TEXT);
+      }
 
       if (rowWarnings.length > 0) {
         warnings.set(idx, rowWarnings);
@@ -171,7 +239,7 @@ export function TransactionPreview({
     });
 
     return warnings;
-  }, [rows, duplicateIndexes]);
+  }, [rows, duplicateIndexes, possibleMatchIndexes]);
 
   // Reset to first page when rows or warning scope changes
   useEffect(() => {
@@ -243,6 +311,7 @@ export function TransactionPreview({
 
     const warningCount = warningsByIndex.size;
     const duplicateCount = duplicateIndexes.size;
+    const possibleMatchCount = possibleMatchIndexes.size;
 
     for (const [i, row] of rows.entries()) {
       if (!selectedIndexes.has(i)) continue;
@@ -251,8 +320,21 @@ export function TransactionPreview({
       else expense += Math.abs(row.amount);
     }
 
-    return { income, expense, count, warningCount, duplicateCount };
-  }, [duplicateIndexes, rows, selectedIndexes, warningsByIndex]);
+    return {
+      income,
+      expense,
+      count,
+      warningCount,
+      duplicateCount,
+      possibleMatchCount,
+    };
+  }, [
+    duplicateIndexes,
+    possibleMatchIndexes,
+    rows,
+    selectedIndexes,
+    warningsByIndex,
+  ]);
 
   const handleConfirm = () => {
     if (!accountId) {
@@ -369,6 +451,9 @@ export function TransactionPreview({
               {stats.duplicateCount > 0
                 ? ` · ${stats.duplicateCount} duplicate transaction${stats.duplicateCount !== 1 ? "s" : ""} detected`
                 : ""}
+              {stats.possibleMatchCount > 0
+                ? ` · ${stats.possibleMatchCount} possible match${stats.possibleMatchCount !== 1 ? "es" : ""}`
+                : ""}
               {showWarningsOnly ? " (filtered)" : ""}
             </span>
             <Filter size={12} className="text-warning" />
@@ -423,6 +508,11 @@ export function TransactionPreview({
                     <th className="px-3 py-2.5 text-left text-text-muted font-medium">
                       Description
                     </th>
+                    {hasTransactionId && (
+                      <th className="px-3 py-2.5 text-left text-text-muted font-medium">
+                        Transaction ID
+                      </th>
+                    )}
                     <th className="px-3 py-2.5 text-left text-text-muted font-medium">
                       Category
                     </th>
@@ -482,6 +572,11 @@ export function TransactionPreview({
                             {row.description || "—"}
                           </span>
                         </td>
+                        {hasTransactionId && (
+                          <td className="px-3 py-2.5 text-text-muted font-mono whitespace-nowrap">
+                            {row.transactionId || "—"}
+                          </td>
+                        )}
                         <td className="px-3 py-2.5 text-text-muted">
                           {row.category || "—"}
                         </td>
