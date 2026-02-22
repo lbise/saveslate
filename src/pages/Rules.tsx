@@ -6,11 +6,11 @@ import {
   type ChangeEvent,
   type FormEvent,
 } from "react";
-import { ChevronDown, Pencil, Play, Trash2, X } from "lucide-react";
+import { Pencil, Play, Trash2, X } from "lucide-react";
 import { useLocation, useNavigate } from "react-router-dom";
 import { PageHeader, PageHeaderActions } from "../components/layout";
-import { CategoryPicker, Icon } from "../components/ui";
-import { CATEGORIES, getCategoryById } from "../data/mock";
+import { Modal } from "../components/ui";
+import { CATEGORIES, getActiveGoals, getCategoryById, getGoalById } from "../data/mock";
 import {
   addAutomationRule,
   applyAutomationRules,
@@ -31,6 +31,7 @@ import { cn } from "../lib/utils";
 import type {
   AutomationCondition,
   AutomationConditionOperator,
+  AutomationAction,
   AutomationRulePrefillDraft,
   AutomationMatchMode,
   AutomationRule,
@@ -68,9 +69,16 @@ interface RuleFormState {
   isEnabled: boolean;
   triggers: AutomationTrigger[];
   matchMode: AutomationMatchMode;
-  applyToUncategorizedOnly: boolean;
-  categoryId: string;
+  actions: RuleFormAction[];
   conditions: RuleFormCondition[];
+}
+
+interface RuleFormAction {
+  id: string;
+  type: "set-category" | "set-goal";
+  categoryId: string;
+  goalId: string;
+  overwriteExisting: boolean;
 }
 
 interface ExportedRulesFile {
@@ -96,14 +104,27 @@ function createEmptyCondition(): RuleFormCondition {
   };
 }
 
+function createRuleFormActionId(): string {
+  return `action-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
+}
+
+function createDefaultCategoryAction(defaultCategoryId: string): RuleFormAction {
+  return {
+    id: createRuleFormActionId(),
+    type: "set-category",
+    categoryId: defaultCategoryId,
+    goalId: "",
+    overwriteExisting: false,
+  };
+}
+
 function createDefaultRuleFormState(defaultCategoryId: string): RuleFormState {
   return {
     name: "",
     isEnabled: true,
     triggers: ["on-import"],
     matchMode: "all",
-    applyToUncategorizedOnly: true,
-    categoryId: defaultCategoryId,
+    actions: [createDefaultCategoryAction(defaultCategoryId)],
     conditions: [createEmptyCondition()],
   };
 }
@@ -131,6 +152,16 @@ function formatCondition(condition: AutomationCondition): string {
   return `${condition.field} ${operatorLabel}`;
 }
 
+function formatRuleAction(action: AutomationAction): string {
+  if (action.type === "set-category") {
+    const category = getCategoryById(action.categoryId);
+    return `Set category to ${category?.name ?? action.categoryId}${action.overwriteExisting ? " (allow recategorize)" : ""}`;
+  }
+
+  const goal = getGoalById(action.goalId);
+  return `Set goal to ${goal?.name ?? action.goalId}${action.overwriteExisting ? " (allow change)" : ""}`;
+}
+
 function toFormCondition(condition: AutomationCondition): RuleFormCondition {
   return {
     id: condition.id,
@@ -146,8 +177,25 @@ function toRuleFormStateFromRule(rule: AutomationRule): RuleFormState {
     isEnabled: rule.isEnabled,
     triggers: rule.triggers,
     matchMode: rule.matchMode,
-    applyToUncategorizedOnly: rule.applyToUncategorizedOnly !== false,
-    categoryId: rule.action.categoryId,
+    actions: rule.actions.map((action) => {
+      if (action.type === "set-category") {
+        return {
+          id: createRuleFormActionId(),
+          type: "set-category",
+          categoryId: action.categoryId,
+          goalId: "",
+          overwriteExisting: action.overwriteExisting === true,
+        };
+      }
+
+      return {
+        id: createRuleFormActionId(),
+        type: "set-goal",
+        categoryId: "",
+        goalId: action.goalId,
+        overwriteExisting: action.overwriteExisting === true,
+      };
+    }),
     conditions: rule.conditions.map((condition) => toFormCondition(condition)),
   };
 }
@@ -175,8 +223,15 @@ function toRuleFormStateFromPrefill(
         ? prefill.triggers
         : ["on-import"],
     matchMode: prefill.matchMode ?? "all",
-    applyToUncategorizedOnly: prefill.applyToUncategorizedOnly !== false,
-    categoryId: prefill.categoryId?.trim() || defaultCategoryId,
+    actions: [
+      {
+        id: createRuleFormActionId(),
+        type: "set-category",
+        categoryId: prefill.categoryId?.trim() || defaultCategoryId,
+        goalId: "",
+        overwriteExisting: prefill.applyToUncategorizedOnly === false,
+      },
+    ],
     conditions: prefillConditions,
   };
 }
@@ -190,7 +245,6 @@ export function Rules() {
     loadAutomationRules(),
   );
   const [isRuleModalOpen, setIsRuleModalOpen] = useState(false);
-  const [isCategoryPickerOpen, setIsCategoryPickerOpen] = useState(false);
   const [editingRuleId, setEditingRuleId] = useState<string | null>(null);
   const [ruleToDelete, setRuleToDelete] = useState<AutomationRule | null>(null);
   const [form, setForm] = useState<RuleFormState>(() =>
@@ -247,6 +301,8 @@ export function Rules() {
     return [...baseOptions, ...metadataOptions];
   }, [form.conditions]);
 
+  const availableGoals = useMemo(() => getActiveGoals(), []);
+
   useEffect(() => {
     const routeState = (location.state as RulesRouteState | null) ?? null;
     const prefill = routeState?.prefillRuleDraft;
@@ -266,10 +322,16 @@ export function Rules() {
 
     if (shouldMergeIntoExistingRule) {
       const targetRule = rules.find((rule) => {
+        const categoryAction = rule.actions.find(
+          (action) => action.type === "set-category",
+        );
+        if (!categoryAction) {
+          return false;
+        }
+
         return (
-          rule.action.type === "set-category" &&
-          rule.action.categoryId === prefill.categoryId &&
-          rule.applyToUncategorizedOnly !== false
+          categoryAction.categoryId === prefill.categoryId &&
+          categoryAction.overwriteExisting !== true
         );
       });
 
@@ -298,7 +360,6 @@ export function Rules() {
         setForm(targetForm);
         setEditingRuleId(targetRule.id);
         setFormError(null);
-        setIsCategoryPickerOpen(false);
         setIsRuleModalOpen(true);
 
         navigate(location.pathname, { replace: true, state: null });
@@ -309,7 +370,6 @@ export function Rules() {
     setForm(toRuleFormStateFromPrefill(prefill, defaultCategoryId));
     setEditingRuleId(null);
     setFormError(null);
-    setIsCategoryPickerOpen(false);
     setIsRuleModalOpen(true);
 
     navigate(location.pathname, { replace: true, state: null });
@@ -323,11 +383,6 @@ export function Rules() {
     [],
   );
 
-  const selectedActionCategory = useMemo(
-    () => getCategoryById(form.categoryId),
-    [form.categoryId],
-  );
-
   const manualRunnableRuleCount = useMemo(
     () =>
       rules.filter(
@@ -338,14 +393,12 @@ export function Rules() {
 
   const closeRuleModal = () => {
     setIsRuleModalOpen(false);
-    setIsCategoryPickerOpen(false);
     setEditingRuleId(null);
     setFormError(null);
   };
 
   const openCreateModal = () => {
     setForm(createDefaultRuleFormState(defaultCategoryId));
-    setIsCategoryPickerOpen(false);
     setEditingRuleId(null);
     setFormError(null);
     setIsRuleModalOpen(true);
@@ -353,10 +406,48 @@ export function Rules() {
 
   const openEditModal = (rule: AutomationRule) => {
     setForm(toRuleFormStateFromRule(rule));
-    setIsCategoryPickerOpen(false);
     setEditingRuleId(rule.id);
     setFormError(null);
     setIsRuleModalOpen(true);
+  };
+
+  const handleActionChange = (
+    actionId: string,
+    updates: Partial<RuleFormAction>,
+  ) => {
+    setForm((current) => ({
+      ...current,
+      actions: current.actions.map((action) => {
+        if (action.id !== actionId) {
+          return action;
+        }
+
+        return {
+          ...action,
+          ...updates,
+        };
+      }),
+    }));
+  };
+
+  const handleAddAction = () => {
+    setForm((current) => ({
+      ...current,
+      actions: [...current.actions, createDefaultCategoryAction(defaultCategoryId)],
+    }));
+  };
+
+  const handleRemoveAction = (actionId: string) => {
+    setForm((current) => {
+      if (current.actions.length === 1) {
+        return current;
+      }
+
+      return {
+        ...current,
+        actions: current.actions.filter((action) => action.id !== actionId),
+      };
+    });
   };
 
   const handleOpenImportPicker = () => {
@@ -513,17 +604,46 @@ export function Rules() {
       return;
     }
 
+    const normalizedActions: AutomationAction[] = [];
+    for (const action of form.actions) {
+      if (action.type === "set-category") {
+        const categoryId = action.categoryId.trim();
+        if (!categoryId) {
+          continue;
+        }
+
+        normalizedActions.push({
+          type: "set-category",
+          categoryId,
+          overwriteExisting: action.overwriteExisting,
+        });
+        continue;
+      }
+
+      const goalId = action.goalId.trim();
+      if (!goalId) {
+        continue;
+      }
+
+      normalizedActions.push({
+        type: "set-goal",
+        goalId,
+        overwriteExisting: action.overwriteExisting,
+      });
+    }
+
+    if (normalizedActions.length === 0) {
+      setFormError("Add at least one valid action.");
+      return;
+    }
+
     const ruleData = {
       name: normalizedName,
       isEnabled: form.isEnabled,
       triggers: form.triggers,
       matchMode: form.matchMode,
       conditions: normalizedConditions,
-      action: {
-        type: "set-category",
-        categoryId: form.categoryId,
-      } as const,
-      applyToUncategorizedOnly: form.applyToUncategorizedOnly,
+      actions: normalizedActions,
     };
 
     if (editingRuleId) {
@@ -601,13 +721,8 @@ export function Rules() {
       )}
 
       {ruleToDelete && (
-        <>
-          <div
-            className="fixed inset-0 z-30 bg-bg/70"
-            onClick={() => setRuleToDelete(null)}
-          />
-          <div className="fixed inset-0 z-40 flex items-center justify-center p-4">
-            <div className="card w-full max-w-md p-5 space-y-4">
+        <Modal onClose={() => setRuleToDelete(null)} panelClassName="max-w-md p-5 space-y-4">
+          <div>
               <h2 className="heading-2">Delete rule?</h2>
               <p className="text-body">
                 This will permanently delete{" "}
@@ -632,19 +747,13 @@ export function Rules() {
                   Delete rule
                 </button>
               </div>
-            </div>
           </div>
-        </>
+        </Modal>
       )}
 
       {isRuleModalOpen && (
-        <>
-          <div
-            className="fixed inset-0 z-30 bg-bg/70"
-            onClick={closeRuleModal}
-          />
-          <div className="fixed inset-0 z-40 flex items-center justify-center p-4">
-            <section className="card w-full max-w-3xl p-5">
+        <Modal onClose={closeRuleModal} panelClassName="max-w-3xl p-5">
+          <section>
               <div className="section-header mb-4">
                 <h2 className="heading-3 text-text">
                   {editingRuleId ? "Edit Rule" : "Create Rule"}
@@ -659,7 +768,7 @@ export function Rules() {
               </div>
 
               <form className="space-y-4" onSubmit={handleSaveRule}>
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div>
                   <div>
                     <label className="label mb-1.5 block" htmlFor="rule-name">
                       Rule name
@@ -678,46 +787,123 @@ export function Rules() {
                       required
                     />
                   </div>
+                </div>
 
-                  <div>
-                    <label className="label mb-1.5 block">
-                      Action: set category
-                    </label>
-                    <div className="relative">
-                      <button
-                        type="button"
-                        className="input flex items-center justify-between"
-                        onClick={() =>
-                          setIsCategoryPickerOpen((current) => !current)
-                        }
-                        aria-expanded={isCategoryPickerOpen}
-                        aria-controls="rule-category-picker"
-                      >
-                        <span className="flex items-center gap-2 min-w-0">
-                          <Icon
-                            name={selectedActionCategory?.icon ?? "CircleHelp"}
-                            size={16}
-                            className="text-text-muted"
-                          />
-                          <span className="text-body text-text truncate">
-                            {selectedActionCategory?.name ?? form.categoryId}
-                          </span>
-                        </span>
-                        <ChevronDown size={16} className="text-text-muted" />
-                      </button>
+                <div className="space-y-2">
+                  <div className="flex items-center justify-between gap-2">
+                    <p className="label">Actions</p>
+                    <button
+                      type="button"
+                      className="btn-ghost"
+                      onClick={handleAddAction}
+                    >
+                      Add action
+                    </button>
+                  </div>
 
-                      {isCategoryPickerOpen && (
-                        <CategoryPicker
-                          currentCategoryId={form.categoryId}
-                          onSelect={(categoryId) => {
-                            setForm((current) => ({ ...current, categoryId }));
-                            setIsCategoryPickerOpen(false);
-                          }}
-                          onClose={() => setIsCategoryPickerOpen(false)}
-                          className="top-full left-0 mt-1 w-full"
-                        />
-                      )}
-                    </div>
+                  <div className="space-y-2">
+                    {form.actions.map((action) => {
+                      return (
+                        <div
+                          key={action.id}
+                          className="rounded-(--radius-md) border border-border bg-surface p-3 space-y-2"
+                        >
+                          <div className="grid grid-cols-1 md:grid-cols-[minmax(0,1fr)_auto] gap-2">
+                            <select
+                              className="select"
+                              value={action.type}
+                              onChange={(event) => {
+                                const nextType = event.target.value as RuleFormAction["type"];
+                                handleActionChange(action.id, {
+                                  type: nextType,
+                                  overwriteExisting: false,
+                                });
+                              }}
+                            >
+                              <option value="set-category">Set category</option>
+                              <option value="set-goal">Set goal</option>
+                            </select>
+
+                            <button
+                              type="button"
+                              onClick={() => handleRemoveAction(action.id)}
+                              className="btn-icon justify-self-start md:justify-self-end"
+                              disabled={form.actions.length === 1}
+                              title="Remove action"
+                            >
+                              <X size={14} />
+                            </button>
+                          </div>
+
+                          {action.type === "set-category" ? (
+                            <>
+                              <select
+                                className="select"
+                                value={action.categoryId}
+                                onChange={(event) =>
+                                  handleActionChange(action.id, {
+                                    categoryId: event.target.value,
+                                  })
+                                }
+                              >
+                                {CATEGORIES.map((category) => (
+                                  <option key={category.id} value={category.id}>
+                                    {category.name}
+                                  </option>
+                                ))}
+                              </select>
+                              <label className="flex items-center gap-2">
+                                <input
+                                  type="checkbox"
+                                  checked={action.overwriteExisting}
+                                  onChange={(event) =>
+                                    handleActionChange(action.id, {
+                                      overwriteExisting: event.target.checked,
+                                    })
+                                  }
+                                />
+                                <span className="text-ui">
+                                  Allow recategorizing already categorized transactions
+                                </span>
+                              </label>
+                            </>
+                          ) : (
+                            <>
+                              <select
+                                className="select"
+                                value={action.goalId}
+                                onChange={(event) =>
+                                  handleActionChange(action.id, {
+                                    goalId: event.target.value,
+                                  })
+                                }
+                              >
+                                <option value="">Select goal</option>
+                                {availableGoals.map((goal) => (
+                                  <option key={goal.id} value={goal.id}>
+                                    {goal.name}
+                                  </option>
+                                ))}
+                              </select>
+                              <label className="flex items-center gap-2">
+                                <input
+                                  type="checkbox"
+                                  checked={action.overwriteExisting}
+                                  onChange={(event) =>
+                                    handleActionChange(action.id, {
+                                      overwriteExisting: event.target.checked,
+                                    })
+                                  }
+                                />
+                                <span className="text-ui">
+                                  Allow changing goal when transaction already has one
+                                </span>
+                              </label>
+                            </>
+                          )}
+                        </div>
+                      );
+                    })}
                   </div>
                 </div>
 
@@ -796,22 +982,6 @@ export function Rules() {
                     })}
                   </div>
                 </div>
-
-                <label className="flex items-center gap-2">
-                  <input
-                    type="checkbox"
-                    checked={form.applyToUncategorizedOnly}
-                    onChange={(event) => {
-                      setForm((current) => ({
-                        ...current,
-                        applyToUncategorizedOnly: event.target.checked,
-                      }));
-                    }}
-                  />
-                  <span className="text-ui">
-                    Only apply when transaction is currently uncategorized
-                  </span>
-                </label>
 
                 <div className="space-y-2">
                   <div className="flex items-center justify-between gap-2">
@@ -928,9 +1098,8 @@ export function Rules() {
                   </button>
                 </div>
               </form>
-            </section>
-          </div>
-        </>
+          </section>
+        </Modal>
       )}
 
       <section className="card p-4" style={{ marginTop: "-32px" }}>
@@ -938,7 +1107,7 @@ export function Rules() {
           <div>
             <h2 className="heading-3 text-text">Automation Engine</h2>
             <p className="text-body mt-1">
-              Rules can check any field and run one action.
+              Rules can check any field and run one or more actions.
             </p>
           </div>
           <button
@@ -982,8 +1151,6 @@ export function Rules() {
         ) : (
           <div className="flex flex-col gap-3">
             {rules.map((rule) => {
-              const category = getCategoryById(rule.action.categoryId);
-
               return (
                 <div key={rule.id} className="card p-4">
                   <div className="flex items-start justify-between gap-3">
@@ -992,11 +1159,6 @@ export function Rules() {
                         <h3 className="heading-3 text-text">{rule.name}</h3>
                         {!rule.isEnabled && (
                           <span className="badge-muted">Disabled</span>
-                        )}
-                        {rule.applyToUncategorizedOnly !== false && (
-                          <span className="badge-muted">
-                            Uncategorized only
-                          </span>
                         )}
                       </div>
 
@@ -1051,12 +1213,13 @@ export function Rules() {
                     ))}
                   </div>
 
-                  <p className="text-ui mt-3">
-                    Action: set category to{" "}
-                    <span className="text-text">
-                      {category?.name ?? rule.action.categoryId}
-                    </span>
-                  </p>
+                  <div className="mt-3 space-y-1">
+                    {rule.actions.map((action, index) => (
+                      <p key={`${rule.id}-action-${index}`} className="text-ui">
+                        Action {index + 1}: <span className="text-text">{formatRuleAction(action)}</span>
+                      </p>
+                    ))}
+                  </div>
                 </div>
               );
             })}

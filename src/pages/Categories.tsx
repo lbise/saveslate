@@ -2,7 +2,7 @@ import { useMemo, useRef, useState, type ChangeEvent, type FormEvent } from 'rea
 import * as LucideIcons from 'lucide-react';
 import { ChevronDown, Pencil, Search, Trash2, X } from 'lucide-react';
 import { PageHeader, PageHeaderActions } from '../components/layout';
-import { Icon } from '../components/ui';
+import { Icon, Modal } from '../components/ui';
 import { CATEGORIES as DEFAULT_CATEGORIES } from '../data/mock';
 import { cn } from '../lib/utils';
 import type { Category, TransactionType } from '../types';
@@ -12,6 +12,13 @@ const TYPE_SECTIONS: { type: TransactionType; label: string }[] = [
   { type: 'income', label: 'Income' },
   { type: 'transfer', label: 'Transfer' },
 ];
+
+const FORM_TYPE_OPTIONS: { type: TransactionType; label: string }[] = [
+  { type: 'expense', label: 'Expense' },
+  { type: 'income', label: 'Income' },
+];
+
+const LOCKED_CATEGORY_IDS = new Set(['transfer']);
 
 const TYPE_ICON_STYLES: Record<TransactionType, { bg: string; text: string }> = {
   expense: { bg: 'bg-expense/10', text: 'text-expense' },
@@ -143,6 +150,10 @@ export function Categories() {
   };
 
   const openEditModal = (category: Category) => {
+    if (LOCKED_CATEGORY_IDS.has(category.id)) {
+      return;
+    }
+
     setForm({ name: category.name, type: category.type, icon: category.icon });
     setEditingCategoryId(category.id);
     setIconSearchQuery('');
@@ -157,6 +168,10 @@ export function Categories() {
   };
 
   const handleDelete = (categoryId: string) => {
+    if (LOCKED_CATEGORY_IDS.has(categoryId)) {
+      return;
+    }
+
     setCategories((prev) => prev.filter((c) => c.id !== categoryId));
   };
 
@@ -297,13 +312,8 @@ export function Categories() {
       )}
 
       {isCreateModalOpen && (
-        <>
-          <div
-            className="fixed inset-0 z-30 bg-bg/70"
-            onClick={closeModal}
-          />
-          <div className="fixed inset-0 z-40 flex items-center justify-center p-4">
-            <section className="card w-full max-w-xl p-5">
+        <Modal onClose={closeModal} panelClassName="max-w-xl p-5">
+          <section>
               <div className="section-header mb-4">
                 <h2 className="heading-3 text-text">
                   {editingCategoryId ? 'Edit Category' : 'Create Category'}
@@ -342,7 +352,7 @@ export function Categories() {
                         setForm((current) => ({ ...current, type }));
                       }}
                     >
-                      {TYPE_SECTIONS.map(({ type, label }) => (
+                      {FORM_TYPE_OPTIONS.map(({ type, label }) => (
                         <option key={type} value={type}>{label}</option>
                       ))}
                     </select>
@@ -424,9 +434,8 @@ export function Categories() {
                   </button>
                 </div>
               </form>
-            </section>
-          </div>
-        </>
+          </section>
+        </Modal>
       )}
 
       {/* Category Sections by Type */}
@@ -440,6 +449,7 @@ export function Categories() {
             </div>
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
               {typeCats.map((cat) => {
+                const isLocked = LOCKED_CATEGORY_IDS.has(cat.id);
                 return (
                   <div
                     key={cat.id}
@@ -452,28 +462,32 @@ export function Categories() {
                       <div className="text-body text-text">{cat.name}</div>
                     </div>
                     <div className="flex items-center gap-1">
-                      <button
-                        type="button"
-                        onClick={() => openEditModal(cat)}
-                        className={cn(
-                          'w-7 h-7 flex items-center justify-center rounded bg-transparent border-none cursor-pointer text-text-muted hover:text-expense transition-opacity',
-                          'opacity-0 group-hover:opacity-100',
-                        )}
-                        title={`Edit category ${cat.name}`}
-                      >
-                        <Pencil size={14} />
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => handleDelete(cat.id)}
-                        className={cn(
-                          'w-7 h-7 flex items-center justify-center rounded bg-transparent border-none cursor-pointer text-text-muted hover:text-expense transition-opacity',
-                          'opacity-0 group-hover:opacity-100',
-                        )}
-                        title={`Delete category ${cat.name}`}
-                      >
-                        <Trash2 size={14} />
-                      </button>
+                      {!isLocked && (
+                        <>
+                          <button
+                            type="button"
+                            onClick={() => openEditModal(cat)}
+                            className={cn(
+                              'w-7 h-7 flex items-center justify-center rounded bg-transparent border-none cursor-pointer text-text-muted hover:text-expense transition-opacity',
+                              'opacity-0 group-hover:opacity-100',
+                            )}
+                            title={`Edit category ${cat.name}`}
+                          >
+                            <Pencil size={14} />
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => handleDelete(cat.id)}
+                            className={cn(
+                              'w-7 h-7 flex items-center justify-center rounded bg-transparent border-none cursor-pointer text-text-muted hover:text-expense transition-opacity',
+                              'opacity-0 group-hover:opacity-100',
+                            )}
+                            title={`Delete category ${cat.name}`}
+                          >
+                            <Trash2 size={14} />
+                          </button>
+                        </>
+                      )}
                     </div>
                   </div>
                 );

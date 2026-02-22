@@ -166,19 +166,47 @@ function parseCondition(value: unknown): AutomationCondition | null {
 }
 
 function parseAction(value: unknown): AutomationAction | null {
-  if (!isRecord(value) || value.type !== 'set-category') {
+  if (!isRecord(value) || typeof value.type !== 'string') {
     return null;
   }
 
-  const categoryId = typeof value.categoryId === 'string' ? value.categoryId.trim() : '';
-  if (!categoryId) {
-    return null;
+  if (value.type === 'set-category') {
+    const categoryId = typeof value.categoryId === 'string' ? value.categoryId.trim() : '';
+    if (!categoryId) {
+      return null;
+    }
+
+    return {
+      type: 'set-category',
+      categoryId,
+      overwriteExisting: value.overwriteExisting === true,
+    };
   }
 
-  return {
-    type: 'set-category',
-    categoryId,
-  };
+  if (value.type === 'set-goal') {
+    const goalId = typeof value.goalId === 'string' ? value.goalId.trim() : '';
+    if (!goalId) {
+      return null;
+    }
+
+    return {
+      type: 'set-goal',
+      goalId,
+      overwriteExisting: value.overwriteExisting === true,
+    };
+  }
+
+  return null;
+}
+
+function parseActions(value: unknown): AutomationAction[] {
+  if (!Array.isArray(value)) {
+    return [];
+  }
+
+  return value
+    .map((action) => parseAction(action))
+    .filter((action): action is AutomationAction => action !== null);
 }
 
 function normalizeRule(value: unknown): AutomationRule | null {
@@ -209,8 +237,25 @@ function normalizeRule(value: unknown): AutomationRule | null {
     return null;
   }
 
-  const action = parseAction(value.action);
-  if (!action) {
+  const actionsFromPayload = parseActions(value.actions);
+  let actions = actionsFromPayload;
+
+  // Backward compatibility: migrate legacy singular action payload.
+  if (actions.length === 0) {
+    const legacyAction = parseAction(value.action);
+    if (legacyAction?.type === 'set-category') {
+      actions = [
+        {
+          ...legacyAction,
+          overwriteExisting: value.applyToUncategorizedOnly === false,
+        },
+      ];
+    } else if (legacyAction) {
+      actions = [legacyAction];
+    }
+  }
+
+  if (actions.length === 0) {
     return null;
   }
 
@@ -228,8 +273,7 @@ function normalizeRule(value: unknown): AutomationRule | null {
     triggers,
     matchMode: isAutomationMatchMode(value.matchMode) ? value.matchMode : 'all',
     conditions,
-    action,
-    applyToUncategorizedOnly: value.applyToUncategorizedOnly !== false,
+    actions,
     createdAt,
     updatedAt,
   };
@@ -551,22 +595,8 @@ function evaluateCondition(transaction: Transaction, condition: AutomationCondit
   }
 }
 
-function canRuleApplyToTransaction(rule: AutomationRule, transaction: Transaction): boolean {
-  if (rule.action.type === 'set-category') {
-    return rule.applyToUncategorizedOnly !== false
-      ? transaction.categoryId === UNCATEGORIZED_CATEGORY_ID
-      : true;
-  }
-
-  return true;
-}
-
 function doesRuleMatch(rule: AutomationRule, transaction: Transaction): boolean {
   if (rule.conditions.length === 0) {
-    return false;
-  }
-
-  if (!canRuleApplyToTransaction(rule, transaction)) {
     return false;
   }
 
@@ -581,6 +611,13 @@ function applyRuleAction(transaction: Transaction, action: AutomationAction): {
   changed: boolean;
 } {
   if (action.type === 'set-category') {
+    if (!action.overwriteExisting && transaction.categoryId !== UNCATEGORIZED_CATEGORY_ID) {
+      return {
+        transaction,
+        changed: false,
+      };
+    }
+
     if (transaction.categoryId === action.categoryId) {
       return {
         transaction,
@@ -592,6 +629,30 @@ function applyRuleAction(transaction: Transaction, action: AutomationAction): {
       transaction: {
         ...transaction,
         categoryId: action.categoryId,
+      },
+        changed: true,
+      };
+  }
+
+  if (action.type === 'set-goal') {
+    if (!action.overwriteExisting && transaction.goalId) {
+      return {
+        transaction,
+        changed: false,
+      };
+    }
+
+    if (transaction.goalId === action.goalId) {
+      return {
+        transaction,
+        changed: false,
+      };
+    }
+
+    return {
+      transaction: {
+        ...transaction,
+        goalId: action.goalId,
       },
       changed: true,
     };
@@ -647,12 +708,14 @@ export function applyAutomationRules(
       hasMatched = true;
       stats.matchedCount += 1;
 
-      const actionResult = applyRuleAction(currentTransaction, rule.action);
-      if (actionResult.changed) {
-        stats.changedCount += 1;
-        changedCount += 1;
-        currentTransaction = actionResult.transaction;
-        nextTransactions[transactionIndex] = currentTransaction;
+      for (const action of rule.actions) {
+        const actionResult = applyRuleAction(currentTransaction, action);
+        if (actionResult.changed) {
+          stats.changedCount += 1;
+          changedCount += 1;
+          currentTransaction = actionResult.transaction;
+          nextTransactions[transactionIndex] = currentTransaction;
+        }
       }
 
       break;
@@ -673,11 +736,12 @@ export function applyAutomationRules(
 }
 
 function isQuickCategoryRuleCandidate(rule: AutomationRule, categoryId: string): boolean {
-  if (rule.action.type !== 'set-category' || rule.action.categoryId !== categoryId) {
+  const categoryAction = rule.actions.find((action) => action.type === 'set-category');
+  if (!categoryAction || categoryAction.categoryId !== categoryId) {
     return false;
   }
 
-  if (rule.matchMode !== 'any' || rule.applyToUncategorizedOnly === false) {
+  if (rule.matchMode !== 'any' || categoryAction.overwriteExisting) {
     return false;
   }
 
@@ -732,11 +796,13 @@ export function upsertQuickCategoryContainsRule(options: {
           value: keyword,
         },
       ],
-      action: {
-        type: 'set-category',
-        categoryId,
-      },
-      applyToUncategorizedOnly: true,
+      actions: [
+        {
+          type: 'set-category',
+          categoryId,
+          overwriteExisting: false,
+        },
+      ],
     });
 
     return {
@@ -765,7 +831,16 @@ export function upsertQuickCategoryContainsRule(options: {
     isEnabled: true,
     triggers: Array.from(new Set([...candidateRule.triggers, 'on-import', 'manual-run'])),
     matchMode: 'any',
-    applyToUncategorizedOnly: true,
+    actions: candidateRule.actions.map((action) => {
+      if (action.type === 'set-category') {
+        return {
+          ...action,
+          overwriteExisting: false,
+        };
+      }
+
+      return action;
+    }),
     conditions: [
       ...candidateRule.conditions,
       {

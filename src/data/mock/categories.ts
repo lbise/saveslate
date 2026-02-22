@@ -30,12 +30,17 @@ export const CATEGORIES: Category[] = [
   { id: 'income-other', name: 'Other', type: 'income', icon: 'CircleEllipsis', isDefault: true },
 
   // Transfer categories
-  { id: 'savings', name: 'Savings', type: 'transfer', icon: 'PiggyBank', isDefault: true },
-  { id: 'investment-transfer', name: 'Investment Transfer', type: 'transfer', icon: 'ArrowLeftRight', isDefault: true },
+  { id: 'transfer', name: 'Transfer', type: 'transfer', icon: 'ArrowLeftRight', isDefault: true },
 ];
 
+const LEGACY_CATEGORY_ID_ALIASES: Record<string, string> = {
+  savings: 'transfer',
+  'investment-transfer': 'transfer',
+};
+
 export const getCategoryById = (id: string): Category | undefined => {
-  return CATEGORIES.find((c) => c.id === id);
+  const normalizedId = LEGACY_CATEGORY_ID_ALIASES[id] ?? id;
+  return CATEGORIES.find((c) => c.id === normalizedId);
 };
 
 export const getCategoriesByType = (type: TransactionType): Category[] => {

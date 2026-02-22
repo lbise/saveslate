@@ -1,13 +1,14 @@
 import { useMemo, useRef, useState, type ChangeEvent, type FormEvent } from 'react';
 import * as LucideIcons from 'lucide-react';
-import { Calendar, ChevronDown, Search, Target, X } from 'lucide-react';
+import { Calendar, ChevronDown, Pencil, Search, Target, Trash2, X } from 'lucide-react';
 import { PageHeader, PageHeaderActions } from '../components/layout';
-import { Icon, TransactionItem } from '../components/ui';
+import { Icon, Modal, TransactionItem } from '../components/ui';
 import {
   getGoalProgress,
   getTransactionsWithDetails,
 } from '../data/mock';
-import { addGoal, mergeGoals } from '../lib/goal-storage';
+import { addGoal, deleteGoal, mergeGoals, updateGoal } from '../lib/goal-storage';
+import { loadTransactions, saveTransactions } from '../lib/transaction-storage';
 import { formatCurrency, formatDate } from '../lib/utils';
 import type { ContributionFrequency, Goal, GoalProgress } from '../types';
 
@@ -148,6 +149,7 @@ function parseImportedGoalEntry(entry: unknown, index: number): GoalProgress {
   const createdAt = parseDateString(rawGoal.createdAt) ?? new Date().toISOString().split('T')[0];
   const startingAmount = parseFiniteNumber(rawGoal.startingAmount, 0);
   const expectedContribution = parseExpectedContribution(rawGoal.expectedContribution);
+  const isContributionPlan = Boolean(expectedContribution);
   const description = typeof rawGoal.description === 'string'
     ? rawGoal.description.trim() || undefined
     : undefined;
@@ -158,8 +160,8 @@ function parseImportedGoalEntry(entry: unknown, index: number): GoalProgress {
     description,
     icon,
     startingAmount,
-    targetAmount: hasTarget ? targetAmount : 0,
-    hasTarget,
+    targetAmount: isContributionPlan ? 0 : (hasTarget ? targetAmount : 0),
+    hasTarget: isContributionPlan ? false : hasTarget,
     deadline: parseDateString(rawGoal.deadline),
     expectedContribution,
     createdAt,
@@ -226,13 +228,14 @@ function getContributionPeriods(
   contributionFrequency: ContributionFrequency,
   dueDate: string,
 ): number {
-  if (!dueDate) {
-    return contributionFrequency === 'weekly' ? 52 : 12;
-  }
-
   const today = new Date();
   const startDate = new Date(today.getFullYear(), today.getMonth(), today.getDate());
-  const parsedDueDate = new Date(`${dueDate}T00:00:00`);
+
+  const effectiveDueDate = dueDate
+    ? new Date(`${dueDate}T00:00:00`)
+    : new Date(startDate.getFullYear(), 11, 31);
+
+  const parsedDueDate = effectiveDueDate;
   if (Number.isNaN(parsedDueDate.getTime()) || parsedDueDate <= startDate) {
     return 1;
   }
@@ -257,6 +260,19 @@ function getDerivedTargetAmount(contributionAmount: number, contributionPeriods:
   return contributionAmount * contributionPeriods;
 }
 
+function getYearlyContribution(
+  contributionFrequency: ContributionFrequency,
+  contributionAmount: number,
+): number {
+  if (contributionAmount <= 0) {
+    return 0;
+  }
+
+  return contributionFrequency === 'weekly'
+    ? contributionAmount * 52
+    : contributionAmount * 12;
+}
+
 function formatContributionPeriods(
   contributionFrequency: ContributionFrequency,
   contributionPeriods: number,
@@ -268,6 +284,8 @@ function formatContributionPeriods(
 export function Goals() {
   const [goals, setGoals] = useState<GoalProgress[]>(() => getGoalProgress());
   const [isCreateMenuOpen, setIsCreateMenuOpen] = useState(false);
+  const [editingGoalId, setEditingGoalId] = useState<string | null>(null);
+  const [goalToDelete, setGoalToDelete] = useState<Goal | null>(null);
   const [isIconPickerOpen, setIsIconPickerOpen] = useState(false);
   const [iconSearchQuery, setIconSearchQuery] = useState('');
   const [importError, setImportError] = useState<string | null>(null);
@@ -307,7 +325,7 @@ export function Goals() {
     () => formatContributionPeriods(form.expectedContributionFrequency, contributionPeriods),
     [contributionPeriods, form.expectedContributionFrequency],
   );
-  const derivedTargetAmount = useMemo(() => {
+  const derivedContributionPlanAmount = useMemo(() => {
     if (!hasExpectedContribution) {
       return 0;
     }
@@ -318,21 +336,92 @@ export function Goals() {
     hasExpectedContribution,
     expectedContributionAmount,
   ]);
+  const yearlyContributionAmount = useMemo(
+    () => getYearlyContribution(form.expectedContributionFrequency, expectedContributionAmount),
+    [expectedContributionAmount, form.expectedContributionFrequency],
+  );
 
-  const previewTargetAmount = form.targetMethod === 'fixed'
-    ? explicitTargetAmount
-    : derivedTargetAmount;
+  const previewTargetAmount = explicitTargetAmount;
   const amountLeftToSave = Math.max(previewTargetAmount - startingAmount, 0);
   const isTargetConfigValid = form.targetMethod === 'fixed'
-    ? explicitTargetAmount > 0
+    ? explicitTargetAmount >= 0
     : expectedContributionAmount > 0;
   const canSubmit = form.name.trim().length > 0 && isTargetConfigValid;
-  const hasTarget = previewTargetAmount > 0;
+  const hasTarget = form.targetMethod === 'fixed' && explicitTargetAmount > 0;
 
   const resetForm = () => {
     setForm(DEFAULT_FORM_STATE);
+    setEditingGoalId(null);
     setIconSearchQuery('');
     setIsIconPickerOpen(false);
+  };
+
+  const openCreateGoalForm = () => {
+    resetForm();
+    setIsCreateMenuOpen(true);
+  };
+
+  const openEditGoalForm = (goal: Goal) => {
+    setForm({
+      name: goal.name,
+      description: goal.description ?? '',
+      icon: goal.icon,
+      targetMethod: goal.expectedContribution ? 'contribution' : 'fixed',
+      dueDate: goal.deadline ?? '',
+      startingAmount: String(goal.startingAmount ?? 0),
+      targetAmount: String(goal.targetAmount),
+      expectedContributionAmount: goal.expectedContribution
+        ? String(goal.expectedContribution.amount)
+        : '',
+      expectedContributionFrequency: goal.expectedContribution?.frequency ?? 'monthly',
+    });
+    setEditingGoalId(goal.id);
+    setIconSearchQuery('');
+    setIsIconPickerOpen(false);
+    setIsCreateMenuOpen(true);
+  };
+
+  const closeGoalForm = () => {
+    resetForm();
+    setIsCreateMenuOpen(false);
+  };
+
+  const handleDeleteGoal = (goalId: string) => {
+    const deleted = deleteGoal(goalId);
+    if (!deleted) {
+      return;
+    }
+
+    const transactions = loadTransactions();
+    const hasLinkedTransactions = transactions.some((transaction) => transaction.goalId === goalId);
+    if (hasLinkedTransactions) {
+      saveTransactions(
+        transactions.map((transaction) => (
+          transaction.goalId === goalId
+            ? { ...transaction, goalId: undefined }
+            : transaction
+        )),
+      );
+    }
+
+    setGoals(getGoalProgress());
+  };
+
+  const requestDeleteGoal = (goal: Goal) => {
+    setGoalToDelete(goal);
+  };
+
+  const closeDeleteGoalModal = () => {
+    setGoalToDelete(null);
+  };
+
+  const handleConfirmDeleteGoal = () => {
+    if (!goalToDelete) {
+      return;
+    }
+
+    handleDeleteGoal(goalToDelete.id);
+    closeDeleteGoalModal();
   };
 
   const handleOpenImportPicker = () => {
@@ -406,13 +495,13 @@ export function Goals() {
       return;
     }
 
-    const newGoal: Goal = {
-      id: `goal-${Date.now()}`,
+    const goalPayload: Goal = {
+      id: editingGoalId ?? `goal-${Date.now()}`,
       name: trimmedName,
       description: form.description.trim() || undefined,
       icon: form.icon,
       startingAmount,
-      targetAmount: previewTargetAmount,
+      targetAmount: hasTarget ? explicitTargetAmount : 0,
       hasTarget,
       deadline: form.dueDate || undefined,
       expectedContribution: form.targetMethod === 'contribution' && hasExpectedContribution
@@ -425,11 +514,24 @@ export function Goals() {
       isArchived: false,
     };
 
-    addGoal(newGoal);
+    if (editingGoalId) {
+      const existingGoal = goals.find((goalProgress) => goalProgress.goal.id === editingGoalId)?.goal;
+      if (!existingGoal) {
+        return;
+      }
+
+      updateGoal({
+        ...goalPayload,
+        createdAt: existingGoal.createdAt,
+        isArchived: existingGoal.isArchived,
+      });
+    } else {
+      addGoal(goalPayload);
+    }
+
     setGoals(getGoalProgress());
 
-    resetForm();
-    setIsCreateMenuOpen(false);
+    closeGoalForm();
   };
 
   return (
@@ -438,7 +540,7 @@ export function Goals() {
         <PageHeaderActions
           onImport={handleOpenImportPicker}
           onExport={handleExportGoals}
-          onCreate={() => setIsCreateMenuOpen(true)}
+          onCreate={openCreateGoalForm}
           importDisabled={isImporting}
           exportDisabled={goals.length === 0}
           importLabel={isImporting ? 'Importing...' : 'Import'}
@@ -460,15 +562,18 @@ export function Goals() {
       )}
 
       {isCreateMenuOpen && (
-        <section className="card p-5" style={{ marginTop: importError ? 0 : '-32px' }}>
-          <div className="section-header mb-4">
-            <h2 className="heading-3 text-text">Create Goal</h2>
-            <button className="btn-icon" onClick={() => setIsCreateMenuOpen(false)}>
-              <X size={16} />
-            </button>
-          </div>
+        <Modal onClose={closeGoalForm} panelClassName="max-w-3xl p-5">
+          <section>
+              <div className="section-header mb-4">
+                <h2 className="heading-3 text-text">
+                  {editingGoalId ? 'Edit Goal' : 'Create Goal'}
+                </h2>
+                <button className="btn-icon" onClick={closeGoalForm}>
+                  <X size={16} />
+                </button>
+              </div>
 
-          <form className="space-y-4" onSubmit={handleCreateGoal}>
+              <form className="space-y-4" onSubmit={handleCreateGoal}>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div>
                 <label className="label mb-1.5 block" htmlFor="goal-name">Goal name</label>
@@ -548,16 +653,16 @@ export function Goals() {
               </div>
             </div>
 
-            <div>
-              <label className="label mb-1.5 block" htmlFor="goal-description">Description</label>
-              <textarea
-                id="goal-description"
-                className="input min-h-20 resize-y"
-                placeholder="Why are you saving for this goal?"
-                value={form.description}
-                onChange={(event) => setForm((current) => ({ ...current, description: event.target.value }))}
-              />
-            </div>
+                <div>
+                  <label className="label mb-1.5 block" htmlFor="goal-description">Description</label>
+                  <textarea
+                    id="goal-description"
+                    className="w-full px-4 py-2.5 rounded-md bg-surface border border-border text-text placeholder:text-text-muted focus:outline-none focus:ring-1 focus:ring-text-muted focus:border-text-muted transition-all duration-150 leading-5 min-h-16 resize-y"
+                    placeholder="Why are you saving for this goal?"
+                    value={form.description}
+                    onChange={(event) => setForm((current) => ({ ...current, description: event.target.value }))}
+                  />
+                </div>
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div>
@@ -615,7 +720,7 @@ export function Goals() {
                   ].join(' ')}
                 >
                   <div className="text-body text-text font-medium">Contribution Plan</div>
-                  <div className="text-ui text-text-muted">Derive target from contribution schedule.</div>
+                  <div className="text-ui text-text-muted">Set a recurring contribution without a fixed target.</div>
                 </button>
               </div>
             </div>
@@ -682,35 +787,80 @@ export function Goals() {
             )}
 
             <div className="card p-3.5 bg-bg">
-              <div className="text-ui text-text-muted">Target preview</div>
-              <div className="text-body text-text mt-1">{formatCurrency(previewTargetAmount)}</div>
-              <div className="text-ui text-text-muted mt-2">Already saved: {formatCurrency(startingAmount)}</div>
-              <div className="text-ui text-text-muted">Left to save: {formatCurrency(amountLeftToSave)}</div>
-              {form.targetMethod === 'contribution' && (
-                <div className="text-ui text-text-muted mt-2">
-                  Horizon: {form.dueDate ? `until due date (${contributionPeriodsLabel})` : `default 12-month window (${contributionPeriodsLabel})`}
-                </div>
+              {form.targetMethod === 'fixed' ? (
+                <>
+                  <div className="text-ui text-text-muted">Target preview</div>
+                  <div className="text-body text-text mt-1">{formatCurrency(previewTargetAmount)}</div>
+                  <div className="text-ui text-text-muted mt-2">Already saved: {formatCurrency(startingAmount)}</div>
+                  <div className="text-ui text-text-muted">Left to save: {formatCurrency(amountLeftToSave)}</div>
+                </>
+              ) : (
+                <>
+                  <div className="text-ui text-text-muted">Contribution plan</div>
+                  <div className="text-body text-text mt-1">
+                    {formatCurrency(expectedContributionAmount)} {form.expectedContributionFrequency}
+                  </div>
+                  <div className="text-ui text-text-muted mt-2">
+                    Yearly contribution: {formatCurrency(yearlyContributionAmount)}
+                  </div>
+                  <div className="text-ui text-text-muted">
+                    Horizon: {form.dueDate ? `until due date (${contributionPeriodsLabel})` : `until year end (${contributionPeriodsLabel})`}
+                  </div>
+                  <div className="text-ui text-text-muted">
+                    Planned total in horizon: {formatCurrency(derivedContributionPlanAmount)}
+                  </div>
+                  <div className="text-ui text-text-muted">
+                    Current saved amount: {formatCurrency(startingAmount)}
+                  </div>
+                </>
               )}
             </div>
 
-            <div className="flex items-center justify-end gap-3">
-              <button
-                type="button"
-                className="btn-secondary"
-                onClick={() => {
-                  resetForm();
-                  setIsCreateMenuOpen(false);
-                }}
-              >
-                Cancel
+              <div className="flex items-center justify-end gap-3">
+                <button
+                  type="button"
+                  className="btn-secondary"
+                  onClick={closeGoalForm}
+                >
+                  Cancel
+                </button>
+              <button type="submit" className="btn-primary" disabled={!canSubmit}>
+                {editingGoalId ? 'Save Changes' : 'Create Goal'}
               </button>
-              <button type="submit" className="btn-primary" disabled={!canSubmit}>Create Goal</button>
             </div>
-          </form>
-        </section>
+              </form>
+          </section>
+        </Modal>
       )}
 
-      <div className="flex flex-wrap gap-8 mb-2" style={{ marginTop: isCreateMenuOpen || importError ? 0 : '-32px' }}>
+      {goalToDelete && (
+        <Modal onClose={closeDeleteGoalModal} panelClassName="max-w-md p-5 space-y-4">
+          <div>
+              <h2 className="heading-2">Delete goal?</h2>
+              <p className="text-body text-text-muted">
+                This will delete <span className="text-text">{goalToDelete.name}</span> and remove its goal link from related transactions.
+              </p>
+              <div className="flex items-center justify-end gap-2">
+                <button
+                  type="button"
+                  onClick={closeDeleteGoalModal}
+                  className="btn-secondary"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="button"
+                  onClick={handleConfirmDeleteGoal}
+                  className="btn-primary"
+                >
+                  Delete goal
+                </button>
+              </div>
+          </div>
+        </Modal>
+      )}
+
+      <div className="flex flex-wrap gap-8 mb-2">
         <div className="flex items-center gap-3">
           <div className="w-2 h-2 rounded-full bg-text-secondary" />
           <div className="flex flex-col gap-0.5">
@@ -753,10 +903,26 @@ export function Goals() {
 
       <div className="flex flex-col gap-4">
         {goals.map((gp) => {
-          const goalTransactions = allTransactions
-            .filter((tx) => tx.goalId === gp.goal.id)
-            .slice(0, 4);
+          const allGoalTransactions = allTransactions.filter((tx) => tx.goalId === gp.goal.id);
+          const goalTransactions = allGoalTransactions.slice(0, 4);
           const isOpenEnded = gp.goal.hasTarget === false;
+          const isContributionPlan = Boolean(gp.goal.expectedContribution);
+          const shouldShowProgressBar = !isOpenEnded || isContributionPlan;
+          const yearlyPlanAmount = gp.goal.expectedContribution
+            ? getYearlyContribution(
+              gp.goal.expectedContribution.frequency,
+              gp.goal.expectedContribution.amount,
+            )
+            : 0;
+          const currentYear = new Date().getFullYear();
+          const yearStart = `${currentYear}-01-01`;
+          const yearEnd = `${currentYear}-12-31`;
+          const yearToDateContribution = allGoalTransactions
+            .filter((transaction) => transaction.date >= yearStart && transaction.date <= yearEnd)
+            .reduce((sum, transaction) => sum + transaction.amount, 0);
+          const yearlyPlanProgress = yearlyPlanAmount > 0
+            ? Math.max(0, Math.min((yearToDateContribution / yearlyPlanAmount) * 100, 999))
+            : 0;
 
           return (
             <div
@@ -783,17 +949,37 @@ export function Goals() {
                     )}
                   </div>
                 </div>
-                <div className="text-right">
-                  <div
-                    className="text-body font-medium text-text"
-                    style={{ fontFamily: 'var(--font-display)' }}
-                  >
-                    {isOpenEnded ? 'Open' : `${gp.percentage.toFixed(0)}%`}
+                <div className="flex items-center gap-3">
+                  <div className="text-right">
+                    <div
+                      className="text-body font-medium text-text"
+                      style={{ fontFamily: 'var(--font-display)' }}
+                    >
+                      {isContributionPlan
+                        ? `${gp.percentage.toFixed(0)}%`
+                        : (isOpenEnded ? 'Open' : `${gp.percentage.toFixed(0)}%`)}
+                    </div>
                   </div>
+                  <button
+                    type="button"
+                    className="btn-icon"
+                    onClick={() => openEditGoalForm(gp.goal)}
+                    title={`Edit goal ${gp.goal.name}`}
+                  >
+                    <Pencil size={14} />
+                  </button>
+                  <button
+                    type="button"
+                    className="btn-icon text-text-muted hover:text-expense"
+                    onClick={() => requestDeleteGoal(gp.goal)}
+                    title={`Delete goal ${gp.goal.name}`}
+                  >
+                    <Trash2 size={14} />
+                  </button>
                 </div>
               </div>
 
-              {!isOpenEnded && (
+              {shouldShowProgressBar && (
                 <div className="h-1.5 bg-border rounded-full overflow-hidden mb-3">
                   <div
                     className="h-full rounded-full transition-[width] duration-400 ease-out bg-goal"
@@ -806,8 +992,10 @@ export function Goals() {
                 <span className={gp.currentAmount < 0 ? 'text-expense' : 'text-text-secondary'}>
                   {formatCurrency(gp.currentAmount)} saved
                 </span>
-                {isOpenEnded ? (
-                  <span className="text-text-muted">No fixed target</span>
+                {isContributionPlan ? (
+                  <span className="text-text-muted">Contribution plan</span>
+                ) : isOpenEnded ? (
+                  <span className="text-text-muted">Open-ended goal</span>
                 ) : (
                   <span className="text-text-muted">
                     of {formatCurrency(gp.goal.targetAmount)}
@@ -818,6 +1006,10 @@ export function Goals() {
               {gp.goal.expectedContribution && (
                 <div className="text-ui text-text-muted mb-4">
                   Planned contribution: {formatCurrency(gp.goal.expectedContribution.amount)} {gp.goal.expectedContribution.frequency}
+                  {' '}
+                  · {formatCurrency(yearlyPlanAmount)} yearly
+                  {' '}
+                  · This year: {formatCurrency(yearToDateContribution)} ({yearlyPlanProgress.toFixed(0)}%)
                 </div>
               )}
 

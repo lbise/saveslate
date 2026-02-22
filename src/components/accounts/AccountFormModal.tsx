@@ -2,7 +2,7 @@ import { useMemo, useState, type FormEvent } from 'react';
 import * as LucideIcons from 'lucide-react';
 import { ChevronDown, Search, X } from 'lucide-react';
 import { getCurrencyOptionsWithFallback } from '../../lib/currencies';
-import { Icon } from '../ui';
+import { Icon, Modal } from '../ui';
 import {
   ACCOUNT_TYPE_DEFAULT_ICONS,
   ACCOUNT_TYPE_LABELS,
@@ -61,10 +61,8 @@ export function AccountFormModal({
   };
 
   return (
-    <>
-      <div className="fixed inset-0 z-30 bg-bg/70" onClick={onCancel} />
-      <div className="fixed inset-0 z-40 flex items-center justify-center p-4">
-        <section className="card w-full max-w-xl p-5">
+    <Modal onClose={onCancel} panelClassName="max-w-xl p-5">
+      <section>
           <div className="section-header mb-4">
             <h2 className="heading-3 text-text">
               {isEditing ? 'Edit Account' : 'Create Account'}
@@ -264,8 +262,7 @@ export function AccountFormModal({
               </button>
             </div>
           </form>
-        </section>
-      </div>
-    </>
+      </section>
+    </Modal>
   );
 }

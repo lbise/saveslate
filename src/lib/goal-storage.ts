@@ -2,41 +2,6 @@ import type { Goal } from '../types';
 
 const GOALS_KEY = 'melomoney:goals';
 
-function monthsFromNow(months: number): string {
-  const date = new Date();
-  date.setMonth(date.getMonth() + months);
-  return date.toISOString().split('T')[0];
-}
-
-function daysAgo(days: number): string {
-  const date = new Date();
-  date.setDate(date.getDate() - days);
-  return date.toISOString().split('T')[0];
-}
-
-function getDefaultGoals(): Goal[] {
-  return [
-    {
-      id: 'goal-1',
-      name: 'Summer Vacation',
-      icon: 'Palmtree',
-      targetAmount: 3000,
-      deadline: monthsFromNow(6),
-      createdAt: daysAgo(60),
-      isArchived: false,
-    },
-    {
-      id: 'goal-2',
-      name: 'New Laptop',
-      icon: 'Laptop',
-      targetAmount: 2000,
-      deadline: monthsFromNow(3),
-      createdAt: daysAgo(30),
-      isArchived: false,
-    },
-  ];
-}
-
 function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === 'object' && value !== null;
 }
@@ -101,6 +66,12 @@ function parseGoal(value: unknown): Goal | null {
     }
   }
 
+  // Contribution-plan goals are open-ended by design.
+  if (parsedGoal.expectedContribution) {
+    parsedGoal.hasTarget = false;
+    parsedGoal.targetAmount = 0;
+  }
+
   return parsedGoal;
 }
 
@@ -121,16 +92,16 @@ export function loadGoals(): Goal[] {
   try {
     const raw = localStorage.getItem(GOALS_KEY);
     if (!raw) {
-      const defaults = getDefaultGoals();
-      saveGoals(defaults);
-      return defaults;
+      const emptyGoals: Goal[] = [];
+      saveGoals(emptyGoals);
+      return emptyGoals;
     }
 
     const parsed = JSON.parse(raw) as unknown;
     if (!Array.isArray(parsed)) {
-      const defaults = getDefaultGoals();
-      saveGoals(defaults);
-      return defaults;
+      const emptyGoals: Goal[] = [];
+      saveGoals(emptyGoals);
+      return emptyGoals;
     }
 
     const goals = parsed
@@ -143,9 +114,9 @@ export function loadGoals(): Goal[] {
 
     return goals;
   } catch {
-    const defaults = getDefaultGoals();
-    saveGoals(defaults);
-    return defaults;
+    const emptyGoals: Goal[] = [];
+    saveGoals(emptyGoals);
+    return emptyGoals;
   }
 }
 
@@ -192,4 +163,27 @@ export function mergeGoals(incomingGoals: Goal[]): Goal[] {
 
   saveGoals(merged);
   return merged;
+}
+
+export function updateGoal(updatedGoal: Goal): Goal | null {
+  const goals = loadGoals();
+  const goalIndex = goals.findIndex((goal) => goal.id === updatedGoal.id);
+  if (goalIndex === -1) {
+    return null;
+  }
+
+  goals[goalIndex] = updatedGoal;
+  saveGoals(goals);
+  return updatedGoal;
+}
+
+export function deleteGoal(goalId: string): boolean {
+  const goals = loadGoals();
+  const nextGoals = goals.filter((goal) => goal.id !== goalId);
+  if (nextGoals.length === goals.length) {
+    return false;
+  }
+
+  saveGoals(nextGoals);
+  return true;
 }

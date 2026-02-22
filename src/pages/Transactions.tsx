@@ -14,7 +14,7 @@ import {
 } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { PageHeader, PageHeaderActions } from "../components/layout";
-import { Badge, CategoryPicker, GoalPicker, Icon, PaginationButtons } from "../components/ui";
+import { Badge, CategoryPicker, GoalPicker, Icon, Modal, PaginationButtons } from "../components/ui";
 import {
   getAccountById,
   getCategoryById,
@@ -299,7 +299,7 @@ export function Transactions() {
     const prefillDraft: AutomationRulePrefillDraft = {
       name: transaction.categoryId === UNCATEGORIZED_CATEGORY_ID
         ? ''
-        : `Auto category: ${transaction.category.name}`,
+        : `Rule: ${transaction.category.name}`,
       categoryId: prefillCategoryId,
       isEnabled: true,
       triggers: ['on-import', 'manual-run'],
@@ -629,13 +629,8 @@ export function Transactions() {
       )}
 
       {sourceToDelete && (
-        <>
-          <div
-            className="fixed inset-0 z-30 bg-bg/70"
-            onClick={() => setSourceToDelete(null)}
-          />
-          <div className="fixed inset-0 z-40 flex items-center justify-center p-4">
-            <div className="card w-full max-w-md p-5 space-y-4">
+        <Modal onClose={() => setSourceToDelete(null)} panelClassName="max-w-md p-5 space-y-4">
+          <div>
               <h2 className="heading-2">Delete source?</h2>
               <p className="text-body">
                 This will permanently delete <span className="text-text">{sourceToDelete.label}</span> and
@@ -658,22 +653,19 @@ export function Transactions() {
                   Delete source
                 </button>
               </div>
-            </div>
           </div>
-        </>
+        </Modal>
       )}
 
       {sourceToRename && (
-        <>
-          <div
-            className="fixed inset-0 z-30 bg-bg/70"
-            onClick={() => {
-              setSourceToRename(null);
-              setSourceRenameValue("");
-            }}
-          />
-          <div className="fixed inset-0 z-40 flex items-center justify-center p-4">
-            <div className="card w-full max-w-md p-5 space-y-4">
+        <Modal
+          onClose={() => {
+            setSourceToRename(null);
+            setSourceRenameValue("");
+          }}
+          panelClassName="max-w-md p-5 space-y-4"
+        >
+          <div>
               <h2 className="heading-2">Rename source</h2>
               <div className="space-y-2">
                 <label className="label" htmlFor="rename-source-input">
@@ -711,9 +703,8 @@ export function Transactions() {
                   Save name
                 </button>
               </div>
-            </div>
           </div>
-        </>
+        </Modal>
       )}
 
       {/* Header */}
@@ -1013,7 +1004,7 @@ export function Transactions() {
               onToggleEditGoal={() => toggleEditGoal(tx.id)}
               onCategoryChange={(catId) => handleCategoryChange(tx.id, catId)}
               onGoalChange={(goalId) => handleGoalChange(tx.id, goalId)}
-              onAddToAutoCategorization={() => openQuickAutoRuleModal(tx)}
+              onCreateRule={() => openQuickAutoRuleModal(tx)}
               onAction={(action) => handleAction(tx.id, action)}
             />
           ))
@@ -1059,7 +1050,7 @@ interface TransactionRowProps {
   onToggleEditGoal: () => void;
   onCategoryChange: (categoryId: string) => void;
   onGoalChange: (goalId: string | null) => void;
-  onAddToAutoCategorization: () => void;
+  onCreateRule: () => void;
   onAction: (action: "edit" | "duplicate" | "delete") => void;
 }
 
@@ -1073,7 +1064,7 @@ function TransactionRow({
   onToggleEditGoal,
   onCategoryChange,
   onGoalChange,
-  onAddToAutoCategorization,
+  onCreateRule,
   onAction,
 }: TransactionRowProps) {
   const type = transaction.category.type;
@@ -1195,7 +1186,7 @@ function TransactionRow({
                 onAction={onAction}
                 onEditGoal={onToggleEditGoal}
                 onRemoveGoal={() => onGoalChange(null)}
-                onAddToAutoCategorization={onAddToAutoCategorization}
+                onCreateRule={onCreateRule}
                 hasGoal={Boolean(transaction.goalId)}
                 className="right-0"
               />
@@ -1300,14 +1291,14 @@ function TransactionRow({
             <MoreHorizontal size={14} />
           </button>
           {isActionOpen && (
-            <ActionMenu
-              onAction={onAction}
-              onEditGoal={onToggleEditGoal}
-              onRemoveGoal={() => onGoalChange(null)}
-              onAddToAutoCategorization={onAddToAutoCategorization}
-              hasGoal={Boolean(transaction.goalId)}
-              className="right-0"
-            />
+              <ActionMenu
+                onAction={onAction}
+                onEditGoal={onToggleEditGoal}
+                onRemoveGoal={() => onGoalChange(null)}
+                onCreateRule={onCreateRule}
+                hasGoal={Boolean(transaction.goalId)}
+                className="right-0"
+              />
           )}
           {isEditingGoal && (
             <GoalPicker
@@ -1331,7 +1322,7 @@ interface ActionMenuProps {
   onAction: (action: "edit" | "duplicate" | "delete") => void;
   onEditGoal: () => void;
   onRemoveGoal: () => void;
-  onAddToAutoCategorization: () => void;
+  onCreateRule: () => void;
   hasGoal: boolean;
   className?: string;
 }
@@ -1340,7 +1331,7 @@ function ActionMenu({
   onAction,
   onEditGoal,
   onRemoveGoal,
-  onAddToAutoCategorization,
+  onCreateRule,
   hasGoal,
   className,
 }: ActionMenuProps) {
@@ -1372,11 +1363,11 @@ function ActionMenu({
         </button>
       )}
       <button
-        onClick={onAddToAutoCategorization}
+        onClick={onCreateRule}
         className={cn(itemClass, "text-text-secondary hover:text-text")}
       >
         <Filter size={12} />
-        Add to auto-categorization
+        Create rule
       </button>
       <div className="h-px bg-border mx-2 my-1" />
       <button

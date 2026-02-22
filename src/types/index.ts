@@ -113,9 +113,16 @@ export interface AutomationCondition {
 export interface SetCategoryAutomationAction {
   type: 'set-category';
   categoryId: string;
+  overwriteExisting?: boolean;
 }
 
-export type AutomationAction = SetCategoryAutomationAction;
+export interface SetGoalAutomationAction {
+  type: 'set-goal';
+  goalId: string;
+  overwriteExisting?: boolean;
+}
+
+export type AutomationAction = SetCategoryAutomationAction | SetGoalAutomationAction;
 
 export interface AutomationRule {
   id: string;
@@ -124,7 +131,7 @@ export interface AutomationRule {
   triggers: AutomationTrigger[];
   matchMode: AutomationMatchMode;
   conditions: AutomationCondition[];
-  action: AutomationAction;
+  actions: AutomationAction[];
   applyToUncategorizedOnly?: boolean;
   createdAt: string;
   updatedAt: string;

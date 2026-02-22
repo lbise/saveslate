@@ -9,3 +9,4 @@ export { TransactionItem } from './TransactionItem';
 export { GoalCard } from './GoalCard';
 export { ActionCard } from './ActionCard';
 export { PaginationButtons } from './PaginationButtons';
+export { Modal } from './Modal';

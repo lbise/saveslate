@@ -132,13 +132,56 @@ export const getCategorySpending = (): CategorySpending[] => {
 export const getGoalProgress = (): GoalProgress[] => {
   const transactions = getTransactionsSorted();
 
+  const getContributionPeriods = (
+    frequency: 'weekly' | 'monthly',
+    dueDate?: string,
+  ): number => {
+    const now = new Date();
+    const startDate = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+    const effectiveDueDate = dueDate
+      ? new Date(`${dueDate}T00:00:00`)
+      : new Date(startDate.getFullYear(), 11, 31);
+
+    if (Number.isNaN(effectiveDueDate.getTime()) || effectiveDueDate <= startDate) {
+      return 1;
+    }
+
+    if (frequency === 'weekly') {
+      const millisecondsPerDay = 1000 * 60 * 60 * 24;
+      const dayDiff = Math.floor((effectiveDueDate.getTime() - startDate.getTime()) / millisecondsPerDay);
+      return Math.max(1, Math.floor(dayDiff / 7));
+    }
+
+    const monthDiff =
+      (effectiveDueDate.getFullYear() - startDate.getFullYear()) * 12
+      + effectiveDueDate.getMonth()
+      - startDate.getMonth();
+    const adjustedMonthDiff = effectiveDueDate.getDate() < startDate.getDate()
+      ? monthDiff - 1
+      : monthDiff;
+    return Math.max(1, adjustedMonthDiff);
+  };
+
   return getActiveGoals().map((goal) => {
     // Find all transactions directly linked to this goal
     const goalTransactions = transactions.filter((t) => t.goalId === goal.id);
 
     const startingAmount = goal.startingAmount ?? 0;
     const currentAmount = startingAmount + goalTransactions.reduce((sum, t) => sum + t.amount, 0);
-    const rawPercentage = goal.targetAmount > 0 ? (currentAmount / goal.targetAmount) * 100 : 0;
+
+    let rawPercentage = goal.targetAmount > 0 ? (currentAmount / goal.targetAmount) * 100 : 0;
+    if (goal.expectedContribution && goal.expectedContribution.amount > 0) {
+      const contributionPeriods = getContributionPeriods(
+        goal.expectedContribution.frequency,
+        goal.deadline,
+      );
+      const contributionTarget = goal.expectedContribution.amount * contributionPeriods;
+      const contributionProgress = currentAmount - startingAmount;
+      rawPercentage = contributionTarget > 0
+        ? (contributionProgress / contributionTarget) * 100
+        : 0;
+    }
+
     const percentage = Math.max(0, Math.min(rawPercentage, 100));
 
     return {

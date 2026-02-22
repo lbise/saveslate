@@ -9,7 +9,7 @@ import {
   type AccountFormSubmitPayload,
 } from '../components/accounts';
 import { PageHeader, PageHeaderActions } from '../components/layout';
-import { Icon } from '../components/ui';
+import { Icon, Modal } from '../components/ui';
 import {
   addAccount,
   deleteAccount,
@@ -288,13 +288,8 @@ export function Accounts() {
       )}
 
       {accountToDelete && (
-        <>
-          <div
-            className="fixed inset-0 z-30 bg-bg/70"
-            onClick={() => setAccountToDelete(null)}
-          />
-          <div className="fixed inset-0 z-40 flex items-center justify-center p-4">
-            <div className="card w-full max-w-md p-5 space-y-4">
+        <Modal onClose={() => setAccountToDelete(null)} panelClassName="max-w-md p-5 space-y-4">
+          <div>
               <h2 className="heading-2">Delete account?</h2>
               <p className="text-body">
                 This will permanently delete <span className="text-text">{accountToDelete.name}</span>.
@@ -323,9 +318,8 @@ export function Accounts() {
                   Delete account
                 </button>
               </div>
-            </div>
           </div>
-        </>
+        </Modal>
       )}
 
       {isCreateModalOpen && (
