@@ -11,14 +11,21 @@ import {
   Trash2,
   Users,
   ChevronDown,
+  X,
+  SlidersHorizontal,
+  Tag,
+  Wallet,
+  Upload,
 } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { PageHeader, PageHeaderActions } from "../components/layout";
-import { Badge, CategoryPicker, GoalPicker, Icon, Modal, PaginationButtons } from "../components/ui";
+import { Badge, CategoryPicker, GoalPicker, Icon, Modal, MultiSelectDropdown, PaginationButtons } from "../components/ui";
 import {
   getAccountById,
+  getAccounts,
   getCategoryById,
   getGoalById,
+  getGoals,
   CATEGORIES,
 } from "../data/mock";
 import {
@@ -161,11 +168,20 @@ export function Transactions() {
   // Filters
   const [searchQuery, setSearchQuery] = useState("");
   const [typeFilter, setTypeFilter] = useState<TransactionType | "all">("all");
-  const [categoryFilter, setCategoryFilter] = useState<string | null>(null);
+  const [categoryFilterIds, setCategoryFilterIds] = useState<string[]>([]);
   const [sourceFilterIds, setSourceFilterIds] = useState<string[]>([]);
   const [showUncategorizedOnly, setShowUncategorizedOnly] = useState(false);
   const [sortField, setSortField] = useState<SortField>("date");
   const [sortDirection, setSortDirection] = useState<SortDirection>("desc");
+
+  // Advanced filters
+  const [showAdvancedFilters, setShowAdvancedFilters] = useState(false);
+  const [goalFilterIds, setGoalFilterIds] = useState<string[]>([]);
+  const [accountFilterIds, setAccountFilterIds] = useState<string[]>([]);
+  const [dateFrom, setDateFrom] = useState("");
+  const [dateTo, setDateTo] = useState("");
+  const [amountMin, setAmountMin] = useState("");
+  const [amountMax, setAmountMax] = useState("");
 
   // Pagination state
   const [page, setPage] = useState(0);
@@ -188,8 +204,14 @@ export function Transactions() {
   }, [
     searchQuery,
     typeFilter,
-    categoryFilter,
+    categoryFilterIds,
     sourceFilterIds,
+    goalFilterIds,
+    accountFilterIds,
+    dateFrom,
+    dateTo,
+    amountMin,
+    amountMax,
     showUncategorizedOnly,
     sortField,
     sortDirection,
@@ -363,6 +385,28 @@ export function Transactions() {
     return CATEGORIES.filter((c) => c.type === typeFilter);
   }, [typeFilter]);
 
+  const categoryOptions = useMemo(
+    () =>
+      availableCategories.map((c) => ({
+        id: c.id,
+        label: c.name,
+        group: c.type.charAt(0).toUpperCase() + c.type.slice(1),
+      })),
+    [availableCategories],
+  );
+
+  const goalOptions = useMemo(
+    () => getGoals().map((g) => ({ id: g.id, label: g.name })),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [transactions],
+  );
+
+  const accountOptions = useMemo(
+    () => getAccounts().map((a) => ({ id: a.id, label: a.name })),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [transactions],
+  );
+
   // Import batches for source filtering
   const [importBatches, setImportBatches] = useState<ImportBatch[]>(() => {
     pruneEmptyImportBatches();
@@ -421,7 +465,7 @@ export function Transactions() {
   );
 
   const sourceFilterLabel = useMemo(() => {
-    if (activeSourceFilterIds.length === 0) return "All Sources";
+    if (activeSourceFilterIds.length === 0) return "Sources";
     if (activeSourceFilterIds.length === 1) {
       return sourceOptions.find((option) => option.id === activeSourceFilterIds[0])?.label
         ?? "1 source selected";
@@ -516,8 +560,9 @@ export function Transactions() {
       result = result.filter((t) => t.category.type === typeFilter);
     }
 
-    if (categoryFilter) {
-      result = result.filter((t) => t.categoryId === categoryFilter);
+    if (categoryFilterIds.length > 0) {
+      const selected = new Set(categoryFilterIds);
+      result = result.filter((t) => selected.has(t.categoryId));
     }
 
     if (activeSourceFilterIds.length > 0) {
@@ -527,13 +572,51 @@ export function Transactions() {
       );
     }
 
+    if (goalFilterIds.length > 0) {
+      const selected = new Set(goalFilterIds);
+      result = result.filter((t) => t.goalId && selected.has(t.goalId));
+    }
+
+    if (accountFilterIds.length > 0) {
+      const selected = new Set(accountFilterIds);
+      result = result.filter(
+        (t) => selected.has(t.accountId) || (t.destinationAccountId && selected.has(t.destinationAccountId)),
+      );
+    }
+
+    if (dateFrom) {
+      result = result.filter((t) => t.date >= dateFrom);
+    }
+    if (dateTo) {
+      result = result.filter((t) => t.date <= dateTo);
+    }
+
+    if (amountMin) {
+      const min = parseFloat(amountMin);
+      if (!Number.isNaN(min)) {
+        result = result.filter((t) => Math.abs(t.amount) >= min);
+      }
+    }
+    if (amountMax) {
+      const max = parseFloat(amountMax);
+      if (!Number.isNaN(max)) {
+        result = result.filter((t) => Math.abs(t.amount) <= max);
+      }
+    }
+
     return result;
   }, [
     transactions,
     searchQuery,
     typeFilter,
-    categoryFilter,
+    categoryFilterIds,
     activeSourceFilterIds,
+    goalFilterIds,
+    accountFilterIds,
+    dateFrom,
+    dateTo,
+    amountMin,
+    amountMax,
   ]);
 
   const uncategorizedCount = useMemo(
@@ -578,6 +661,33 @@ export function Transactions() {
     }
   };
 
+  const advancedFilterCount =
+    (dateFrom ? 1 : 0) +
+    (dateTo ? 1 : 0) +
+    (amountMin ? 1 : 0) +
+    (amountMax ? 1 : 0);
+
+  const hasAnyFilter =
+    categoryFilterIds.length > 0 ||
+    activeSourceFilterIds.length > 0 ||
+    typeFilter !== "all" ||
+    searchQuery !== "" ||
+    advancedFilterCount > 0;
+
+  const clearAllFilters = () => {
+    setSearchQuery("");
+    setTypeFilter("all");
+    setCategoryFilterIds([]);
+    setSourceFilterIds([]);
+    setGoalFilterIds([]);
+    setAccountFilterIds([]);
+    setDateFrom("");
+    setDateTo("");
+    setAmountMin("");
+    setAmountMax("");
+    setShowUncategorizedOnly(false);
+  };
+
   const totalIncome = filteredTransactions
     .filter((t) => t.category.type === "income")
     .reduce((sum, t) => sum + Math.abs(t.amount), 0);
@@ -608,8 +718,14 @@ export function Transactions() {
         filters: {
           searchQuery,
           type: typeFilter,
-          categoryId: categoryFilter,
+          categoryIds: categoryFilterIds,
           sourceIds: activeSourceFilterIds,
+          goalIds: goalFilterIds,
+          accountIds: accountFilterIds,
+          dateFrom: dateFrom || undefined,
+          dateTo: dateTo || undefined,
+          amountMin: amountMin || undefined,
+          amountMax: amountMax || undefined,
           uncategorizedOnly: showUncategorizedOnly,
           sortField,
           sortDirection,
@@ -818,39 +934,53 @@ export function Transactions() {
       </div>
 
       {/* Filters */}
-      <div className="space-y-4">
-        {/* Row 1: Search + Category dropdown + Source dropdown */}
+      <div className="space-y-3">
+        {/* Row 1: Search (full width) */}
+        <div className="relative">
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-text-muted" />
+          <input
+            type="text"
+            placeholder="Search transactions..."
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+            className="input pl-10"
+          />
+        </div>
+
+        {/* Row 2: 4 multi-select dropdowns + Filters toggle */}
         <div className="flex flex-col lg:flex-row gap-3">
-          {/* Search */}
-          <div className="flex-1 relative">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-text-muted" />
-            <input
-              type="text"
-              placeholder="Search transactions..."
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              className="input pl-10"
-            />
-          </div>
+          {/* Category multi-select */}
+          <MultiSelectDropdown
+            options={categoryOptions}
+            selectedIds={categoryFilterIds}
+            onChange={setCategoryFilterIds}
+            allLabel="Categories"
+            icon={<Tag size={14} />}
+            className="w-full lg:flex-1 lg:min-w-0"
+          />
 
-          {/* Category dropdown */}
-          <select
-            value={categoryFilter ?? ""}
-            onChange={(e) =>
-              setCategoryFilter(e.target.value === "" ? null : e.target.value)
-            }
-            className="select w-full lg:w-48"
-          >
-            <option value="">All Categories</option>
-            {availableCategories.map((cat) => (
-              <option key={cat.id} value={cat.id}>
-                {cat.name}
-              </option>
-            ))}
-          </select>
+          {/* Goal multi-select */}
+          <MultiSelectDropdown
+            options={goalOptions}
+            selectedIds={goalFilterIds}
+            onChange={setGoalFilterIds}
+            allLabel="Goals"
+            icon={<Target size={14} />}
+            className="w-full lg:flex-1 lg:min-w-0"
+          />
 
-          {/* Source filter dropdown */}
-          <div className="relative w-full lg:w-72">
+          {/* Account multi-select */}
+          <MultiSelectDropdown
+            options={accountOptions}
+            selectedIds={accountFilterIds}
+            onChange={setAccountFilterIds}
+            allLabel="Accounts"
+            icon={<Wallet size={14} />}
+            className="w-full lg:flex-1 lg:min-w-0"
+          />
+
+          {/* Source filter dropdown (custom — has rename/delete actions) */}
+          <div className="relative w-full lg:flex-1 lg:min-w-0">
             <button
               type="button"
               onClick={() => {
@@ -859,9 +989,15 @@ export function Transactions() {
                 setEditingGoalId(null);
                 setIsSourceMenuOpen((prev) => !prev);
               }}
-              className="select flex items-center justify-between text-left"
+              className={cn(
+                "select flex items-center gap-2 text-left w-full pr-3",
+                activeSourceFilterIds.length > 0 && "border-accent/40",
+              )}
             >
-              <span className="truncate">{sourceFilterLabel}</span>
+              <span className={cn("shrink-0", activeSourceFilterIds.length > 0 ? "text-accent" : "text-text-muted")}>
+                <Upload size={14} />
+              </span>
+              <span className="flex-1 truncate">{sourceFilterLabel}</span>
               <ChevronDown
                 size={14}
                 className={cn(
@@ -892,7 +1028,7 @@ export function Transactions() {
                       onChange={() => setSourceFilterIds([])}
                       className="cursor-pointer accent-text"
                     />
-                    <span className="text-ui flex-1 truncate">All Sources</span>
+                    <span className="text-ui flex-1 truncate">Sources</span>
                   </label>
 
                   <div className="h-px bg-border mx-1 my-1" />
@@ -952,9 +1088,80 @@ export function Transactions() {
               </>
             )}
           </div>
+
+          {/* Advanced filters toggle */}
+          <button
+            type="button"
+            onClick={() => setShowAdvancedFilters((prev) => !prev)}
+            className={cn(
+              "btn-ghost flex items-center gap-2 shrink-0",
+              showAdvancedFilters && "text-accent",
+            )}
+          >
+            <SlidersHorizontal size={16} />
+            <span className="text-ui font-medium">Filters</span>
+            {advancedFilterCount > 0 && (
+              <span className="badge-accent">{advancedFilterCount}</span>
+            )}
+          </button>
         </div>
 
-        {/* Row 2: Type filter pills */}
+        {/* Advanced filters panel (date range + amount range only) */}
+        {showAdvancedFilters && (
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 p-4 bg-surface border border-border rounded-(--radius-md)">
+            {/* Date from */}
+            <div className="flex flex-col gap-1">
+              <label className="text-ui text-text-muted">From date</label>
+              <input
+                type="date"
+                value={dateFrom}
+                onChange={(e) => setDateFrom(e.target.value)}
+                className="input"
+              />
+            </div>
+
+            {/* Date to */}
+            <div className="flex flex-col gap-1">
+              <label className="text-ui text-text-muted">To date</label>
+              <input
+                type="date"
+                value={dateTo}
+                onChange={(e) => setDateTo(e.target.value)}
+                className="input"
+              />
+            </div>
+
+            {/* Amount min */}
+            <div className="flex flex-col gap-1">
+              <label className="text-ui text-text-muted">Min amount</label>
+              <input
+                type="number"
+                placeholder="0.00"
+                value={amountMin}
+                onChange={(e) => setAmountMin(e.target.value)}
+                className="input"
+                min="0"
+                step="0.01"
+              />
+            </div>
+
+            {/* Amount max */}
+            <div className="flex flex-col gap-1">
+              <label className="text-ui text-text-muted">Max amount</label>
+              <input
+                type="number"
+                placeholder="0.00"
+                value={amountMax}
+                onChange={(e) => setAmountMax(e.target.value)}
+                className="input"
+                min="0"
+                step="0.01"
+              />
+            </div>
+          </div>
+        )}
+
+        {/* Row 3: Type filter pills + active filter badges */}
         <div className="flex items-center gap-2 flex-wrap">
           {TYPE_LABELS.map((t) => {
             const isActive = typeFilter === t.value;
@@ -963,7 +1170,7 @@ export function Transactions() {
                 key={t.value}
                 onClick={() => {
                   setTypeFilter(t.value);
-                  setCategoryFilter(null);
+                  setCategoryFilterIds([]);
                 }}
                 className={cn(
                   "px-3 py-1.5 rounded-full text-sm font-medium transition-all duration-150 border cursor-pointer",
@@ -978,6 +1185,85 @@ export function Transactions() {
               </button>
             );
           })}
+
+          {/* Active filter badges */}
+          {categoryFilterIds.length > 0 && (
+            <button
+              type="button"
+              onClick={() => setCategoryFilterIds([])}
+              className="flex items-center gap-1 px-2 py-1 rounded-full text-sm bg-accent/10 text-accent border border-accent/20 cursor-pointer transition-opacity hover:opacity-80"
+            >
+              {categoryFilterIds.length === 1
+                ? (availableCategories.find((c) => c.id === categoryFilterIds[0])?.name ?? "1 category")
+                : `${categoryFilterIds.length} categories`}
+              <X size={12} />
+            </button>
+          )}
+          {goalFilterIds.length > 0 && (
+            <button
+              type="button"
+              onClick={() => setGoalFilterIds([])}
+              className="flex items-center gap-1 px-2 py-1 rounded-full text-sm bg-accent/10 text-accent border border-accent/20 cursor-pointer transition-opacity hover:opacity-80"
+            >
+              {goalFilterIds.length === 1
+                ? (goalOptions.find((g) => g.id === goalFilterIds[0])?.label ?? "1 goal")
+                : `${goalFilterIds.length} goals`}
+              <X size={12} />
+            </button>
+          )}
+          {accountFilterIds.length > 0 && (
+            <button
+              type="button"
+              onClick={() => setAccountFilterIds([])}
+              className="flex items-center gap-1 px-2 py-1 rounded-full text-sm bg-accent/10 text-accent border border-accent/20 cursor-pointer transition-opacity hover:opacity-80"
+            >
+              {accountFilterIds.length === 1
+                ? (accountOptions.find((a) => a.id === accountFilterIds[0])?.label ?? "1 account")
+                : `${accountFilterIds.length} accounts`}
+              <X size={12} />
+            </button>
+          )}
+          {activeSourceFilterIds.length > 0 && (
+            <button
+              type="button"
+              onClick={() => setSourceFilterIds([])}
+              className="flex items-center gap-1 px-2 py-1 rounded-full text-sm bg-accent/10 text-accent border border-accent/20 cursor-pointer transition-opacity hover:opacity-80"
+            >
+              {activeSourceFilterIds.length === 1
+                ? (sourceOptions.find((s) => s.id === activeSourceFilterIds[0])?.label ?? "1 source")
+                : `${activeSourceFilterIds.length} sources`}
+              <X size={12} />
+            </button>
+          )}
+          {(dateFrom || dateTo) && (
+            <button
+              type="button"
+              onClick={() => { setDateFrom(""); setDateTo(""); }}
+              className="flex items-center gap-1 px-2 py-1 rounded-full text-sm bg-accent/10 text-accent border border-accent/20 cursor-pointer transition-opacity hover:opacity-80"
+            >
+              {dateFrom && dateTo ? `${dateFrom} - ${dateTo}` : dateFrom ? `From ${dateFrom}` : `To ${dateTo}`}
+              <X size={12} />
+            </button>
+          )}
+          {(amountMin || amountMax) && (
+            <button
+              type="button"
+              onClick={() => { setAmountMin(""); setAmountMax(""); }}
+              className="flex items-center gap-1 px-2 py-1 rounded-full text-sm bg-accent/10 text-accent border border-accent/20 cursor-pointer transition-opacity hover:opacity-80"
+            >
+              {amountMin && amountMax ? `${amountMin} - ${amountMax}` : amountMin ? `Min ${amountMin}` : `Max ${amountMax}`}
+              <X size={12} />
+            </button>
+          )}
+          {hasAnyFilter && (
+            <button
+              type="button"
+              onClick={clearAllFilters}
+              className="text-ui text-text-muted hover:text-text cursor-pointer bg-transparent border-none px-1 transition-colors"
+            >
+              Clear all
+            </button>
+          )}
         </div>
       </div>
 
