@@ -31,11 +31,13 @@ export const CATEGORIES: Category[] = [
 
   // Transfer categories
   { id: 'transfer', name: 'Transfer', type: 'transfer', icon: 'ArrowLeftRight', isDefault: true },
+  { id: 'savings-transfer', name: 'Savings', type: 'transfer', icon: 'PiggyBank', isDefault: true },
+  { id: 'investment-transfer', name: 'Investments', type: 'transfer', icon: 'TrendingUp', isDefault: true },
+  { id: 'retirement-transfer', name: 'Retirement', type: 'transfer', icon: 'Landmark', isDefault: true },
 ];
 
 const LEGACY_CATEGORY_ID_ALIASES: Record<string, string> = {
-  savings: 'transfer',
-  'investment-transfer': 'transfer',
+  savings: 'savings-transfer',
 };
 
 export const getCategoryById = (id: string): Category | undefined => {

@@ -28,6 +28,8 @@ const ACCOUNT_TYPE_ICON_STYLES: Record<AccountType, { bg: string; text: string }
   savings: { bg: 'bg-income/12', text: 'text-income' },
   credit: { bg: 'bg-expense/12', text: 'text-expense' },
   cash: { bg: 'bg-transfer/12', text: 'text-transfer' },
+  investment: { bg: 'bg-income/12', text: 'text-income' },
+  retirement: { bg: 'bg-accent/12', text: 'text-accent' },
 };
 
 interface ExportedAccountsFile {
@@ -449,7 +451,9 @@ function AccountRow({ account, onEdit, onDelete }: AccountRowProps) {
           <div className="flex flex-col gap-2">
             {recentTransactions.map((tx) => {
               const category = getCategoryById(tx.categoryId);
-              const txType = category?.type ?? 'expense';
+              const isTransferDestination = tx.destinationAccountId === account.id;
+              const txType = isTransferDestination ? 'income' as const
+                : category?.type ?? 'expense';
               return (
                 <div key={tx.id} className="flex items-center justify-between gap-3">
                   <div className="flex flex-col min-w-0">

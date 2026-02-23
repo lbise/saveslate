@@ -44,10 +44,22 @@ function toTransactionWithDetails(transaction: Transaction): TransactionWithDeta
 
   const goal = transaction.goalId ? getGoalById(transaction.goalId) : undefined;
 
+  const destinationAccount = transaction.destinationAccountId
+    ? (getAccountById(transaction.destinationAccountId) ?? {
+        id: transaction.destinationAccountId,
+        name: 'Unknown Account',
+        type: 'checking' as const,
+        balance: 0,
+        currency: transaction.currency || 'CHF',
+        icon: 'Wallet',
+      })
+    : undefined;
+
   return {
     ...transaction,
     category,
     account,
+    destinationAccount,
     goal,
   };
 }
@@ -74,12 +86,17 @@ export const getMonthlyStats = (): MonthlyStats => {
     .filter((t) => t.category.type === 'expense')
     .reduce((sum, t) => sum + t.amount, 0);
 
+  const totalTransfers = monthTransactions
+    .filter((t) => t.category.type === 'transfer')
+    .reduce((sum, t) => sum + Math.abs(t.amount), 0);
+
   const netSavings = totalIncome - totalExpenses;
   const savingsRate = totalIncome > 0 ? (netSavings / totalIncome) * 100 : 0;
 
   return {
     totalIncome,
     totalExpenses,
+    totalTransfers,
     netSavings,
     savingsRate,
   };

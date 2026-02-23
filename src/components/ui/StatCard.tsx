@@ -1,12 +1,13 @@
 interface StatCardProps {
   label: string;
   value: string;
-  dotColor: 'income' | 'expense' | 'muted';
+  dotColor: 'income' | 'expense' | 'transfer' | 'muted';
 }
 
 const dotColors: Record<StatCardProps['dotColor'], string> = {
   income: 'bg-income',
   expense: 'bg-expense',
+  transfer: 'bg-transfer',
   muted: 'bg-text-secondary',
 };
 

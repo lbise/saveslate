@@ -40,7 +40,9 @@ export const getTransactionsByGoal = (goalId: string): Transaction[] => {
 };
 
 export const getTransactionsByAccount = (accountId: string): Transaction[] => {
-  return getTransactionsSorted().filter((t) => t.accountId === accountId);
+  return getTransactionsSorted().filter(
+    (t) => t.accountId === accountId || t.destinationAccountId === accountId,
+  );
 };
 
 export const getSplitTransactions = (): Transaction[] => {

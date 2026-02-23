@@ -48,6 +48,7 @@ export function Dashboard() {
         <div className="flex flex-wrap gap-10">
           <StatCard label="Income" value={formatCurrency(stats.totalIncome)} dotColor="income" />
           <StatCard label="Expenses" value={formatCurrency(stats.totalExpenses)} dotColor="expense" />
+          <StatCard label="Transferred" value={formatCurrency(stats.totalTransfers)} dotColor="transfer" />
           <StatCard label="Savings Rate" value={`${stats.savingsRate.toFixed(1)}%`} dotColor="muted" />
         </div>
       </section>
@@ -70,6 +71,8 @@ export function Dashboard() {
                 type={tx.category.type}
                 amount={formatCurrency(tx.amount, tx.currency)}
                 categoryName={tx.category.name}
+                accountName={tx.account.name}
+                destinationAccountName={tx.destinationAccount?.name}
                 goalName={tx.goal?.name}
                 isSplit={!!tx.split}
               />

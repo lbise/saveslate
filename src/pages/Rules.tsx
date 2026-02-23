@@ -11,6 +11,7 @@ import { useLocation, useNavigate } from "react-router-dom";
 import { PageHeader, PageHeaderActions } from "../components/layout";
 import { Modal } from "../components/ui";
 import { CATEGORIES, getActiveGoals, getCategoryById, getGoalById } from "../data/mock";
+import { loadAccounts, getAccountById } from "../lib/account-storage";
 import {
   addAutomationRule,
   applyAutomationRules,
@@ -75,9 +76,10 @@ interface RuleFormState {
 
 interface RuleFormAction {
   id: string;
-  type: "set-category" | "set-goal";
+  type: "set-category" | "set-goal" | "set-destination-account";
   categoryId: string;
   goalId: string;
+  accountId: string;
   overwriteExisting: boolean;
 }
 
@@ -114,6 +116,7 @@ function createDefaultCategoryAction(defaultCategoryId: string): RuleFormAction 
     type: "set-category",
     categoryId: defaultCategoryId,
     goalId: "",
+    accountId: "",
     overwriteExisting: false,
   };
 }
@@ -158,8 +161,13 @@ function formatRuleAction(action: AutomationAction): string {
     return `Set category to ${category?.name ?? action.categoryId}${action.overwriteExisting ? " (allow recategorize)" : ""}`;
   }
 
-  const goal = getGoalById(action.goalId);
-  return `Set goal to ${goal?.name ?? action.goalId}${action.overwriteExisting ? " (allow change)" : ""}`;
+  if (action.type === "set-goal") {
+    const goal = getGoalById(action.goalId);
+    return `Set goal to ${goal?.name ?? action.goalId}${action.overwriteExisting ? " (allow change)" : ""}`;
+  }
+
+  const account = getAccountById(action.accountId);
+  return `Set destination account to ${account?.name ?? action.accountId}${action.overwriteExisting ? " (allow change)" : ""}`;
 }
 
 function toFormCondition(condition: AutomationCondition): RuleFormCondition {
@@ -181,18 +189,31 @@ function toRuleFormStateFromRule(rule: AutomationRule): RuleFormState {
       if (action.type === "set-category") {
         return {
           id: createRuleFormActionId(),
-          type: "set-category",
+          type: "set-category" as const,
           categoryId: action.categoryId,
           goalId: "",
+          accountId: "",
+          overwriteExisting: action.overwriteExisting === true,
+        };
+      }
+
+      if (action.type === "set-goal") {
+        return {
+          id: createRuleFormActionId(),
+          type: "set-goal" as const,
+          categoryId: "",
+          goalId: action.goalId,
+          accountId: "",
           overwriteExisting: action.overwriteExisting === true,
         };
       }
 
       return {
         id: createRuleFormActionId(),
-        type: "set-goal",
+        type: "set-destination-account" as const,
         categoryId: "",
-        goalId: action.goalId,
+        goalId: "",
+        accountId: action.accountId,
         overwriteExisting: action.overwriteExisting === true,
       };
     }),
@@ -229,8 +250,33 @@ function toRuleFormStateFromPrefill(
         type: "set-category",
         categoryId: prefill.categoryId?.trim() || defaultCategoryId,
         goalId: "",
+        accountId: "",
         overwriteExisting: prefill.applyToUncategorizedOnly === false,
       },
+      ...(prefill.goalId
+        ? [
+            {
+              id: createRuleFormActionId(),
+              type: "set-goal" as const,
+              categoryId: "",
+              goalId: prefill.goalId,
+              accountId: "",
+              overwriteExisting: false,
+            },
+          ]
+        : []),
+      ...(prefill.destinationAccountId
+        ? [
+            {
+              id: createRuleFormActionId(),
+              type: "set-destination-account" as const,
+              categoryId: "",
+              goalId: "",
+              accountId: prefill.destinationAccountId,
+              overwriteExisting: false,
+            },
+          ]
+        : []),
     ],
     conditions: prefillConditions,
   };
@@ -302,6 +348,7 @@ export function Rules() {
   }, [form.conditions]);
 
   const availableGoals = useMemo(() => getActiveGoals(), []);
+  const availableAccounts = useMemo(() => loadAccounts(), []);
 
   useEffect(() => {
     const routeState = (location.state as RulesRouteState | null) ?? null;
@@ -620,16 +667,32 @@ export function Rules() {
         continue;
       }
 
-      const goalId = action.goalId.trim();
-      if (!goalId) {
+      if (action.type === "set-goal") {
+        const goalId = action.goalId.trim();
+        if (!goalId) {
+          continue;
+        }
+
+        normalizedActions.push({
+          type: "set-goal",
+          goalId,
+          overwriteExisting: action.overwriteExisting,
+        });
         continue;
       }
 
-      normalizedActions.push({
-        type: "set-goal",
-        goalId,
-        overwriteExisting: action.overwriteExisting,
-      });
+      if (action.type === "set-destination-account") {
+        const accountId = action.accountId.trim();
+        if (!accountId) {
+          continue;
+        }
+
+        normalizedActions.push({
+          type: "set-destination-account",
+          accountId,
+          overwriteExisting: action.overwriteExisting,
+        });
+      }
     }
 
     if (normalizedActions.length === 0) {
@@ -822,6 +885,7 @@ export function Rules() {
                             >
                               <option value="set-category">Set category</option>
                               <option value="set-goal">Set goal</option>
+                              <option value="set-destination-account">Set destination account</option>
                             </select>
 
                             <button
@@ -867,7 +931,7 @@ export function Rules() {
                                 </span>
                               </label>
                             </>
-                          ) : (
+                          ) : action.type === "set-goal" ? (
                             <>
                               <select
                                 className="select"
@@ -897,6 +961,39 @@ export function Rules() {
                                 />
                                 <span className="text-ui">
                                   Allow changing goal when transaction already has one
+                                </span>
+                              </label>
+                            </>
+                          ) : (
+                            <>
+                              <select
+                                className="select"
+                                value={action.accountId}
+                                onChange={(event) =>
+                                  handleActionChange(action.id, {
+                                    accountId: event.target.value,
+                                  })
+                                }
+                              >
+                                <option value="">Select account</option>
+                                {availableAccounts.map((account) => (
+                                  <option key={account.id} value={account.id}>
+                                    {account.name}
+                                  </option>
+                                ))}
+                              </select>
+                              <label className="flex items-center gap-2">
+                                <input
+                                  type="checkbox"
+                                  checked={action.overwriteExisting}
+                                  onChange={(event) =>
+                                    handleActionChange(action.id, {
+                                      overwriteExisting: event.target.checked,
+                                    })
+                                  }
+                                />
+                                <span className="text-ui">
+                                  Allow changing destination when transaction already has one
                                 </span>
                               </label>
                             </>

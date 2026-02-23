@@ -7,6 +7,8 @@ interface TransactionItemProps {
   type: TransactionType;
   amount: string;
   categoryName: string;
+  accountName?: string;
+  destinationAccountName?: string;
   goalName?: string;
   isSplit?: boolean;
 }
@@ -35,7 +37,7 @@ const amountPrefix = {
   transfer: '',
 };
 
-export function TransactionItem({ description, type, amount, categoryName, goalName, isSplit }: TransactionItemProps) {
+export function TransactionItem({ description, type, amount, categoryName, accountName, destinationAccountName, goalName, isSplit }: TransactionItemProps) {
   const TxIcon = typeIcons[type];
 
   return (
@@ -50,6 +52,9 @@ export function TransactionItem({ description, type, amount, categoryName, goalN
         <div className="text-body text-text truncate" title={description}>{description}</div>
         <div className="text-ui text-text-muted flex items-center gap-2">
           <span>{categoryName}</span>
+          {type === 'transfer' && accountName && destinationAccountName && (
+            <span className="text-text-secondary">&middot; {accountName} &rarr; {destinationAccountName}</span>
+          )}
           {goalName && <span className="text-text-secondary">&middot; {goalName}</span>}
           {isSplit && <span className="text-text-secondary">&middot; Split</span>}
         </div>

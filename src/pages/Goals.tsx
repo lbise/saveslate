@@ -1026,6 +1026,8 @@ export function Goals() {
                         type={tx.category.type}
                         amount={formatCurrency(tx.amount)}
                         categoryName={tx.category.name}
+                        accountName={tx.account.name}
+                        destinationAccountName={tx.destinationAccount?.name}
                         isSplit={!!tx.split}
                       />
                     ))}

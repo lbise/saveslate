@@ -5,6 +5,8 @@ export const ACCOUNT_TYPE_LABELS: Record<AccountType, string> = {
   savings: 'Savings',
   credit: 'Credit card',
   cash: 'Cash',
+  investment: 'Investment',
+  retirement: 'Retirement',
 };
 
 export const ACCOUNT_TYPE_DEFAULT_ICONS: Record<AccountType, string> = {
@@ -12,6 +14,8 @@ export const ACCOUNT_TYPE_DEFAULT_ICONS: Record<AccountType, string> = {
   savings: 'PiggyBank',
   credit: 'CreditCard',
   cash: 'Banknote',
+  investment: 'TrendingUp',
+  retirement: 'Landmark',
 };
 
 export interface AccountFormState {

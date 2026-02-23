@@ -2,7 +2,7 @@
 
 export type TransactionType = 'income' | 'expense' | 'transfer';
 
-export type AccountType = 'checking' | 'savings' | 'credit' | 'cash';
+export type AccountType = 'checking' | 'savings' | 'credit' | 'cash' | 'investment' | 'retirement';
 
 export type SplitStatus = 'pending' | 'reimbursed';
 
@@ -55,6 +55,7 @@ export interface Transaction {
   date: string; // ISO date string
   time?: string; // Optional transaction time in HH:mm:ss
   accountId: string;
+  destinationAccountId?: string; // For transfers: the account receiving funds
   goalId?: string; // Direct link to a goal this transaction contributes to
   importBatchId?: string; // Links to an ImportBatch if imported from CSV
   split?: SplitInfo;
@@ -122,7 +123,13 @@ export interface SetGoalAutomationAction {
   overwriteExisting?: boolean;
 }
 
-export type AutomationAction = SetCategoryAutomationAction | SetGoalAutomationAction;
+export interface SetDestinationAccountAutomationAction {
+  type: 'set-destination-account';
+  accountId: string;
+  overwriteExisting?: boolean;
+}
+
+export type AutomationAction = SetCategoryAutomationAction | SetGoalAutomationAction | SetDestinationAccountAutomationAction;
 
 export interface AutomationRule {
   id: string;
@@ -146,6 +153,8 @@ export interface AutomationRulePrefillCondition {
 export interface AutomationRulePrefillDraft {
   name?: string;
   categoryId?: string;
+  goalId?: string;
+  destinationAccountId?: string;
   isEnabled?: boolean;
   triggers?: AutomationTrigger[];
   matchMode?: AutomationMatchMode;
@@ -162,12 +171,14 @@ export interface RulesRouteState {
 export interface TransactionWithDetails extends Transaction {
   category: Category;
   account: Account;
+  destinationAccount?: Account; // Resolved destination for transfers
   goal?: Goal;
 }
 
 export interface MonthlyStats {
   totalIncome: number;
   totalExpenses: number;
+  totalTransfers: number; // sum of transfer amounts (absolute value)
   netSavings: number;
   savingsRate: number; // percentage
 }

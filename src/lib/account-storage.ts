@@ -7,7 +7,8 @@ function isRecord(value: unknown): value is Record<string, unknown> {
 }
 
 function isAccountType(value: unknown): value is AccountType {
-  return value === 'checking' || value === 'savings' || value === 'credit' || value === 'cash';
+  return value === 'checking' || value === 'savings' || value === 'credit'
+    || value === 'cash' || value === 'investment' || value === 'retirement';
 }
 
 function normalizeCurrency(value: string): string {

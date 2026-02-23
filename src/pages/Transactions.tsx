@@ -118,10 +118,22 @@ function toTransactionWithDetails(transaction: Transaction): TxDetails {
 
   const goal = transaction.goalId ? getGoalById(transaction.goalId) : undefined;
 
+  const destinationAccount = transaction.destinationAccountId
+    ? (getAccountById(transaction.destinationAccountId) ?? {
+        id: transaction.destinationAccountId,
+        name: "Unknown Account",
+        type: "checking" as const,
+        balance: 0,
+        currency: transaction.currency || "CHF",
+        icon: "Wallet",
+      })
+    : undefined;
+
   return {
     ...transaction,
     category,
     account,
+    destinationAccount,
     goal,
   };
 }
@@ -296,11 +308,25 @@ export function Transactions() {
       ? fallbackCategoryId
       : transaction.categoryId;
 
+    const keyword = transaction.description.trim();
+
+    let prefillName = '';
+    if (transaction.categoryId !== UNCATEGORIZED_CATEGORY_ID) {
+      const nameParts: string[] = [transaction.category.name];
+      const targetParts: string[] = [];
+      if (transaction.goal) targetParts.push(transaction.goal.name);
+      if (transaction.destinationAccount) targetParts.push(transaction.destinationAccount.name);
+      if (targetParts.length > 0) {
+        nameParts.push(targetParts.join(', '));
+      }
+      prefillName = nameParts.join(' → ');
+    }
+
     const prefillDraft: AutomationRulePrefillDraft = {
-      name: transaction.categoryId === UNCATEGORIZED_CATEGORY_ID
-        ? ''
-        : `Rule: ${transaction.category.name}`,
+      name: prefillName,
       categoryId: prefillCategoryId,
+      goalId: transaction.goalId,
+      destinationAccountId: transaction.destinationAccountId,
       isEnabled: true,
       triggers: ['on-import', 'manual-run'],
       matchMode: 'any',
@@ -310,7 +336,7 @@ export function Transactions() {
         {
           field: 'description',
           operator: 'contains',
-          value: transaction.description.trim(),
+          value: keyword,
         },
       ],
     };
@@ -560,6 +586,10 @@ export function Transactions() {
     .filter((t) => t.category.type === "expense")
     .reduce((sum, t) => sum + Math.abs(t.amount), 0);
 
+  const totalTransfers = filteredTransactions
+    .filter((t) => t.category.type === "transfer")
+    .reduce((sum, t) => sum + Math.abs(t.amount), 0);
+
   // Paginate the filtered results
   const totalPages = Math.max(1, Math.ceil(filteredTransactions.length / pageSize));
   const paginatedTransactions = useMemo(() => {
@@ -597,6 +627,8 @@ export function Transactions() {
         categoryName: transaction.category.name,
         accountId: transaction.accountId,
         accountName: transaction.account.name,
+        destinationAccountId: transaction.destinationAccountId ?? null,
+        destinationAccountName: transaction.destinationAccount?.name ?? null,
         goalId: transaction.goalId ?? null,
         goalName: transaction.goal?.name ?? null,
         importBatchId: transaction.importBatchId ?? null,
@@ -755,6 +787,20 @@ export function Transactions() {
             <span className="text-ui text-text-muted">Expenses</span>
           </div>
         </div>
+        {totalTransfers > 0 && (
+          <div className="flex items-center gap-3">
+            <div className="w-2 h-2 rounded-full bg-transfer" />
+            <div className="flex flex-col gap-0.5">
+              <span
+                className="text-base font-medium text-text"
+                style={{ fontFamily: "var(--font-display)" }}
+              >
+                {formatCurrency(totalTransfers)}
+              </span>
+              <span className="text-ui text-text-muted">Transfers</span>
+            </div>
+          </div>
+        )}
         {pendingSplitTotal > 0 && (
           <div className="flex items-center gap-3">
             <div className="w-2 h-2 rounded-full bg-split" />
@@ -1140,6 +1186,11 @@ function TransactionRow({
                 <span className="truncate">{transaction.goal.name}</span>
               </span>
             )}
+            {type === "transfer" && transaction.destinationAccount && (
+              <span className="text-ui text-text-muted truncate max-w-48">
+                {transaction.account.name} &rarr; {transaction.destinationAccount.name}
+              </span>
+            )}
             {transaction.split && (
               <span className="inline-flex items-center gap-1 text-ui text-text-muted">
                 <Users size={9} />
@@ -1228,7 +1279,11 @@ function TransactionRow({
             )}
           </div>
           <div className="flex items-center gap-1 text-ui text-text-muted relative flex-wrap">
-            <span>{transaction.account.name}</span>
+            <span>
+              {type === "transfer" && transaction.destinationAccount
+                ? `${transaction.account.name} \u2192 ${transaction.destinationAccount.name}`
+                : transaction.account.name}
+            </span>
             <span>&middot;</span>
             <button
               onClick={(e) => {
