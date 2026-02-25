@@ -7,10 +7,10 @@ interface PageHeaderProps {
 
 export function PageHeader({ title, children }: PageHeaderProps) {
   return (
-    <header className="flex items-start justify-between gap-4" style={{ marginBottom: '56px' }}>
+    <header className="mb-10 flex flex-col gap-4 sm:mb-11 sm:flex-row sm:items-start sm:justify-between">
       <h1 className="heading-1">{title}</h1>
       {children && (
-        <div className="flex items-start gap-3">
+        <div className="flex w-full flex-wrap items-start gap-2.5 sm:w-auto sm:justify-end">
           {children}
         </div>
       )}

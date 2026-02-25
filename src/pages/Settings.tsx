@@ -72,7 +72,7 @@ export function Settings() {
       <PageHeader title="Settings" />
 
       {/* General */}
-      <section style={{ marginTop: '-32px' }}>
+      <section>
         <div className="section-header">
           <h2 className="section-title">General</h2>
         </div>

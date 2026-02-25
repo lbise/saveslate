@@ -103,7 +103,7 @@ export function Analytics() {
       </section>
 
       {/* Summary Stats */}
-      <section style={{ marginTop: '40px' }}>
+      <section className="mt-10">
         <div className="flex flex-wrap gap-10">
           <StatCard label="Income" value={formatCurrency(summary.totalIncome)} dotColor="income" />
           <StatCard label="Expenses" value={formatCurrency(summary.totalExpenses)} dotColor="expense" />

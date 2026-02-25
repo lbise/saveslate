@@ -94,7 +94,7 @@ export function Help() {
       <PageHeader title="Help" />
 
       {/* Quick Links */}
-      <section style={{ marginTop: '-32px' }}>
+      <section>
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
           <a
             href="#faq"

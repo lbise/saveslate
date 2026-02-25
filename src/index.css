@@ -242,6 +242,19 @@
   }
 }
 
+@media (max-width: 1200px) {
+  .page-container {
+    padding: 44px 32px;
+  }
+}
+
+@media (max-width: 900px) {
+  .page-container {
+    max-width: 100%;
+    padding: 30px 18px 36px;
+  }
+}
+
 /* Base styles */
 html {
   font-family: var(--font-body);

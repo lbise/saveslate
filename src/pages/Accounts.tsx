@@ -359,7 +359,7 @@ export function Accounts() {
         />
       )}
 
-      <section style={{ marginBottom: '48px', marginTop: '-32px' }}>
+      <section className="mb-12">
         <div className="text-muted mb-2">Net Worth</div>
         <div
           className="text-text"

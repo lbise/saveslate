@@ -1453,7 +1453,7 @@ function TransactionRow({
     : null;
 
   return (
-    <div className="group flex items-center gap-3.5 py-3.5 border-b border-border last:border-b-0 transition-colors duration-150 hover:bg-surface-hover/30 relative">
+    <div className="group flex items-center gap-3 py-3 border-b border-border last:border-b-0 transition-colors duration-150 hover:bg-surface-hover/30 relative">
       {/* Icon — category shape, type-tinted (desktop), clickable to edit category */}
       <button
         onClick={(e) => {
@@ -1487,7 +1487,7 @@ function TransactionRow({
         <div className="flex-1 min-w-0">
           <div className="flex items-center gap-2">
             <span
-              className="text-body text-text line-clamp-2"
+              className="text-ui text-text font-medium line-clamp-2"
               title={transaction.description}
             >
               {transaction.description}
@@ -1592,7 +1592,7 @@ function TransactionRow({
         <div className="flex-1 min-w-0">
           <div className="flex items-center gap-2">
             <span
-              className="text-body text-text line-clamp-2"
+              className="text-ui text-text font-medium line-clamp-2"
               title={transaction.description}
             >
               {transaction.description}
@@ -1647,12 +1647,12 @@ function TransactionRow({
         </div>
 
         {/* Date */}
-        <div className="w-24 text-body">{formatDate(transaction.date)}</div>
+        <div className="w-24 text-ui">{formatDate(transaction.date)}</div>
 
         {/* Amount */}
         <span
           className={cn(
-            "w-28 text-right text-body font-medium",
+            "w-28 text-right text-ui font-medium",
             getAmountColorClass(type, transaction.amount),
           )}
           style={{ fontFamily: "var(--font-display)" }}

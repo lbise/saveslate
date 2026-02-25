@@ -1286,7 +1286,7 @@ export function Rules() {
         </Modal>
       )}
 
-      <section className="card p-4" style={{ marginTop: "-32px" }}>
+      <section className="card p-4">
         <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4">
           <div>
             <h2 className="heading-3 text-text">Automation Engine</h2>
