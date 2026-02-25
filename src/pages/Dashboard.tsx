@@ -68,11 +68,13 @@ export function Dashboard() {
               <TransactionItem
                 key={tx.id}
                 description={tx.description}
-                type={tx.category.type}
-                amount={formatCurrency(tx.amount, tx.currency)}
+                type={tx.type}
+                amount={tx.amount}
+                currency={tx.currency}
                 categoryName={tx.category.name}
                 accountName={tx.account.name}
                 destinationAccountName={tx.destinationAccount?.name}
+                transferPairRole={tx.transferPairRole}
                 goalName={tx.goal?.name}
                 isSplit={!!tx.split}
               />

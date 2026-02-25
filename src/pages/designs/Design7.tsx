@@ -887,8 +887,8 @@ export function Design7() {
                         )}
                       </div>
                     </div>
-                    <div className={`d7-tx-amount ${tx.category.type}`}>
-                      {tx.category.type === 'income' ? <ArrowUpRight size={14} /> : <ArrowDownRight size={14} />}
+                    <div className={`d7-tx-amount ${tx.type}`}>
+                      {tx.type === 'income' ? <ArrowUpRight size={14} /> : <ArrowDownRight size={14} />}
                       {formatCurrency(tx.amount)}
                     </div>
                   </div>

@@ -503,8 +503,8 @@ export function Design1() {
                   </div>
                 </div>
                 <div className="d1-tx-tag">{tx.category.name}</div>
-                <div className={`d1-tx-amount ${tx.category.type}`}>
-                  {tx.category.type === 'income' ? '+' : '-'}{formatCurrency(tx.amount)}
+                <div className={`d1-tx-amount ${tx.type}`}>
+                  {tx.type === 'income' ? '+' : '-'}{formatCurrency(tx.amount)}
                 </div>
               </div>
             ))}

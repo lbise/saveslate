@@ -3,6 +3,7 @@ import { NavLink, Link } from 'react-router-dom';
 import {
   LayoutDashboard,
   Receipt,
+  BarChart3,
   Wallet,
   Target,
   Tags,
@@ -24,6 +25,7 @@ interface NavItem {
 const mainNavItems: NavItem[] = [
   { label: 'Dashboard', path: '/', icon: LayoutDashboard },
   { label: 'Transactions', path: '/transactions', icon: Receipt },
+  { label: 'Analytics', path: '/analytics', icon: BarChart3 },
   { label: 'Accounts', path: '/accounts', icon: Wallet },
   { label: 'Goals', path: '/goals', icon: Target },
   { label: 'Categories', path: '/categories', icon: Tags },

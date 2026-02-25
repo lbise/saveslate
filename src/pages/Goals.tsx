@@ -1023,11 +1023,13 @@ export function Goals() {
                       <TransactionItem
                         key={tx.id}
                         description={tx.description}
-                        type={tx.category.type}
-                        amount={formatCurrency(tx.amount)}
+                        type={tx.type}
+                        amount={tx.amount}
+                        currency={tx.currency}
                         categoryName={tx.category.name}
                         accountName={tx.account.name}
                         destinationAccountName={tx.destinationAccount?.name}
+                        transferPairRole={tx.transferPairRole}
                         isSplit={!!tx.split}
                       />
                     ))}

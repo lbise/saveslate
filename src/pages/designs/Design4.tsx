@@ -588,8 +588,8 @@ export function Design4() {
                         )}
                       </div>
                     </div>
-                    <div className={`d4-tx-amount ${tx.category.type}`}>
-                      {tx.category.type === 'income' ? <ArrowUpRight size={16} /> : <ArrowDownRight size={16} />}
+                    <div className={`d4-tx-amount ${tx.type}`}>
+                      {tx.type === 'income' ? <ArrowUpRight size={16} /> : <ArrowDownRight size={16} />}
                       {formatCurrency(tx.amount)}
                     </div>
                   </div>

@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import { PaginationButtons } from '../ui';
 import { cn } from '../../lib/utils';
 
@@ -19,11 +19,9 @@ export function CsvPreviewTable({
   const [page, setPage] = useState(0);
   const [pageSize, setPageSize] = useState<number>(PAGE_SIZE_OPTIONS[0]);
 
-  // Reset to first page when rows change
-  useEffect(() => { setPage(0); }, [rows]);
-
   const totalPages = Math.max(1, Math.ceil(rows.length / pageSize));
-  const start = page * pageSize;
+  const currentPage = Math.min(page, totalPages - 1);
+  const start = currentPage * pageSize;
   const end = Math.min(start + pageSize, rows.length);
   const displayRows = rows.slice(start, end);
 
@@ -96,7 +94,7 @@ export function CsvPreviewTable({
             </select>
           </div>
           <span>{start + 1}–{end} of {rows.length}</span>
-          <PaginationButtons page={page} totalPages={totalPages} onPageChange={setPage} />
+          <PaginationButtons page={currentPage} totalPages={totalPages} onPageChange={setPage} />
         </div>
       )}
     </div>

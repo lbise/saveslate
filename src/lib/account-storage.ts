@@ -1,4 +1,5 @@
 import type { Account, AccountType } from '../types';
+import { loadTransactions } from './transaction-storage';
 
 const ACCOUNTS_KEY = 'melomoney:accounts';
 
@@ -98,12 +99,58 @@ export function getAccountById(id: string): Account | undefined {
   return loadAccounts().find((account) => account.id === id);
 }
 
+/**
+ * Compute the actual balance for each account:
+ *   startingBalance + sum(transaction amounts affecting that account)
+ */
+export function getComputedBalances(): Map<string, number> {
+  const accounts = loadAccounts();
+  const balances = new Map<string, number>();
+
+  for (const account of accounts) {
+    balances.set(account.id, account.balance);
+  }
+
+  const transactions = loadTransactions();
+  for (const tx of transactions) {
+    if (balances.has(tx.accountId)) {
+      balances.set(tx.accountId, balances.get(tx.accountId)! + tx.amount);
+    }
+  }
+
+  return balances;
+}
+
+/**
+ * Compute the actual balance for a single account.
+ */
+export function getComputedBalance(accountId: string): number {
+  const account = getAccountById(accountId);
+  if (!account) return 0;
+
+  const transactions = loadTransactions();
+  let balance = account.balance;
+
+  for (const tx of transactions) {
+    if (tx.accountId === accountId) {
+      balance += tx.amount;
+    }
+  }
+
+  return balance;
+}
+
 export function getTotalBalance(): number {
-  return loadAccounts().reduce((sum, account) => sum + account.balance, 0);
+  const balances = getComputedBalances();
+  let total = 0;
+  for (const balance of balances.values()) {
+    total += balance;
+  }
+  return total;
 }
 
 export function getNetWorth(): number {
-  return loadAccounts().reduce((sum, account) => sum + account.balance, 0);
+  return getTotalBalance();
 }
 
 export function addAccount(account: Account): Account {

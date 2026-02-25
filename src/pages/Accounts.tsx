@@ -17,8 +17,10 @@ import {
   mergeAccounts,
   updateAccount,
 } from '../lib/account-storage';
-import { formatCurrency, formatRelativeDate, cn } from '../lib/utils';
-import { getCategoryById, getTransactionsByAccount } from '../data/mock';
+import { loadTransactions } from '../lib/transaction-storage';
+import { formatCurrency, formatRelativeDate, formatSignedCurrency, cn } from '../lib/utils';
+import { getTransactionsByAccount } from '../data/mock';
+import { inferTransactionType } from '../lib/transaction-type';
 import type { Account, AccountType } from '../types';
 
 const ACCOUNTS_EXPORT_SCHEMA_VERSION = 1;
@@ -134,9 +136,32 @@ export function Accounts() {
   const [isImporting, setIsImporting] = useState(false);
   const importInputRef = useRef<HTMLInputElement>(null);
 
-  const netWorth = useMemo(
-    () => accounts.reduce((sum, account) => sum + account.balance, 0),
+  const computedBalances = useMemo(
+    () => {
+      const balances = new Map<string, number>();
+      for (const account of accounts) {
+        balances.set(account.id, account.balance);
+      }
+      const transactions = loadTransactions();
+      for (const tx of transactions) {
+        if (balances.has(tx.accountId)) {
+          balances.set(tx.accountId, balances.get(tx.accountId)! + tx.amount);
+        }
+      }
+      return balances;
+    },
     [accounts],
+  );
+
+  const netWorth = useMemo(
+    () => {
+      let total = 0;
+      for (const balance of computedBalances.values()) {
+        total += balance;
+      }
+      return total;
+    },
+    [computedBalances],
   );
 
   const isEditing = editingAccountId !== null;
@@ -366,6 +391,7 @@ export function Accounts() {
             <AccountRow
               key={account.id}
               account={account}
+              computedBalance={computedBalances.get(account.id) ?? account.balance}
               onEdit={() => openEditModal(account)}
               onDelete={() => setAccountToDelete(account)}
             />
@@ -378,13 +404,14 @@ export function Accounts() {
 
 interface AccountRowProps {
   account: Account;
+  computedBalance: number;
   onEdit: () => void;
   onDelete: () => void;
 }
 
-function AccountRow({ account, onEdit, onDelete }: AccountRowProps) {
+function AccountRow({ account, computedBalance, onEdit, onDelete }: AccountRowProps) {
   const recentTransactions = getTransactionsByAccount(account.id).slice(0, 3);
-  const isNegative = account.balance < 0;
+  const isNegative = computedBalance < 0;
   const iconStyle = ACCOUNT_TYPE_ICON_STYLES[account.type];
 
   return (
@@ -435,7 +462,7 @@ function AccountRow({ account, onEdit, onDelete }: AccountRowProps) {
             )}
             style={{ fontFamily: 'var(--font-display)' }}
           >
-            {formatCurrency(account.balance, account.currency)}
+            {formatCurrency(computedBalance, account.currency)}
           </div>
         </div>
       </div>
@@ -450,10 +477,7 @@ function AccountRow({ account, onEdit, onDelete }: AccountRowProps) {
           </div>
           <div className="flex flex-col gap-2">
             {recentTransactions.map((tx) => {
-              const category = getCategoryById(tx.categoryId);
-              const isTransferDestination = tx.destinationAccountId === account.id;
-              const txType = isTransferDestination ? 'income' as const
-                : category?.type ?? 'expense';
+              const txType = inferTransactionType(tx);
               return (
                 <div key={tx.id} className="flex items-center justify-between gap-3">
                   <div className="flex flex-col min-w-0">
@@ -467,12 +491,19 @@ function AccountRow({ account, onEdit, onDelete }: AccountRowProps) {
                   <span
                     className={cn(
                       'text-ui font-medium shrink-0',
-                      txType === 'income' ? 'text-income' : txType === 'transfer' ? 'text-text' : 'text-expense',
+                      txType === 'income'
+                        ? 'text-income'
+                        : txType === 'expense'
+                          ? 'text-expense'
+                          : tx.amount > 0
+                            ? 'text-income'
+                            : tx.amount < 0
+                              ? 'text-expense'
+                              : 'text-text',
                     )}
                     style={{ fontFamily: 'var(--font-display)' }}
                   >
-                    {txType === 'income' ? '+' : txType === 'transfer' ? '' : '-'}
-                    {formatCurrency(Math.abs(tx.amount), tx.currency)}
+                    {formatSignedCurrency(tx.amount, tx.currency)}
                   </span>
                 </div>
               );

@@ -658,30 +658,6 @@ function applyRuleAction(transaction: Transaction, action: AutomationAction): {
     };
   }
 
-  if (action.type === 'set-destination-account') {
-    if (!action.overwriteExisting && transaction.destinationAccountId) {
-      return {
-        transaction,
-        changed: false,
-      };
-    }
-
-    if (transaction.destinationAccountId === action.accountId) {
-      return {
-        transaction,
-        changed: false,
-      };
-    }
-
-    return {
-      transaction: {
-        ...transaction,
-        destinationAccountId: action.accountId,
-      },
-      changed: true,
-    };
-  }
-
   return {
     transaction,
     changed: false,

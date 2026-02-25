@@ -182,21 +182,16 @@ export function ParserEditor({
     [timeMode],
   );
 
-  useEffect(() => {
-    if (!dateFormatOptions.some((preset) => preset.value === dateFormat)) {
-      setDateFormat(dateFormatOptions[0].value);
-    }
-  }, [dateFormat, dateFormatOptions]);
+  const effectiveDateFormat = dateFormatOptions.some((preset) => preset.value === dateFormat)
+    ? dateFormat
+    : dateFormatOptions[0].value;
 
-  useEffect(() => {
-    if (timeMode !== "separate-column") {
-      return;
-    }
-
-    if (!TIME_FORMAT_PRESETS.some((preset) => preset.value === timeFormat)) {
-      setTimeFormat(TIME_FORMAT_PRESETS[0].value);
-    }
-  }, [timeFormat, timeMode]);
+  const effectiveTimeFormat =
+    timeMode !== "separate-column"
+      ? undefined
+      : TIME_FORMAT_PRESETS.some((preset) => preset.value === timeFormat)
+        ? timeFormat
+        : TIME_FORMAT_PRESETS[0].value;
 
   // ─── Parse raw CSV with current settings ───────────────────
   const rawRows = useMemo(
@@ -229,22 +224,6 @@ export function ParserEditor({
     }
     return new Map();
   });
-
-  useEffect(() => {
-    if (timeMode === "separate-column") {
-      return;
-    }
-
-    setFieldMappings((previousMappings) => {
-      if (!previousMappings.has("time")) {
-        return previousMappings;
-      }
-
-      const nextMappings = new Map(previousMappings);
-      nextMappings.delete("time");
-      return nextMappings;
-    });
-  }, [timeMode]);
 
   // ─── Field transforms ──────────────────────────────────────
   const [transforms, setTransforms] = useState<FieldTransform[]>(
@@ -349,12 +328,15 @@ export function ParserEditor({
   const columnMappings: ColumnMapping[] = useMemo(() => {
     const result: ColumnMapping[] = [];
     for (const [field, columnIndices] of fieldMappings) {
+      if (field === "time" && timeMode !== "separate-column") {
+        continue;
+      }
       if (columnIndices.length > 0) {
         result.push({ field, columnIndices });
       }
     }
     return result;
-  }, [fieldMappings]);
+  }, [fieldMappings, timeMode]);
 
   const mappedColumnIndices = useMemo(() => {
     const set = new Set<number>();
@@ -381,49 +363,6 @@ export function ParserEditor({
       }))
       .filter((mapping) => mapping.key && mapping.columnIndices.length > 0);
   }, [headers.length, mappedColumnIndices, metadataMappings]);
-
-  useEffect(() => {
-    if (headers.length === 0) {
-      return;
-    }
-
-    setMetadataMappings((previousMappings) => {
-      let changed = false;
-
-      const nextMappings = previousMappings.map((mapping) => {
-        const nextColumnIndices = Array.from(
-          new Set(
-            mapping.columnIndices.filter(
-              (index) =>
-                index >= 0 &&
-                index < headers.length &&
-                !mappedColumnIndices.has(index),
-            ),
-          ),
-        ).sort((a, b) => a - b);
-
-        const hasSameLength =
-          nextColumnIndices.length === mapping.columnIndices.length;
-        const hasSameValues =
-          hasSameLength &&
-          nextColumnIndices.every(
-            (index, position) => index === mapping.columnIndices[position],
-          );
-
-        if (hasSameValues) {
-          return mapping;
-        }
-
-        changed = true;
-        return {
-          ...mapping,
-          columnIndices: nextColumnIndices,
-        };
-      });
-
-      return changed ? nextMappings : previousMappings;
-    });
-  }, [headers.length, mappedColumnIndices]);
 
   const addMetadataMapping = useCallback(() => {
     setMetadataMappings((previousMappings) => [
@@ -543,8 +482,8 @@ export function ParserEditor({
       columnMappings,
       amountFormat,
       timeMode,
-      timeFormat: timeMode === "separate-column" ? timeFormat : undefined,
-      dateFormat,
+      timeFormat: effectiveTimeFormat,
+      dateFormat: effectiveDateFormat,
       decimalSeparator,
       multiColumnSeparator,
       metadataMappings: normalizedMetadataMappings,
@@ -564,8 +503,8 @@ export function ParserEditor({
     skipRows,
     amountFormat,
     timeMode,
-    timeFormat,
-    dateFormat,
+    effectiveTimeFormat,
+    effectiveDateFormat,
     decimalSeparator,
     multiColumnSeparator,
     normalizedMetadataMappings,
@@ -586,8 +525,8 @@ export function ParserEditor({
       columnMappings,
       amountFormat,
       timeMode,
-      timeFormat: timeMode === "separate-column" ? timeFormat : undefined,
-      dateFormat,
+      timeFormat: effectiveTimeFormat,
+      dateFormat: effectiveDateFormat,
       decimalSeparator,
       multiColumnSeparator,
       metadataMappings: normalizedMetadataMappings,
@@ -607,8 +546,8 @@ export function ParserEditor({
     skipRows,
     amountFormat,
     timeMode,
-    timeFormat,
-    dateFormat,
+    effectiveTimeFormat,
+    effectiveDateFormat,
     decimalSeparator,
     multiColumnSeparator,
     accountPattern,
@@ -636,8 +575,8 @@ export function ParserEditor({
       columnMappings,
       amountFormat,
       timeMode,
-      timeFormat: timeMode === "separate-column" ? timeFormat : undefined,
-      dateFormat,
+      timeFormat: effectiveTimeFormat,
+      dateFormat: effectiveDateFormat,
       decimalSeparator,
       multiColumnSeparator,
       metadataMappings:
@@ -778,7 +717,7 @@ export function ParserEditor({
             {timeMode === "in-date-column" ? "Date/time format" : "Date format"}
           </label>
           <select
-            value={dateFormat}
+            value={effectiveDateFormat}
             onChange={(e) => setDateFormat(e.target.value)}
             className="select text-sm"
           >
@@ -795,7 +734,7 @@ export function ParserEditor({
           <div>
             <label className="label mb-1.5 block">Time format</label>
             <select
-              value={timeFormat}
+              value={effectiveTimeFormat ?? TIME_FORMAT_PRESETS[0].value}
               onChange={(e) => setTimeFormat(e.target.value)}
               className="select text-sm"
             >
@@ -1434,18 +1373,14 @@ function ParsedTransactionPreview({ rows }: ParsedTransactionPreviewProps) {
   const [pageSize, setPageSize] = useState<number>(PARSED_PAGE_SIZES[0]);
   const [showWarningsOnly, setShowWarningsOnly] = useState(false);
 
-  // Reset to first page when rows or filter changes
-  useEffect(() => {
-    setPage(0);
-  }, [rows, showWarningsOnly]);
-
   // Filter rows if warnings-only mode is active
   const filteredRows = showWarningsOnly
     ? rows.filter((r) => r.errors.length > 0)
     : rows;
 
   const totalPages = Math.max(1, Math.ceil(filteredRows.length / pageSize));
-  const start = page * pageSize;
+  const currentPage = Math.min(page, totalPages - 1);
+  const start = currentPage * pageSize;
   const end = Math.min(start + pageSize, filteredRows.length);
   const displayRows = filteredRows.slice(start, end);
 
@@ -1467,7 +1402,10 @@ function ParsedTransactionPreview({ rows }: ParsedTransactionPreviewProps) {
         </span>
         {errorCount > 0 && (
           <button
-            onClick={() => setShowWarningsOnly(!showWarningsOnly)}
+            onClick={() => {
+              setShowWarningsOnly(!showWarningsOnly);
+              setPage(0);
+            }}
             className={cn(
               "flex items-center gap-1 bg-transparent border-none cursor-pointer transition-opacity px-0 py-0",
               showWarningsOnly ? "opacity-100" : "opacity-60 hover:opacity-100",
@@ -1598,7 +1536,7 @@ function ParsedTransactionPreview({ rows }: ParsedTransactionPreviewProps) {
               {start + 1}–{end} of {filteredRows.length}
             </span>
             <PaginationButtons
-              page={page}
+              page={currentPage}
               totalPages={totalPages}
               onPageChange={setPage}
             />

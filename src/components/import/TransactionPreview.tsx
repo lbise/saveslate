@@ -1,6 +1,9 @@
-import { useState, useMemo, useEffect } from "react";
+import { Fragment, useCallback, useState, useMemo } from "react";
 import {
   AlertTriangle,
+  Eye,
+  Link2,
+  Link2Off,
   Check,
   Filter,
   X,
@@ -19,9 +22,10 @@ import type { ParsedRow } from "../../types";
 interface TransactionPreviewProps {
   rows: ParsedRow[];
   onConfirm: (
-    selectedRows: ParsedRow[],
+    selectedRowIndexes: number[],
     accountId: string,
     importName: string,
+    transferLinks: Array<{ rowIndex: number; matchedTransactionId: string }>,
   ) => void;
   onBack: () => void;
   detectedIdentifier?: string;
@@ -31,6 +35,8 @@ interface TransactionPreviewProps {
 const PREVIEW_PAGE_SIZES = [20, 25, 50] as const;
 const DUPLICATE_WARNING_TEXT = "Duplicate transaction detected";
 const POSSIBLE_MATCH_WARNING_TEXT = "Possible existing match (no transaction ID)";
+
+type TransferLinkDecision = "link" | "separate";
 
 function normalizeDescription(description: string): string {
   return description.trim().replace(/\s+/g, " ").toLowerCase();
@@ -67,6 +73,16 @@ function buildTransactionFingerprint(
   ].join("|");
 }
 
+function getDateDistanceInDays(left: string, right: string): number {
+  const leftDate = new Date(`${left}T00:00:00`);
+  const rightDate = new Date(`${right}T00:00:00`);
+  if (Number.isNaN(leftDate.getTime()) || Number.isNaN(rightDate.getTime())) {
+    return Number.MAX_SAFE_INTEGER;
+  }
+  const dayMs = 1000 * 60 * 60 * 24;
+  return Math.abs(Math.round((leftDate.getTime() - rightDate.getTime()) / dayMs));
+}
+
 export function TransactionPreview({
   rows,
   onConfirm,
@@ -89,11 +105,13 @@ export function TransactionPreview({
   const [selectedDuplicateIndexes, setSelectedDuplicateIndexes] = useState<
     Set<number>
   >(new Set());
-  const [accountId, setAccountId] = useState(accounts[0]?.id ?? "");
+  const [accountId, setAccountId] = useState("");
   const [page, setPage] = useState(0);
   const [pageSize, setPageSize] = useState<number>(PREVIEW_PAGE_SIZES[0]);
   const [showWarningsOnly, setShowWarningsOnly] = useState(false);
+  const [showMatchesOnly, setShowMatchesOnly] = useState(false);
   const [importName, setImportName] = useState(fileName ?? "");
+  const [expandedMatchRowIndex, setExpandedMatchRowIndex] = useState<number | null>(null);
 
   // Find matching account ID based on detected identifier
   const matchedAccountId = useMemo(() => {
@@ -104,12 +122,7 @@ export function TransactionPreview({
     )?.id;
   }, [accounts, detectedIdentifier]);
 
-  // Auto-select account when an identifier is detected
-  useEffect(() => {
-    if (matchedAccountId) {
-      setAccountId(matchedAccountId);
-    }
-  }, [matchedAccountId]);
+  const effectiveAccountId = accountId || matchedAccountId || accounts[0]?.id || "";
 
   const hasCurrency = useMemo(() => rows.some((r) => r.currency), [rows]);
   const hasTime = useMemo(() => rows.some((r) => r.time), [rows]);
@@ -119,8 +132,8 @@ export function TransactionPreview({
   );
 
   const selectedAccountCurrency = useMemo(
-    () => accounts.find((acc) => acc.id === accountId)?.currency ?? "CHF",
-    [accountId, accounts],
+    () => accounts.find((acc) => acc.id === effectiveAccountId)?.currency ?? "CHF",
+    [accounts, effectiveAccountId],
   );
 
   const hasAccounts = accounts.length > 0;
@@ -129,7 +142,7 @@ export function TransactionPreview({
     const existingTransactionIds = new Set<string>();
     const existingFingerprints = new Set<string>();
     existingTransactions.forEach((transaction) => {
-      if (transaction.accountId === accountId) {
+      if (transaction.accountId === effectiveAccountId) {
         const transactionId = normalizeTransactionId(transaction.transactionId);
         if (transactionId) {
           existingTransactionIds.add(transactionId);
@@ -164,13 +177,13 @@ export function TransactionPreview({
     });
 
     return duplicates;
-  }, [accountId, existingTransactions, rows]);
+  }, [effectiveAccountId, existingTransactions, rows]);
 
   const possibleMatchIndexes = useMemo(() => {
     const existingFingerprints = new Set<string>();
 
     existingTransactions.forEach((transaction) => {
-      if (transaction.accountId !== accountId) {
+      if (transaction.accountId !== effectiveAccountId) {
         return;
       }
 
@@ -199,7 +212,7 @@ export function TransactionPreview({
 
       const effectiveCurrency = row.currency || selectedAccountCurrency;
       const fingerprint = buildTransactionFingerprint(
-        accountId,
+        effectiveAccountId,
         row.date,
         row.time,
         row.amount,
@@ -214,12 +227,114 @@ export function TransactionPreview({
 
     return possibleMatches;
   }, [
-    accountId,
+    effectiveAccountId,
     duplicateIndexes,
     existingTransactions,
     rows,
     selectedAccountCurrency,
   ]);
+
+  const transferPairCandidatesByIndex = useMemo(() => {
+    const candidates = new Map<number, {
+      matchedTransactionId: string;
+      accountName: string;
+      amount: number;
+      currency: string;
+      date: string;
+      time?: string;
+      description: string;
+      transactionId?: string;
+      isAlreadyLinked: boolean;
+    }>();
+    const accountsById = new Map(accounts.map((account) => [account.id, account] as const));
+
+    rows.forEach((row, idx) => {
+      if (row.errors.length > 0 || duplicateIndexes.has(idx)) {
+        return;
+      }
+
+      const normalizedTransactionId = normalizeTransactionId(row.transactionId);
+      if (!normalizedTransactionId) {
+        return;
+      }
+
+      const expectedCurrency = row.currency || selectedAccountCurrency;
+
+      const matchingTransactions = existingTransactions.filter((transaction) => {
+        if (transaction.accountId === effectiveAccountId) {
+          return false;
+        }
+
+        const existingTransactionId = normalizeTransactionId(transaction.transactionId);
+        if (!existingTransactionId || existingTransactionId !== normalizedTransactionId) {
+          return false;
+        }
+        if (transaction.currency !== expectedCurrency) {
+          return false;
+        }
+        if (Math.abs(transaction.amount) !== Math.abs(row.amount)) {
+          return false;
+        }
+        if (transaction.amount * row.amount >= 0) {
+          return false;
+        }
+
+        const dayDistance = getDateDistanceInDays(transaction.date, row.date);
+        return dayDistance <= 2;
+      });
+
+      if (matchingTransactions.length === 0) {
+        return;
+      }
+
+      const bestMatch = matchingTransactions
+        .sort((left, right) => getDateDistanceInDays(left.date, row.date) - getDateDistanceInDays(right.date, row.date))[0];
+      const accountName = accountsById.get(bestMatch.accountId)?.name ?? 'Unknown account';
+      candidates.set(idx, {
+        matchedTransactionId: bestMatch.id,
+        accountName,
+        amount: bestMatch.amount,
+        currency: bestMatch.currency,
+        date: bestMatch.date,
+        time: bestMatch.time,
+        description: bestMatch.description,
+        transactionId: bestMatch.transactionId,
+        isAlreadyLinked: Boolean(bestMatch.transferPairId),
+      });
+    });
+
+    return candidates;
+  }, [
+    accounts,
+    duplicateIndexes,
+    effectiveAccountId,
+    existingTransactions,
+    rows,
+    selectedAccountCurrency,
+  ]);
+
+  const [transferLinkDecisions, setTransferLinkDecisions] = useState<Map<number, TransferLinkDecision>>(new Map());
+
+  const getTransferDecision = useCallback((rowIndex: number): TransferLinkDecision => {
+    return transferLinkDecisions.get(rowIndex) ?? 'link';
+  }, [transferLinkDecisions]);
+
+  const toggleTransferLinkDecision = useCallback((rowIndex: number) => {
+    setTransferLinkDecisions((previous) => {
+      const next = new Map(previous);
+      const current = next.get(rowIndex) ?? 'link';
+      if (current === 'link') {
+        next.set(rowIndex, 'separate');
+      } else {
+        next.delete(rowIndex);
+      }
+      return next;
+    });
+  }, []);
+
+  const toggleMatchPreview = useCallback((rowIndex: number) => {
+    setExpandedMatchRowIndex((current) => (current === rowIndex ? null : rowIndex));
+  }, []);
 
   const warningsByIndex = useMemo(() => {
     const warnings = new Map<number, string[]>();
@@ -239,12 +354,11 @@ export function TransactionPreview({
     });
 
     return warnings;
-  }, [rows, duplicateIndexes, possibleMatchIndexes]);
-
-  // Reset to first page when rows or warning scope changes
-  useEffect(() => {
-    setPage(0);
-  }, [rows, showWarningsOnly, warningsByIndex]);
+  }, [
+    duplicateIndexes,
+    possibleMatchIndexes,
+    rows,
+  ]);
 
   const selectedWithoutDuplicates = useMemo(() => {
     const next = new Set<number>();
@@ -312,6 +426,9 @@ export function TransactionPreview({
     const warningCount = warningsByIndex.size;
     const duplicateCount = duplicateIndexes.size;
     const possibleMatchCount = possibleMatchIndexes.size;
+    const transferMatchCount = transferPairCandidatesByIndex.size;
+    const linkedTransferCount = Array.from(transferPairCandidatesByIndex.keys())
+      .filter((idx) => getTransferDecision(idx) === 'link').length;
 
     for (const [i, row] of rows.entries()) {
       if (!selectedIndexes.has(i)) continue;
@@ -327,22 +444,43 @@ export function TransactionPreview({
       warningCount,
       duplicateCount,
       possibleMatchCount,
+      transferMatchCount,
+      linkedTransferCount,
     };
   }, [
     duplicateIndexes,
+    getTransferDecision,
     possibleMatchIndexes,
     rows,
     selectedIndexes,
+    transferPairCandidatesByIndex,
     warningsByIndex,
   ]);
 
   const handleConfirm = () => {
-    if (!accountId) {
+    if (!effectiveAccountId) {
       return;
     }
 
-    const selectedRows = rows.filter((_, i) => selectedIndexes.has(i));
-    onConfirm(selectedRows, accountId, importName);
+    const selectedRowIndexes = rows
+      .map((_, index) => index)
+      .filter((index) => selectedIndexes.has(index));
+
+    const transferLinks = selectedRowIndexes
+      .filter((rowIndex) => getTransferDecision(rowIndex) === 'link')
+      .map((rowIndex) => {
+        const candidate = transferPairCandidatesByIndex.get(rowIndex);
+        if (!candidate) {
+          return null;
+        }
+        return {
+          rowIndex,
+          matchedTransactionId: candidate.matchedTransactionId,
+        };
+      })
+      .filter((entry): entry is { rowIndex: number; matchedTransactionId: string } => entry !== null);
+
+    onConfirm(selectedRowIndexes, effectiveAccountId, importName, transferLinks);
   };
 
   const handleCreateAccount = (accountPayload: AccountFormSubmitPayload) => {
@@ -406,7 +544,7 @@ export function TransactionPreview({
             <div className="flex items-center gap-3">
               <label className="label whitespace-nowrap">Import into</label>
               <select
-                value={accountId}
+                value={effectiveAccountId}
                 onChange={(e) => setAccountId(e.target.value)}
                 className="select text-sm max-w-xs"
               >
@@ -439,7 +577,14 @@ export function TransactionPreview({
       {stats.warningCount > 0 && (
         <div className="flex items-center px-1">
           <button
-            onClick={() => setShowWarningsOnly(!showWarningsOnly)}
+            onClick={() => {
+              const nextWarningsOnly = !showWarningsOnly;
+              setShowWarningsOnly(nextWarningsOnly);
+              if (nextWarningsOnly) {
+                setShowMatchesOnly(false);
+              }
+              setPage(0);
+            }}
             className={cn(
               "flex items-center gap-2 bg-transparent border-none cursor-pointer transition-opacity px-0 py-0",
               showWarningsOnly ? "opacity-100" : "opacity-60 hover:opacity-100",
@@ -461,14 +606,51 @@ export function TransactionPreview({
         </div>
       )}
 
+      {/* Transfer matches filter */}
+      {stats.transferMatchCount > 0 && (
+        <div className="flex items-center px-1">
+          <button
+            onClick={() => {
+              const nextMatchesOnly = !showMatchesOnly;
+              setShowMatchesOnly(nextMatchesOnly);
+              if (nextMatchesOnly) {
+                setShowWarningsOnly(false);
+              }
+              setPage(0);
+            }}
+            className={cn(
+              "flex items-center gap-2 bg-transparent border-none cursor-pointer transition-opacity px-0 py-0",
+              showMatchesOnly ? "opacity-100" : "opacity-60 hover:opacity-100",
+            )}
+            title="Filter rows that have transfer link matches"
+          >
+            <Link2 size={14} className="text-text-muted" />
+            <span className="text-ui text-text-muted font-medium hover:underline">
+              {stats.transferMatchCount} transfer match{stats.transferMatchCount !== 1 ? "es" : ""}
+              {stats.linkedTransferCount > 0
+                ? ` · ${stats.linkedTransferCount} link${stats.linkedTransferCount !== 1 ? "s" : ""} enabled`
+                : ""}
+              {showMatchesOnly ? " (filtered)" : ""}
+            </span>
+            <Filter size={12} className="text-text-muted" />
+          </button>
+        </div>
+      )}
+
       {/* Transaction table */}
       {(() => {
         // Filter rows if warnings-only mode is active
-        const filteredRows = showWarningsOnly
-          ? rows
-              .map((row, idx) => ({ row, idx }))
-              .filter(({ idx }) => warningsByIndex.has(idx))
-          : rows.map((row, idx) => ({ row, idx }));
+        const filteredRows = rows
+          .map((row, idx) => ({ row, idx }))
+          .filter(({ idx }) => {
+            if (showWarningsOnly && !warningsByIndex.has(idx)) {
+              return false;
+            }
+            if (showMatchesOnly && !transferPairCandidatesByIndex.has(idx)) {
+              return false;
+            }
+            return true;
+          });
 
         const selectableRowCount = rows.length - duplicateIndexes.size;
         const allSelectableSelected =
@@ -479,9 +661,14 @@ export function TransactionPreview({
           1,
           Math.ceil(filteredRows.length / pageSize),
         );
-        const start = page * pageSize;
+        const currentPage = Math.min(page, totalPages - 1);
+        const start = currentPage * pageSize;
         const end = Math.min(start + pageSize, filteredRows.length);
         const displayRows = filteredRows.slice(start, end);
+        const columnCount = 7
+          + (hasTime ? 1 : 0)
+          + (hasTransactionId ? 1 : 0)
+          + (hasCurrency ? 1 : 0);
 
         return (
           <div className="rounded-(--radius-md) border border-border overflow-hidden">
@@ -516,6 +703,9 @@ export function TransactionPreview({
                     <th className="px-3 py-2.5 text-left text-text-muted font-medium">
                       Category
                     </th>
+                    <th className="px-3 py-2.5 text-left text-text-muted font-medium">
+                      Transfer
+                    </th>
                     {hasCurrency && (
                       <th className="px-3 py-2.5 text-left text-text-muted font-medium">
                         Currency
@@ -535,81 +725,160 @@ export function TransactionPreview({
                     const isDuplicate = duplicateIndexes.has(idx);
                     const rowWarnings = warningsByIndex.get(idx) ?? [];
                     const hasWarnings = rowWarnings.length > 0;
+                    const transferPairCandidate = transferPairCandidatesByIndex.get(idx);
+                    const transferDecision = getTransferDecision(idx);
+                    const isLinkEnabled = transferDecision === 'link';
+                    const isMatchPreviewOpen = expandedMatchRowIndex === idx;
 
                     return (
-                      <tr
-                        key={idx}
-                        onClick={() => toggleRow(idx)}
-                        className={cn(
-                          "border-b border-border last:border-b-0 transition-colors",
-                          isSelected
-                            ? "hover:bg-surface-hover/50"
-                            : isDuplicate
-                              ? "cursor-pointer opacity-70 hover:opacity-90"
-                              : "cursor-pointer opacity-40 hover:opacity-60",
-                          hasWarnings && isSelected && "bg-warning/[0.03]",
-                        )}
-                      >
-                        <td className="px-3 py-2.5">
-                          <input
-                            type="checkbox"
-                            checked={isSelected}
-                            onChange={() => toggleRow(idx)}
-                            onClick={(e) => e.stopPropagation()}
-                            className="cursor-pointer accent-text"
-                          />
-                        </td>
-                        <td className="px-3 py-2.5 text-text-secondary whitespace-nowrap">
-                          {row.date ? formatDate(row.date) : "—"}
-                        </td>
-                        {hasTime && (
-                          <td className="px-3 py-2.5 text-text-secondary whitespace-nowrap">
-                            {row.time ? row.time.slice(0, 5) : "—"}
-                          </td>
-                        )}
-                        <td className="px-3 py-2.5 text-text">
-                          <span className="break-words">
-                            {row.description || "—"}
-                          </span>
-                        </td>
-                        {hasTransactionId && (
-                          <td className="px-3 py-2.5 text-text-muted font-mono whitespace-nowrap">
-                            {row.transactionId || "—"}
-                          </td>
-                        )}
-                        <td className="px-3 py-2.5 text-text-muted">
-                          {row.category || "—"}
-                        </td>
-                        {hasCurrency && (
-                          <td className="px-3 py-2.5 text-text-muted">
-                            {row.currency || "—"}
-                          </td>
-                        )}
-                        <td
+                      <Fragment key={idx}>
+                        <tr
+                          onClick={() => toggleRow(idx)}
                           className={cn(
-                            "px-3 py-2.5 text-right font-medium whitespace-nowrap",
-                            row.amount >= 0 ? "text-income" : "text-expense",
+                            "border-b border-border transition-colors",
+                            isSelected
+                              ? "hover:bg-surface-hover/50"
+                              : isDuplicate
+                                ? "cursor-pointer opacity-70 hover:opacity-90"
+                                : "cursor-pointer opacity-40 hover:opacity-60",
+                            hasWarnings && isSelected && "bg-warning/[0.03]",
                           )}
-                          style={{ fontFamily: "var(--font-display)" }}
                         >
-                          {formatSignedCurrency(
-                            row.amount,
-                            row.currency || selectedAccountCurrency,
+                          <td className="px-3 py-2.5">
+                            <input
+                              type="checkbox"
+                              checked={isSelected}
+                              onChange={() => toggleRow(idx)}
+                              onClick={(e) => e.stopPropagation()}
+                              className="cursor-pointer accent-text"
+                            />
+                          </td>
+                          <td className="px-3 py-2.5 text-text-secondary whitespace-nowrap">
+                            {row.date ? formatDate(row.date) : "—"}
+                          </td>
+                          {hasTime && (
+                            <td className="px-3 py-2.5 text-text-secondary whitespace-nowrap">
+                              {row.time ? row.time.slice(0, 5) : "—"}
+                            </td>
                           )}
-                        </td>
-                        <td className="px-3 py-2.5 text-center">
-                          {hasWarnings ? (
-                            <span title={rowWarnings.join(", ")}>
-                              <AlertTriangle
-                                size={14}
-                                className="text-warning inline"
-                              />
+                          <td className="px-3 py-2.5 text-text">
+                            <span className="break-words">
+                              {row.description || "—"}
                             </span>
-                          ) : (
-                            <Check size={14} className="text-income inline" />
+                          </td>
+                          {hasTransactionId && (
+                            <td className="px-3 py-2.5 text-text-muted font-mono whitespace-nowrap">
+                              {row.transactionId || "—"}
+                            </td>
                           )}
-                        </td>
-                      </tr>
+                          <td className="px-3 py-2.5 text-text-muted">
+                            {row.category || "—"}
+                          </td>
+                          <td className="px-3 py-2.5 text-text-muted">
+                            {transferPairCandidate ? (
+                              <div className="flex items-center gap-2" onClick={(event) => event.stopPropagation()}>
+                                <button
+                                  type="button"
+                                  aria-pressed={isLinkEnabled}
+                                  onClick={() => toggleTransferLinkDecision(idx)}
+                                  title={isLinkEnabled
+                                    ? "Linked on import. Click to keep transactions separate."
+                                    : "Keep separate. Click to link this row with the matched transfer."
+                                  }
+                                  aria-label={isLinkEnabled
+                                    ? "Linked on import. Click to keep separate"
+                                    : "Keep separate. Click to link"
+                                  }
+                                  className={cn(
+                                    "inline-flex items-center gap-1 rounded-(--radius-sm) border px-2 py-0.5 text-ui transition-colors",
+                                    isLinkEnabled
+                                      ? "border-transfer/40 bg-transfer/10 text-transfer"
+                                      : "border-border bg-transparent text-text-muted hover:text-text",
+                                  )}
+                                >
+                                  {isLinkEnabled ? <Link2 size={12} /> : <Link2Off size={12} />}
+                                  <span>Link</span>
+                                </button>
+                                <button
+                                  type="button"
+                                  onClick={() => toggleMatchPreview(idx)}
+                                  className="inline-flex items-center justify-center h-6 w-6 rounded-(--radius-sm) border border-border bg-transparent text-text-muted hover:text-text hover:border-text-muted transition-colors"
+                                  title={`View matched transaction in ${transferPairCandidate.accountName}`}
+                                  aria-label={`View matched transaction in ${transferPairCandidate.accountName}`}
+                                >
+                                  <Eye size={12} />
+                                </button>
+                              </div>
+                            ) : (
+                              <span className="text-ui text-text-muted">—</span>
+                            )}
+                          </td>
+                          {hasCurrency && (
+                            <td className="px-3 py-2.5 text-text-muted">
+                              {row.currency || "—"}
+                            </td>
+                          )}
+                          <td
+                            className={cn(
+                              "px-3 py-2.5 text-right font-medium whitespace-nowrap",
+                              row.amount >= 0 ? "text-income" : "text-expense",
+                            )}
+                            style={{ fontFamily: "var(--font-display)" }}
+                          >
+                            {formatSignedCurrency(
+                              row.amount,
+                              row.currency || selectedAccountCurrency,
+                            )}
+                          </td>
+                          <td className="px-3 py-2.5 text-center">
+                            {hasWarnings ? (
+                              <span title={rowWarnings.join(", ")}>
+                                <AlertTriangle
+                                  size={14}
+                                  className="text-warning inline"
+                                />
+                              </span>
+                            ) : (
+                              <Check size={14} className="text-income inline" />
+                            )}
+                          </td>
+                        </tr>
+
+                        {transferPairCandidate && isMatchPreviewOpen && (
+                          <tr className="border-b border-border bg-surface/40">
+                            <td colSpan={columnCount} className="px-3 py-2.5">
+                              <div className="rounded-(--radius-sm) border border-border bg-bg p-3 space-y-2">
+                                <div className="flex items-center justify-between gap-2">
+                                  <span className="text-body text-text">Matched transaction</span>
+                                  {transferPairCandidate.isAlreadyLinked && (
+                                    <span className="text-ui text-warning">Existing link (will overwrite)</span>
+                                  )}
+                                </div>
+                                <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-4 gap-y-1">
+                                  <div className="text-ui text-text-muted">
+                                    Account: <span className="text-text">{transferPairCandidate.accountName}</span>
+                                  </div>
+                                  <div className="text-ui text-text-muted">
+                                    Date: <span className="text-text">{formatDate(transferPairCandidate.date)}</span>
+                                  </div>
+                                  <div className="text-ui text-text-muted">
+                                    Time: <span className="text-text">{transferPairCandidate.time ? transferPairCandidate.time.slice(0, 5) : "—"}</span>
+                                  </div>
+                                  <div className="text-ui text-text-muted">
+                                    Amount: <span className="text-text" style={{ fontFamily: "var(--font-display)" }}>{formatSignedCurrency(transferPairCandidate.amount, transferPairCandidate.currency)}</span>
+                                  </div>
+                                  <div className="text-ui text-text-muted sm:col-span-2">
+                                    Description: <span className="text-text">{transferPairCandidate.description || "—"}</span>
+                                  </div>
+                                  <div className="text-ui text-text-muted sm:col-span-2">
+                                    Transaction ID: <span className="text-text font-mono">{transferPairCandidate.transactionId || "—"}</span>
+                                  </div>
+                                </div>
+                              </div>
+                            </td>
+                          </tr>
+                        )}
+                      </Fragment>
                     );
                   })}
                 </tbody>
@@ -638,7 +907,7 @@ export function TransactionPreview({
                 <span>
                   {start + 1}–{end} of {filteredRows.length}
                 </span>
-                <PaginationButtons page={page} totalPages={totalPages} onPageChange={setPage} />
+                <PaginationButtons page={currentPage} totalPages={totalPages} onPageChange={setPage} />
               </div>
             )}
           </div>
@@ -649,7 +918,7 @@ export function TransactionPreview({
       <div className="flex gap-3">
         <button
           onClick={handleConfirm}
-          disabled={stats.count === 0 || !accountId || !hasAccounts}
+          disabled={stats.count === 0 || !effectiveAccountId || !hasAccounts}
           className="btn-primary"
         >
           Import {stats.count} transaction{stats.count !== 1 ? "s" : ""}

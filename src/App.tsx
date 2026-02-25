@@ -3,6 +3,7 @@ import { AppLayout } from "./components/layout";
 import {
   Dashboard,
   Transactions,
+  Analytics,
   Accounts,
   Goals,
   Categories,
@@ -44,6 +45,7 @@ function App() {
         <Route element={<AppLayout />}>
           <Route path="/" element={<Dashboard />} />
           <Route path="/transactions" element={<Transactions />} />
+          <Route path="/analytics" element={<Analytics />} />
           <Route path="/import" element={<Import />} />
           <Route path="/accounts" element={<Accounts />} />
           <Route path="/goals" element={<Goals />} />

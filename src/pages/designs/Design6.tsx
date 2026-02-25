@@ -852,8 +852,8 @@ export function Design6() {
               <div className="d6-tx-list">
                 {transactions.map((tx) => (
                   <div key={tx.id} className="d6-tx">
-                    <div className={`d6-tx-indicator ${tx.category.type}`}>
-                      {tx.category.type === 'income' ? <ArrowUpRight size={18} /> : <ArrowDownRight size={18} />}
+                    <div className={`d6-tx-indicator ${tx.type}`}>
+                      {tx.type === 'income' ? <ArrowUpRight size={18} /> : <ArrowDownRight size={18} />}
                     </div>
                     <div className="d6-tx-info">
                       <div className="d6-tx-desc">{tx.description}</div>
@@ -868,8 +868,8 @@ export function Design6() {
                         )}
                       </div>
                     </div>
-                    <div className={`d6-tx-amount ${tx.category.type}`}>
-                      {tx.category.type === 'income' ? '+' : '-'}{formatCurrency(tx.amount)}
+                    <div className={`d6-tx-amount ${tx.type}`}>
+                      {tx.type === 'income' ? '+' : '-'}{formatCurrency(tx.amount)}
                     </div>
                   </div>
                 ))}

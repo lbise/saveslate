@@ -40,7 +40,13 @@ import {
   inferTransactionType,
   UNCATEGORIZED_CATEGORY_ID,
 } from "../lib/transaction-type";
-import { formatCurrency, formatDate, cn } from "../lib/utils";
+import {
+  formatCurrency,
+  formatDate,
+  formatSignedCurrency,
+  resolveTransferFlowAccounts,
+  cn,
+} from "../lib/utils";
 import type {
   ImportBatch,
   AutomationRulePrefillDraft,
@@ -67,11 +73,18 @@ const amountColors: Record<TransactionType, string> = {
   transfer: "text-text",
 };
 
-const amountPrefix: Record<TransactionType, string> = {
-  income: "+",
-  expense: "-",
-  transfer: "",
-};
+function getAmountColorClass(type: TransactionType, amount: number): string {
+  if (type !== "transfer") {
+    return amountColors[type];
+  }
+  if (amount > 0) {
+    return "text-income";
+  }
+  if (amount < 0) {
+    return "text-expense";
+  }
+  return "text-text";
+}
 
 const iconBoxStyles: Record<TransactionType, string> = {
   income: "bg-income/10 text-income",
@@ -96,23 +109,45 @@ interface SourceOption {
   deletable: boolean;
 }
 
-function toTransactionWithDetails(transaction: Transaction): TxDetails {
-  const inferredType: TransactionType = inferTransactionType(transaction);
+function createTransferCounterpartyMap(transactions: Transaction[]): Map<string, string> {
+  const transactionsByPairId = new Map<string, Transaction[]>();
 
-  const baseCategory = getCategoryById(transaction.categoryId) ?? {
+  transactions.forEach((transaction) => {
+    if (!transaction.transferPairId) {
+      return;
+    }
+
+    const pairTransactions = transactionsByPairId.get(transaction.transferPairId) ?? [];
+    pairTransactions.push(transaction);
+    transactionsByPairId.set(transaction.transferPairId, pairTransactions);
+  });
+
+  const counterpartyByTransactionId = new Map<string, string>();
+  for (const [, pairTransactions] of transactionsByPairId) {
+    if (pairTransactions.length !== 2) {
+      continue;
+    }
+
+    const [left, right] = pairTransactions;
+    counterpartyByTransactionId.set(left.id, right.accountId);
+    counterpartyByTransactionId.set(right.id, left.accountId);
+  }
+
+  return counterpartyByTransactionId;
+}
+
+function toTransactionWithDetails(
+  transaction: Transaction,
+  counterpartyByTransactionId: Map<string, string>,
+): TxDetails {
+  const category = getCategoryById(transaction.categoryId) ?? {
     id: transaction.categoryId,
     name:
       transaction.categoryId === UNCATEGORIZED_CATEGORY_ID
         ? "Uncategorized"
         : "Unknown Category",
-    type: inferredType,
     icon: "CircleHelp",
   };
-
-  const category =
-    transaction.categoryId === UNCATEGORIZED_CATEGORY_ID
-      ? { ...baseCategory, type: inferredType }
-      : baseCategory;
 
   const account = getAccountById(transaction.accountId) ?? {
     id: transaction.accountId,
@@ -125,9 +160,11 @@ function toTransactionWithDetails(transaction: Transaction): TxDetails {
 
   const goal = transaction.goalId ? getGoalById(transaction.goalId) : undefined;
 
-  const destinationAccount = transaction.destinationAccountId
-    ? (getAccountById(transaction.destinationAccountId) ?? {
-        id: transaction.destinationAccountId,
+  const counterpartyAccountId = counterpartyByTransactionId.get(transaction.id);
+
+  const destinationAccount = counterpartyAccountId
+    ? (getAccountById(counterpartyAccountId) ?? {
+        id: counterpartyAccountId,
         name: "Unknown Account",
         type: "checking" as const,
         balance: 0,
@@ -138,6 +175,7 @@ function toTransactionWithDetails(transaction: Transaction): TxDetails {
 
   return {
     ...transaction,
+    type: inferTransactionType(transaction),
     category,
     account,
     destinationAccount,
@@ -146,16 +184,35 @@ function toTransactionWithDetails(transaction: Transaction): TxDetails {
 }
 
 function loadTransactionsWithDetails(): TxDetails[] {
-  return loadTransactions().map((transaction) => toTransactionWithDetails(transaction));
+  const transactions = loadTransactions();
+  const counterpartyByTransactionId = createTransferCounterpartyMap(transactions);
+  return transactions.map((transaction) => toTransactionWithDetails(transaction, counterpartyByTransactionId));
 }
 
 function toStoredTransaction(transaction: TxDetails): Transaction {
-  const { category, account, goal, ...storedTransaction } = transaction;
-  return storedTransaction;
+  return {
+    id: transaction.id,
+    amount: transaction.amount,
+    currency: transaction.currency,
+    categoryId: transaction.categoryId,
+    description: transaction.description,
+    date: transaction.date,
+    accountId: transaction.accountId,
+    ...(transaction.transactionId !== undefined && { transactionId: transaction.transactionId }),
+    ...(transaction.time !== undefined && { time: transaction.time }),
+    ...(transaction.transferPairId !== undefined && { transferPairId: transaction.transferPairId }),
+    ...(transaction.transferPairRole !== undefined && { transferPairRole: transaction.transferPairRole }),
+    ...(transaction.goalId !== undefined && { goalId: transaction.goalId }),
+    ...(transaction.importBatchId !== undefined && { importBatchId: transaction.importBatchId }),
+    ...(transaction.split !== undefined && { split: transaction.split }),
+    ...(transaction.metadata !== undefined && { metadata: transaction.metadata }),
+    ...(transaction.rawData !== undefined && { rawData: transaction.rawData }),
+  };
 }
 
-function persistTransactions(transactions: TxDetails[]): void {
+function persistTransactions(transactions: TxDetails[]): TxDetails[] {
   saveTransactions(transactions.map((transaction) => toStoredTransaction(transaction)));
+  return loadTransactionsWithDetails();
 }
 
 export function Transactions() {
@@ -250,8 +307,7 @@ export function Transactions() {
     if (action === "delete") {
       setTransactions((prev) => {
         const nextTransactions = prev.filter((tx) => tx.id !== txId);
-        persistTransactions(nextTransactions);
-        return nextTransactions;
+        return persistTransactions(nextTransactions);
       });
     } else if (action === "duplicate") {
       setTransactions((prev) => {
@@ -261,8 +317,7 @@ export function Transactions() {
         const idx = prev.findIndex((t) => t.id === txId);
         const next = [...prev];
         next.splice(idx + 1, 0, dup);
-        persistTransactions(next);
-        return next;
+        return persistTransactions(next);
       });
     }
     // edit: no-op for mockup
@@ -275,20 +330,15 @@ export function Transactions() {
       const nextTransactions = prev.map((tx) => {
         if (tx.id !== txId) return tx;
 
-        const categoryType =
-          categoryId === UNCATEGORIZED_CATEGORY_ID
-            ? inferTransactionType(tx)
-            : category.type;
-
         return {
           ...tx,
           categoryId,
-          category: { ...category, type: categoryType },
+          category,
+          type: inferTransactionType(tx),
         };
       });
 
-      persistTransactions(nextTransactions);
-      return nextTransactions;
+      return persistTransactions(nextTransactions);
     });
 
     setEditingCategoryId(null);
@@ -311,8 +361,7 @@ export function Transactions() {
         };
       });
 
-      persistTransactions(nextTransactions);
-      return nextTransactions;
+      return persistTransactions(nextTransactions);
     });
 
     setEditingGoalId(null);
@@ -322,9 +371,7 @@ export function Transactions() {
   const openQuickAutoRuleModal = (transaction: TxDetails) => {
     closePopovers();
 
-    const fallbackCategoryId = CATEGORIES.find((category) => {
-      return category.type === inferTransactionType(transaction);
-    })?.id ?? CATEGORIES[0]?.id ?? UNCATEGORIZED_CATEGORY_ID;
+    const fallbackCategoryId = CATEGORIES[0]?.id ?? UNCATEGORIZED_CATEGORY_ID;
 
     const prefillCategoryId = transaction.categoryId === UNCATEGORIZED_CATEGORY_ID
       ? fallbackCategoryId
@@ -334,26 +381,20 @@ export function Transactions() {
 
     let prefillName = '';
     if (transaction.categoryId !== UNCATEGORIZED_CATEGORY_ID) {
-      const nameParts: string[] = [transaction.category.name];
-      const targetParts: string[] = [];
-      if (transaction.goal) targetParts.push(transaction.goal.name);
-      if (transaction.destinationAccount) targetParts.push(transaction.destinationAccount.name);
-      if (targetParts.length > 0) {
-        nameParts.push(targetParts.join(', '));
-      }
-      prefillName = nameParts.join(' → ');
+      prefillName = transaction.goal
+        ? `${transaction.category.name} → ${transaction.goal.name}`
+        : transaction.category.name;
     }
 
     const prefillDraft: AutomationRulePrefillDraft = {
       name: prefillName,
       categoryId: prefillCategoryId,
       goalId: transaction.goalId,
-      destinationAccountId: transaction.destinationAccountId,
       isEnabled: true,
       triggers: ['on-import', 'manual-run'],
-      matchMode: 'any',
+      matchMode: 'all',
       applyToUncategorizedOnly: true,
-      mergeIntoExistingCategoryRule: true,
+      mergeIntoExistingCategoryRule: !transaction.goalId,
       conditions: [
         {
           field: 'description',
@@ -379,18 +420,16 @@ export function Transactions() {
     [transactions],
   );
 
-  // Categories available for the currently selected type
+  // Categories available for filtering — show all categories regardless of type filter
   const availableCategories = useMemo(() => {
-    if (typeFilter === "all") return CATEGORIES;
-    return CATEGORIES.filter((c) => c.type === typeFilter);
-  }, [typeFilter]);
+    return CATEGORIES;
+  }, []);
 
   const categoryOptions = useMemo(
     () =>
       availableCategories.map((c) => ({
         id: c.id,
         label: c.name,
-        group: c.type.charAt(0).toUpperCase() + c.type.slice(1),
       })),
     [availableCategories],
   );
@@ -536,9 +575,7 @@ export function Transactions() {
 
     setImportBatches((prev) => prev.filter((batch) => batch.id !== sourceId));
     setSourceFilterIds((prev) => prev.filter((id) => id !== sourceId));
-    setTransactions((prev) =>
-      prev.filter((transaction) => transaction.importBatchId !== sourceId),
-    );
+    setTransactions(loadTransactionsWithDetails());
     setSourceToDelete(null);
   };
 
@@ -557,7 +594,7 @@ export function Transactions() {
     }
 
     if (typeFilter !== "all") {
-      result = result.filter((t) => t.category.type === typeFilter);
+      result = result.filter((t) => t.type === typeFilter);
     }
 
     if (categoryFilterIds.length > 0) {
@@ -579,9 +616,7 @@ export function Transactions() {
 
     if (accountFilterIds.length > 0) {
       const selected = new Set(accountFilterIds);
-      result = result.filter(
-        (t) => selected.has(t.accountId) || (t.destinationAccountId && selected.has(t.destinationAccountId)),
-      );
+      result = result.filter((t) => selected.has(t.accountId));
     }
 
     if (dateFrom) {
@@ -629,7 +664,7 @@ export function Transactions() {
 
   // Filtered and sorted
   const filteredTransactions = useMemo(() => {
-    let result = showUncategorizedOnly
+    const result = showUncategorizedOnly
       ? scopedTransactions.filter(
           (transaction) => transaction.categoryId === UNCATEGORIZED_CATEGORY_ID,
         )
@@ -689,15 +724,15 @@ export function Transactions() {
   };
 
   const totalIncome = filteredTransactions
-    .filter((t) => t.category.type === "income")
+    .filter((t) => t.type === "income")
     .reduce((sum, t) => sum + Math.abs(t.amount), 0);
 
   const totalExpenses = filteredTransactions
-    .filter((t) => t.category.type === "expense")
+    .filter((t) => t.type === "expense")
     .reduce((sum, t) => sum + Math.abs(t.amount), 0);
 
   const totalTransfers = filteredTransactions
-    .filter((t) => t.category.type === "transfer")
+    .filter((t) => t.type === "transfer")
     .reduce((sum, t) => sum + Math.abs(t.amount), 0);
 
   // Paginate the filtered results
@@ -738,13 +773,14 @@ export function Transactions() {
         description: transaction.description,
         amount: transaction.amount,
         currency: transaction.currency,
-        type: transaction.category.type,
+        type: transaction.type,
         categoryId: transaction.categoryId,
         categoryName: transaction.category.name,
         accountId: transaction.accountId,
         accountName: transaction.account.name,
-        destinationAccountId: transaction.destinationAccountId ?? null,
         destinationAccountName: transaction.destinationAccount?.name ?? null,
+        transferPairId: transaction.transferPairId ?? null,
+        transferPairRole: transaction.transferPairRole ?? null,
         goalId: transaction.goalId ?? null,
         goalName: transaction.goal?.name ?? null,
         importBatchId: transaction.importBatchId ?? null,
@@ -1324,10 +1360,11 @@ export function Transactions() {
             )}
           </div>
         ) : (
-          paginatedTransactions.map((tx) => (
+          paginatedTransactions.map((tx, index) => (
             <TransactionRow
               key={tx.id}
               transaction={tx}
+              openCategoryUpward={index >= Math.max(0, paginatedTransactions.length - 3)}
               isActionOpen={openActionId === tx.id}
               isEditingCategory={editingCategoryId === tx.id}
               isEditingGoal={editingGoalId === tx.id}
@@ -1374,6 +1411,7 @@ export function Transactions() {
 
 interface TransactionRowProps {
   transaction: TxDetails;
+  openCategoryUpward: boolean;
   isActionOpen: boolean;
   isEditingCategory: boolean;
   isEditingGoal: boolean;
@@ -1388,6 +1426,7 @@ interface TransactionRowProps {
 
 function TransactionRow({
   transaction,
+  openCategoryUpward,
   isActionOpen,
   isEditingCategory,
   isEditingGoal,
@@ -1399,11 +1438,19 @@ function TransactionRow({
   onCreateRule,
   onAction,
 }: TransactionRowProps) {
-  const type = transaction.category.type;
+  const type = transaction.type;
   const iconStyle =
     transaction.categoryId === UNCATEGORIZED_CATEGORY_ID
       ? UNCATEGORIZED_ICON_STYLE
       : iconBoxStyles[type];
+  const transferFlow = type === "transfer" && transaction.destinationAccount
+    ? resolveTransferFlowAccounts({
+        amount: transaction.amount,
+        accountName: transaction.account.name,
+        counterpartyAccountName: transaction.destinationAccount.name,
+        transferPairRole: transaction.transferPairRole,
+      })
+    : null;
 
   return (
     <div className="group flex items-center gap-3.5 py-3.5 border-b border-border last:border-b-0 transition-colors duration-150 hover:bg-surface-hover/30 relative">
@@ -1462,7 +1509,7 @@ function TransactionRow({
                   currentCategoryId={transaction.categoryId}
                   onSelect={onCategoryChange}
                   onClose={onToggleEditCategory}
-                  className="top-full left-0 mt-1"
+                  openUpward={openCategoryUpward}
                 />
               )}
             </div>
@@ -1472,9 +1519,9 @@ function TransactionRow({
                 <span className="truncate">{transaction.goal.name}</span>
               </span>
             )}
-            {type === "transfer" && transaction.destinationAccount && (
+            {transferFlow && (
               <span className="text-ui text-text-muted truncate max-w-48">
-                {transaction.account.name} &rarr; {transaction.destinationAccount.name}
+                {transferFlow.fromAccountName} &rarr; {transferFlow.toAccountName}
               </span>
             )}
             {transaction.split && (
@@ -1497,11 +1544,10 @@ function TransactionRow({
 
         <div className="flex items-center gap-1 shrink-0">
           <span
-            className={cn("text-ui font-medium", amountColors[type])}
+            className={cn("text-ui font-medium", getAmountColorClass(type, transaction.amount))}
             style={{ fontFamily: "var(--font-display)" }}
           >
-            {amountPrefix[type]}
-            {formatCurrency(Math.abs(transaction.amount), transaction.currency)}
+            {formatSignedCurrency(transaction.amount, transaction.currency)}
           </span>
 
           {/* Action button — mobile */}
@@ -1566,8 +1612,8 @@ function TransactionRow({
           </div>
           <div className="flex items-center gap-1 text-ui text-text-muted relative flex-wrap">
             <span>
-              {type === "transfer" && transaction.destinationAccount
-                ? `${transaction.account.name} \u2192 ${transaction.destinationAccount.name}`
+              {transferFlow
+                ? `${transferFlow.fromAccountName} \u2192 ${transferFlow.toAccountName}`
                 : transaction.account.name}
             </span>
             <span>&middot;</span>
@@ -1585,7 +1631,7 @@ function TransactionRow({
                 currentCategoryId={transaction.categoryId}
                 onSelect={onCategoryChange}
                 onClose={onToggleEditCategory}
-                className="top-full left-0 mt-1"
+                openUpward={openCategoryUpward}
               />
             )}
             {transaction.goal && (
@@ -1607,12 +1653,11 @@ function TransactionRow({
         <span
           className={cn(
             "w-28 text-right text-body font-medium",
-            amountColors[type],
+            getAmountColorClass(type, transaction.amount),
           )}
           style={{ fontFamily: "var(--font-display)" }}
         >
-          {amountPrefix[type]}
-          {formatCurrency(Math.abs(transaction.amount), transaction.currency)}
+          {formatSignedCurrency(transaction.amount, transaction.currency)}
         </span>
 
         {/* Action menu trigger */}

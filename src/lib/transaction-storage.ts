@@ -4,6 +4,90 @@ const TRANSACTIONS_KEY = 'melomoney:transactions';
 const BATCHES_KEY = 'melomoney:import-batches';
 const LEGACY_MOCK_ID_PATTERN = /^t\d+$/;
 
+function normalizeTransferPairs(transactions: Transaction[]): Transaction[] {
+  if (transactions.length === 0) {
+    return transactions;
+  }
+
+  const normalized = transactions.map((transaction) => {
+    const nextPairId = transaction.transferPairId?.trim();
+    const hasPairId = Boolean(nextPairId);
+
+    if (!hasPairId) {
+      if (transaction.transferPairRole !== undefined) {
+        return {
+          ...transaction,
+          transferPairRole: undefined,
+        };
+      }
+      return transaction;
+    }
+
+    if (nextPairId !== transaction.transferPairId) {
+      return {
+        ...transaction,
+        transferPairId: nextPairId,
+      };
+    }
+
+    return transaction;
+  });
+
+  const indexesByPairId = new Map<string, number[]>();
+  normalized.forEach((transaction, index) => {
+    if (!transaction.transferPairId) {
+      return;
+    }
+    const existing = indexesByPairId.get(transaction.transferPairId) ?? [];
+    existing.push(index);
+    indexesByPairId.set(transaction.transferPairId, existing);
+  });
+
+  for (const [, indexes] of indexesByPairId) {
+    if (indexes.length !== 2) {
+      indexes.forEach((index) => {
+        const transaction = normalized[index];
+        normalized[index] = {
+          ...transaction,
+          transferPairId: undefined,
+          transferPairRole: undefined,
+        };
+      });
+      continue;
+    }
+
+    const [leftIndex, rightIndex] = indexes;
+    const left = normalized[leftIndex];
+    const right = normalized[rightIndex];
+
+    const hasOppositeSigns = (left.amount < 0 && right.amount > 0)
+      || (left.amount > 0 && right.amount < 0);
+
+    if (hasOppositeSigns) {
+      normalized[leftIndex] = {
+        ...left,
+        transferPairRole: left.amount < 0 ? 'source' : 'destination',
+      };
+      normalized[rightIndex] = {
+        ...right,
+        transferPairRole: right.amount < 0 ? 'source' : 'destination',
+      };
+      continue;
+    }
+
+    normalized[leftIndex] = {
+      ...left,
+      transferPairRole: 'source',
+    };
+    normalized[rightIndex] = {
+      ...right,
+      transferPairRole: 'destination',
+    };
+  }
+
+  return normalized;
+}
+
 function isLegacyMockTransaction(transaction: Transaction): boolean {
   return (
     LEGACY_MOCK_ID_PATTERN.test(transaction.id)
@@ -28,12 +112,13 @@ export function loadTransactions(): Transaction[] {
 
     const transactions = parsed as Transaction[];
     const cleaned = transactions.filter((transaction) => !isLegacyMockTransaction(transaction));
+    const normalized = normalizeTransferPairs(cleaned);
 
-    if (cleaned.length !== transactions.length) {
-      localStorage.setItem(TRANSACTIONS_KEY, JSON.stringify(cleaned));
+    if (JSON.stringify(normalized) !== JSON.stringify(transactions)) {
+      localStorage.setItem(TRANSACTIONS_KEY, JSON.stringify(normalized));
     }
 
-    return cleaned;
+    return normalized;
   } catch {
     return [];
   }
@@ -43,7 +128,8 @@ export function loadTransactions(): Transaction[] {
  * Replace all transactions in localStorage.
  */
 export function saveTransactions(transactions: Transaction[]): void {
-  localStorage.setItem(TRANSACTIONS_KEY, JSON.stringify(transactions));
+  const normalized = normalizeTransferPairs(transactions);
+  localStorage.setItem(TRANSACTIONS_KEY, JSON.stringify(normalized));
 }
 
 /**

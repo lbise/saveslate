@@ -10,8 +10,14 @@ import { Pencil, Play, Trash2, X } from "lucide-react";
 import { useLocation, useNavigate } from "react-router-dom";
 import { PageHeader, PageHeaderActions } from "../components/layout";
 import { Modal } from "../components/ui";
-import { CATEGORIES, getActiveGoals, getCategoryById, getGoalById } from "../data/mock";
-import { loadAccounts, getAccountById } from "../lib/account-storage";
+import {
+  CATEGORIES,
+  getAccounts,
+  getActiveGoals,
+  getCategoryById,
+  getGoalById,
+  getGoals,
+} from "../data/mock";
 import {
   addAutomationRule,
   applyAutomationRules,
@@ -26,7 +32,11 @@ import {
   parseAutomationRulesFile,
   updateAutomationRule,
 } from "../lib/automation-rules";
-import { loadTransactions, saveTransactions } from "../lib/transaction-storage";
+import {
+  loadImportBatches,
+  loadTransactions,
+  saveTransactions,
+} from "../lib/transaction-storage";
 import { UNCATEGORIZED_CATEGORY_ID } from "../lib/transaction-type";
 import { cn } from "../lib/utils";
 import type {
@@ -51,12 +61,23 @@ const BASE_RULE_FIELD_OPTIONS: RuleFieldOption[] = [
   { value: "currency", label: "Currency" },
   { value: "date", label: "Date" },
   { value: "time", label: "Time" },
-  { value: "accountId", label: "Account ID" },
-  { value: "categoryId", label: "Category ID" },
-  { value: "goalId", label: "Goal ID" },
-  { value: "importBatchId", label: "Import Batch ID" },
+  { value: "accountId", label: "Account" },
+  { value: "categoryId", label: "Category" },
+  { value: "goalId", label: "Goal" },
+  { value: "importBatchId", label: "Import Source" },
   { value: "type", label: "Inferred Type" },
 ];
+
+const LOOKUP_CONDITION_FIELDS = new Set([
+  "accountId",
+  "goalId",
+  "categoryId",
+  "importBatchId",
+]);
+
+const LOOKUP_FIELD_OPERATOR_OPTIONS = AUTOMATION_OPERATOR_OPTIONS.filter(
+  (option) => option.value === "equals" || option.value === "not-equals",
+);
 
 interface RuleFormCondition {
   id: string;
@@ -76,10 +97,9 @@ interface RuleFormState {
 
 interface RuleFormAction {
   id: string;
-  type: "set-category" | "set-goal" | "set-destination-account";
+  type: "set-category" | "set-goal";
   categoryId: string;
   goalId: string;
-  accountId: string;
   overwriteExisting: boolean;
 }
 
@@ -116,7 +136,6 @@ function createDefaultCategoryAction(defaultCategoryId: string): RuleFormAction 
     type: "set-category",
     categoryId: defaultCategoryId,
     goalId: "",
-    accountId: "",
     overwriteExisting: false,
   };
 }
@@ -146,13 +165,19 @@ function getOperatorLabel(operator: AutomationConditionOperator): string {
   );
 }
 
-function formatCondition(condition: AutomationCondition): string {
+function formatCondition(
+  condition: AutomationCondition,
+  resolvedValue?: string,
+): string {
+  const fieldLabel =
+    BASE_RULE_FIELD_OPTIONS.find((option) => option.value === condition.field)
+      ?.label ?? condition.field;
   const operatorLabel = getOperatorLabel(condition.operator).toLowerCase();
   if (automationOperatorNeedsValue(condition.operator)) {
-    return `${condition.field} ${operatorLabel} "${condition.value ?? ""}"`;
+    return `${fieldLabel} ${operatorLabel} "${resolvedValue ?? condition.value ?? ""}"`;
   }
 
-  return `${condition.field} ${operatorLabel}`;
+  return `${fieldLabel} ${operatorLabel}`;
 }
 
 function formatRuleAction(action: AutomationAction): string {
@@ -161,13 +186,8 @@ function formatRuleAction(action: AutomationAction): string {
     return `Set category to ${category?.name ?? action.categoryId}${action.overwriteExisting ? " (allow recategorize)" : ""}`;
   }
 
-  if (action.type === "set-goal") {
-    const goal = getGoalById(action.goalId);
-    return `Set goal to ${goal?.name ?? action.goalId}${action.overwriteExisting ? " (allow change)" : ""}`;
-  }
-
-  const account = getAccountById(action.accountId);
-  return `Set destination account to ${account?.name ?? action.accountId}${action.overwriteExisting ? " (allow change)" : ""}`;
+  const goal = getGoalById(action.goalId);
+  return `Set goal to ${goal?.name ?? action.goalId}${action.overwriteExisting ? " (allow change)" : ""}`;
 }
 
 function toFormCondition(condition: AutomationCondition): RuleFormCondition {
@@ -192,28 +212,15 @@ function toRuleFormStateFromRule(rule: AutomationRule): RuleFormState {
           type: "set-category" as const,
           categoryId: action.categoryId,
           goalId: "",
-          accountId: "",
-          overwriteExisting: action.overwriteExisting === true,
-        };
-      }
-
-      if (action.type === "set-goal") {
-        return {
-          id: createRuleFormActionId(),
-          type: "set-goal" as const,
-          categoryId: "",
-          goalId: action.goalId,
-          accountId: "",
           overwriteExisting: action.overwriteExisting === true,
         };
       }
 
       return {
         id: createRuleFormActionId(),
-        type: "set-destination-account" as const,
+        type: "set-goal" as const,
         categoryId: "",
-        goalId: "",
-        accountId: action.accountId,
+        goalId: action.goalId,
         overwriteExisting: action.overwriteExisting === true,
       };
     }),
@@ -250,7 +257,6 @@ function toRuleFormStateFromPrefill(
         type: "set-category",
         categoryId: prefill.categoryId?.trim() || defaultCategoryId,
         goalId: "",
-        accountId: "",
         overwriteExisting: prefill.applyToUncategorizedOnly === false,
       },
       ...(prefill.goalId
@@ -260,19 +266,6 @@ function toRuleFormStateFromPrefill(
               type: "set-goal" as const,
               categoryId: "",
               goalId: prefill.goalId,
-              accountId: "",
-              overwriteExisting: false,
-            },
-          ]
-        : []),
-      ...(prefill.destinationAccountId
-        ? [
-            {
-              id: createRuleFormActionId(),
-              type: "set-destination-account" as const,
-              categoryId: "",
-              goalId: "",
-              accountId: prefill.destinationAccountId,
               overwriteExisting: false,
             },
           ]
@@ -348,7 +341,91 @@ export function Rules() {
   }, [form.conditions]);
 
   const availableGoals = useMemo(() => getActiveGoals(), []);
-  const availableAccounts = useMemo(() => loadAccounts(), []);
+  const availableAccounts = useMemo(() => getAccounts(), []);
+  const allGoals = useMemo(() => getGoals(), []);
+  const importBatches = useMemo(() => loadImportBatches(), []);
+
+  const categoryOptions = useMemo(
+    () =>
+      [...CATEGORIES]
+        .sort((left, right) => left.name.localeCompare(right.name))
+        .map((category) => ({
+          value: category.id,
+          label: category.name,
+        })),
+    [],
+  );
+
+  const importSourceOptions = useMemo(
+    () =>
+      [...importBatches]
+        .sort((left, right) => right.importedAt.localeCompare(left.importedAt))
+        .map((batch) => {
+          const displayName = batch.name?.trim() || batch.fileName;
+          const dateLabel = new Date(batch.importedAt).toLocaleDateString();
+          return {
+            value: batch.id,
+            label: `${displayName} (${dateLabel})`,
+          };
+        }),
+    [importBatches],
+  );
+
+  const conditionValueOptionsByField = useMemo<Record<string, RuleFieldOption[]>>(
+    () => ({
+      accountId: availableAccounts.map((account) => ({
+        value: account.id,
+        label: account.name,
+      })),
+      goalId: allGoals.map((goal) => ({
+        value: goal.id,
+        label: goal.isArchived ? `${goal.name} (archived)` : goal.name,
+      })),
+      categoryId: categoryOptions,
+      importBatchId: importSourceOptions,
+    }),
+    [allGoals, availableAccounts, categoryOptions, importSourceOptions],
+  );
+
+  const conditionValueLabelByField = useMemo<Record<string, Map<string, string>>>(
+    () => ({
+      accountId: new Map(
+        conditionValueOptionsByField.accountId.map((option) => [
+          option.value,
+          option.label,
+        ]),
+      ),
+      goalId: new Map(
+        conditionValueOptionsByField.goalId.map((option) => [
+          option.value,
+          option.label,
+        ]),
+      ),
+      categoryId: new Map(
+        conditionValueOptionsByField.categoryId.map((option) => [
+          option.value,
+          option.label,
+        ]),
+      ),
+      importBatchId: new Map(
+        conditionValueOptionsByField.importBatchId.map((option) => [
+          option.value,
+          option.label,
+        ]),
+      ),
+    }),
+    [conditionValueOptionsByField],
+  );
+
+  const resolveConditionValueLabel = (
+    field: string,
+    rawValue: string | undefined,
+  ): string | undefined => {
+    if (!rawValue) {
+      return undefined;
+    }
+    return conditionValueLabelByField[field]?.get(rawValue);
+  };
 
   useEffect(() => {
     const routeState = (location.state as RulesRouteState | null) ?? null;
@@ -361,6 +438,7 @@ export function Rules() {
     const shouldMergeIntoExistingRule = Boolean(
       prefill.mergeIntoExistingCategoryRule &&
       prefill.categoryId &&
+      !prefill.goalId &&
       prefillCondition &&
       prefillCondition.field === "description" &&
       prefillCondition.operator === "contains" &&
@@ -372,13 +450,17 @@ export function Rules() {
         const categoryAction = rule.actions.find(
           (action) => action.type === "set-category",
         );
+        const hasGoalAction = rule.actions.some(
+          (action) => action.type === "set-goal",
+        );
         if (!categoryAction) {
           return false;
         }
 
         return (
           categoryAction.categoryId === prefill.categoryId &&
-          categoryAction.overwriteExisting !== true
+          categoryAction.overwriteExisting !== true &&
+          !hasGoalAction
         );
       });
 
@@ -678,20 +760,6 @@ export function Rules() {
           goalId,
           overwriteExisting: action.overwriteExisting,
         });
-        continue;
-      }
-
-      if (action.type === "set-destination-account") {
-        const accountId = action.accountId.trim();
-        if (!accountId) {
-          continue;
-        }
-
-        normalizedActions.push({
-          type: "set-destination-account",
-          accountId,
-          overwriteExisting: action.overwriteExisting,
-        });
       }
     }
 
@@ -885,7 +953,6 @@ export function Rules() {
                             >
                               <option value="set-category">Set category</option>
                               <option value="set-goal">Set goal</option>
-                              <option value="set-destination-account">Set destination account</option>
                             </select>
 
                             <button
@@ -931,7 +998,7 @@ export function Rules() {
                                 </span>
                               </label>
                             </>
-                          ) : action.type === "set-goal" ? (
+                          ) : (
                             <>
                               <select
                                 className="select"
@@ -961,39 +1028,6 @@ export function Rules() {
                                 />
                                 <span className="text-ui">
                                   Allow changing goal when transaction already has one
-                                </span>
-                              </label>
-                            </>
-                          ) : (
-                            <>
-                              <select
-                                className="select"
-                                value={action.accountId}
-                                onChange={(event) =>
-                                  handleActionChange(action.id, {
-                                    accountId: event.target.value,
-                                  })
-                                }
-                              >
-                                <option value="">Select account</option>
-                                {availableAccounts.map((account) => (
-                                  <option key={account.id} value={account.id}>
-                                    {account.name}
-                                  </option>
-                                ))}
-                              </select>
-                              <label className="flex items-center gap-2">
-                                <input
-                                  type="checkbox"
-                                  checked={action.overwriteExisting}
-                                  onChange={(event) =>
-                                    handleActionChange(action.id, {
-                                      overwriteExisting: event.target.checked,
-                                    })
-                                  }
-                                />
-                                <span className="text-ui">
-                                  Allow changing destination when transaction already has one
                                 </span>
                               </label>
                             </>
@@ -1097,6 +1131,21 @@ export function Rules() {
                       const requiresValue = automationOperatorNeedsValue(
                         condition.operator,
                       );
+                      const valueOptions = conditionValueOptionsByField[condition.field];
+                      const isLookupField = LOOKUP_CONDITION_FIELDS.has(
+                        condition.field,
+                      );
+                      const operatorOptions = isLookupField
+                        ? LOOKUP_FIELD_OPERATOR_OPTIONS
+                        : AUTOMATION_OPERATOR_OPTIONS;
+                      const hasExistingOperatorOption = operatorOptions.some(
+                        (operator) => operator.value === condition.operator,
+                      );
+                      const hasExistingValueOption =
+                        !isLookupField ||
+                        !condition.value ||
+                        valueOptions.some((option) => option.value === condition.value);
+
                       return (
                         <div
                           key={condition.id}
@@ -1107,8 +1156,19 @@ export function Rules() {
                               className="select"
                               value={condition.field}
                               onChange={(event) => {
+                                const nextField = event.target.value;
+                                const nextIsLookupField =
+                                  LOOKUP_CONDITION_FIELDS.has(nextField);
+                                const currentOperator = condition.operator;
+                                const nextOperator = nextIsLookupField
+                                  && currentOperator !== "equals"
+                                  && currentOperator !== "not-equals"
+                                  ? "equals"
+                                  : currentOperator;
+
                                 handleConditionChange(condition.id, {
-                                  field: event.target.value,
+                                  field: nextField,
+                                  operator: nextOperator,
                                 });
                               }}
                             >
@@ -1132,7 +1192,12 @@ export function Rules() {
                                 });
                               }}
                             >
-                              {AUTOMATION_OPERATOR_OPTIONS.map((operator) => (
+                              {!hasExistingOperatorOption && (
+                                <option value={condition.operator}>
+                                  {getOperatorLabel(condition.operator)} (legacy)
+                                </option>
+                              )}
+                              {operatorOptions.map((operator) => (
                                 <option
                                   key={operator.value}
                                   value={operator.value}
@@ -1155,9 +1220,31 @@ export function Rules() {
                             </button>
                           </div>
 
-                          {requiresValue ? (
+                          {requiresValue ? isLookupField ? (
+                            <select
+                              className="select"
+                              value={condition.value}
+                              onChange={(event) => {
+                                handleConditionChange(condition.id, {
+                                  value: event.target.value,
+                                });
+                              }}
+                            >
+                              <option value="">Select value</option>
+                              {!hasExistingValueOption && condition.value && (
+                                <option value={condition.value}>
+                                  Unknown ({condition.value})
+                                </option>
+                              )}
+                              {valueOptions.map((option) => (
+                                <option key={option.value} value={option.value}>
+                                  {option.label}
+                                </option>
+                              ))}
+                            </select>
+                          ) : (
                             <textarea
-                              className="input h-auto min-h-20 py-2"
+                              className="input h-10 min-h-10 py-2 resize-y"
                               placeholder="Value"
                               value={condition.value}
                               onChange={(event) => {
@@ -1165,7 +1252,7 @@ export function Rules() {
                                   value: event.target.value,
                                 });
                               }}
-                              rows={3}
+                              rows={1}
                             />
                           ) : (
                             <div className="input h-auto min-h-10 py-2 flex items-center text-ui text-text-muted">
@@ -1305,7 +1392,13 @@ export function Rules() {
                   <div className="mt-3 pt-3 border-t border-border space-y-1.5">
                     {rule.conditions.map((condition) => (
                       <p key={condition.id} className="text-ui text-text-muted">
-                        {formatCondition(condition)}
+                        {formatCondition(
+                          condition,
+                          resolveConditionValueLabel(
+                            condition.field,
+                            condition.value,
+                          ),
+                        )}
                       </p>
                     ))}
                   </div>

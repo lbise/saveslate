@@ -19,7 +19,7 @@ import {
 } from '../lib/csv';
 import { getAccountById } from '../lib/account-storage';
 import { applyAutomationRules, loadAutomationRules } from '../lib/automation-rules';
-import { addTransactions, saveImportBatch } from '../lib/transaction-storage';
+import { loadTransactions, saveImportBatch, saveTransactions } from '../lib/transaction-storage';
 import { formatCurrency } from '../lib/utils';
 import type { CsvParser, ImportStep, ParsedRow, Transaction } from '../types';
 
@@ -106,8 +106,20 @@ export function Import() {
   }, [rawContent]);
 
   // ─── Step 3: Import confirmed ──────────────────────────────
-  const handleConfirmImport = useCallback((selectedRows: ParsedRow[], accountId: string, importName: string) => {
+  const handleConfirmImport = useCallback((
+    selectedRowIndexes: number[],
+    accountId: string,
+    importName: string,
+    transferLinks: Array<{ rowIndex: number; matchedTransactionId: string }>,
+  ) => {
     if (!selectedParser) return;
+
+    const existingTransactions = loadTransactions();
+    const existingById = new Map(existingTransactions.map((transaction) => [transaction.id, transaction] as const));
+
+    const selectedRows = selectedRowIndexes
+      .map((index) => parsedRows[index])
+      .filter((row): row is ParsedRow => row !== undefined);
 
     // Resolve the account's currency for fallback
     const account = getAccountById(accountId);
@@ -124,29 +136,77 @@ export function Import() {
       accountId,
     });
 
+    const pairIdByMatchedTransactionId = new Map<string, string>();
+    const transferLinkByRowIndex = new Map<number, { pairId: string; role: 'source' | 'destination' }>();
+    transferLinks.forEach((link, index) => {
+      const row = parsedRows[link.rowIndex];
+      if (!row) {
+        return;
+      }
+
+      const matchedTransaction = existingById.get(link.matchedTransactionId);
+      const matchedPairId = matchedTransaction?.transferPairId?.trim();
+
+      const pairId = pairIdByMatchedTransactionId.get(link.matchedTransactionId)
+        ?? matchedPairId
+        ?? `transfer-pair-${Date.now()}-${index}-${Math.random().toString(36).slice(2, 8)}`;
+      pairIdByMatchedTransactionId.set(link.matchedTransactionId, pairId);
+
+      transferLinkByRowIndex.set(link.rowIndex, {
+        pairId,
+        role: row.amount < 0 ? 'source' : 'destination',
+      });
+    });
+
     // Convert parsed rows to Transaction objects
     const now = Date.now();
-    const transactions: Transaction[] = selectedRows.map((row, idx) => ({
-      id: `txn-${now}-${idx}-${Math.random().toString(36).slice(2, 8)}`,
-      transactionId: row.transactionId,
-      amount: row.amount,
-      currency: row.currency || fallbackCurrency,
-      categoryId: 'uncategorized',
-      description: row.description,
-      date: row.date,
-      time: row.time,
-      accountId,
-      importBatchId: batch.id,
-      metadata: row.metadata && row.metadata.length > 0 ? row.metadata : undefined,
-      rawData: row.raw,
-    }));
+    const transactions: Transaction[] = [];
+    selectedRowIndexes.forEach((rowIndex, idx) => {
+      const row = parsedRows[rowIndex];
+      if (!row) {
+        return;
+      }
+
+      const transferLink = transferLinkByRowIndex.get(rowIndex);
+      transactions.push({
+        id: `txn-${now}-${idx}-${Math.random().toString(36).slice(2, 8)}`,
+        transactionId: row.transactionId,
+        amount: row.amount,
+        currency: row.currency || fallbackCurrency,
+        categoryId: 'uncategorized',
+        description: row.description,
+        date: row.date,
+        time: row.time,
+        accountId,
+        ...(transferLink && {
+          transferPairId: transferLink.pairId,
+          transferPairRole: transferLink.role,
+        }),
+        importBatchId: batch.id,
+        metadata: row.metadata && row.metadata.length > 0 ? row.metadata : undefined,
+        rawData: row.raw,
+      });
+    });
 
     // Apply automation rules (if configured) before persisting
     const automationRules = loadAutomationRules();
     const automationResult = applyAutomationRules(transactions, automationRules, 'on-import');
 
     // Persist to localStorage
-    addTransactions(automationResult.transactions);
+    const updatedExistingTransactions = existingTransactions.map((transaction) => {
+      const pairId = pairIdByMatchedTransactionId.get(transaction.id);
+      if (!pairId) {
+        return transaction;
+      }
+
+      const role: 'source' | 'destination' = transaction.amount < 0 ? 'source' : 'destination';
+      return {
+        ...transaction,
+        transferPairId: pairId,
+        transferPairRole: role,
+      };
+    });
+    saveTransactions([...updatedExistingTransactions, ...automationResult.transactions]);
 
     // Calculate stats for the success screen
     let income = 0;
@@ -157,7 +217,7 @@ export function Import() {
     }
     setImportResult({ count: selectedRows.length, income, expense });
     setStep('complete');
-  }, [selectedParser, fileName]);
+  }, [selectedParser, parsedRows, fileName]);
 
   // ─── Navigation helpers ────────────────────────────────────
   const handleBackToUpload = useCallback(() => {

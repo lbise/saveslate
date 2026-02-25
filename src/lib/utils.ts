@@ -24,6 +24,39 @@ export const formatSignedCurrency = (
   return formatCurrency(0, currency);
 };
 
+interface TransferFlowAccountsInput {
+  amount: number;
+  accountName: string;
+  counterpartyAccountName: string;
+  transferPairRole?: 'source' | 'destination';
+}
+
+export const resolveTransferFlowAccounts = ({
+  amount,
+  accountName,
+  counterpartyAccountName,
+  transferPairRole,
+}: TransferFlowAccountsInput): {
+  fromAccountName: string;
+  toAccountName: string;
+} => {
+  const isOutflow = transferPairRole
+    ? transferPairRole === 'source'
+    : amount < 0;
+
+  if (isOutflow) {
+    return {
+      fromAccountName: accountName,
+      toAccountName: counterpartyAccountName,
+    };
+  }
+
+  return {
+    fromAccountName: counterpartyAccountName,
+    toAccountName: accountName,
+  };
+};
+
 // Format just the number part (for when you want custom currency display)
 export const formatNumber = (amount: number): string => {
   return new Intl.NumberFormat('de-CH', {

@@ -1,5 +1,6 @@
 export { Dashboard } from './Dashboard';
 export { Transactions } from './Transactions';
+export { Analytics } from './Analytics';
 export { Accounts } from './Accounts';
 export { Goals } from './Goals';
 export { Categories } from './Categories';

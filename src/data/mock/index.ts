@@ -1,6 +1,7 @@
 // Re-export all mock data
 export * from './accounts';
 export * from './categories';
+export * from './category-groups';
 export * from './goals';
 export * from './transactions';
 
@@ -19,19 +20,44 @@ import { getAccountById } from './accounts';
 import { getActiveGoals, getGoalById } from './goals';
 import { inferTransactionType, UNCATEGORIZED_CATEGORY_ID } from '../../lib/transaction-type';
 
-function toTransactionWithDetails(transaction: Transaction): TransactionWithDetails {
-  const inferredType: TransactionType = inferTransactionType(transaction);
+function createTransferCounterpartyMap(transactions: Transaction[]): Map<string, string> {
+  const transactionsByPairId = new Map<string, Transaction[]>();
 
-  const baseCategory = getCategoryById(transaction.categoryId) ?? {
+  transactions.forEach((transaction) => {
+    if (!transaction.transferPairId) {
+      return;
+    }
+
+    const pairTransactions = transactionsByPairId.get(transaction.transferPairId) ?? [];
+    pairTransactions.push(transaction);
+    transactionsByPairId.set(transaction.transferPairId, pairTransactions);
+  });
+
+  const counterpartyByTransactionId = new Map<string, string>();
+  for (const [, pairTransactions] of transactionsByPairId) {
+    if (pairTransactions.length !== 2) {
+      continue;
+    }
+
+    const [left, right] = pairTransactions;
+    counterpartyByTransactionId.set(left.id, right.accountId);
+    counterpartyByTransactionId.set(right.id, left.accountId);
+  }
+
+  return counterpartyByTransactionId;
+}
+
+function toTransactionWithDetails(
+  transaction: Transaction,
+  counterpartyByTransactionId: Map<string, string>,
+): TransactionWithDetails {
+  const type: TransactionType = inferTransactionType(transaction);
+
+  const category = getCategoryById(transaction.categoryId) ?? {
     id: transaction.categoryId,
     name: transaction.categoryId === UNCATEGORIZED_CATEGORY_ID ? 'Uncategorized' : 'Unknown Category',
-    type: inferredType,
     icon: 'CircleHelp',
   };
-
-  const category = transaction.categoryId === UNCATEGORIZED_CATEGORY_ID
-    ? { ...baseCategory, type: inferredType }
-    : baseCategory;
 
   const account = getAccountById(transaction.accountId) ?? {
     id: transaction.accountId,
@@ -44,9 +70,11 @@ function toTransactionWithDetails(transaction: Transaction): TransactionWithDeta
 
   const goal = transaction.goalId ? getGoalById(transaction.goalId) : undefined;
 
-  const destinationAccount = transaction.destinationAccountId
-    ? (getAccountById(transaction.destinationAccountId) ?? {
-        id: transaction.destinationAccountId,
+  const counterpartyAccountId = counterpartyByTransactionId.get(transaction.id);
+
+  const destinationAccount = counterpartyAccountId
+    ? (getAccountById(counterpartyAccountId) ?? {
+        id: counterpartyAccountId,
         name: 'Unknown Account',
         type: 'checking' as const,
         balance: 0,
@@ -57,6 +85,7 @@ function toTransactionWithDetails(transaction: Transaction): TransactionWithDeta
 
   return {
     ...transaction,
+    type,
     category,
     account,
     destinationAccount,
@@ -65,7 +94,9 @@ function toTransactionWithDetails(transaction: Transaction): TransactionWithDeta
 }
 
 export const getTransactionsWithDetails = (): TransactionWithDetails[] => {
-  return getTransactionsSorted().map((transaction) => toTransactionWithDetails(transaction));
+  const transactions = getTransactionsSorted();
+  const counterpartyByTransactionId = createTransferCounterpartyMap(transactions);
+  return transactions.map((transaction) => toTransactionWithDetails(transaction, counterpartyByTransactionId));
 };
 
 export const getMonthlyStats = (): MonthlyStats => {
@@ -79,16 +110,25 @@ export const getMonthlyStats = (): MonthlyStats => {
   );
 
   const totalIncome = monthTransactions
-    .filter((t) => t.category.type === 'income')
+    .filter((t) => t.type === 'income')
     .reduce((sum, t) => sum + t.amount, 0);
 
   const totalExpenses = monthTransactions
-    .filter((t) => t.category.type === 'expense')
+    .filter((t) => t.type === 'expense')
     .reduce((sum, t) => sum + t.amount, 0);
 
+  const seenTransferPairIds = new Set<string>();
   const totalTransfers = monthTransactions
-    .filter((t) => t.category.type === 'transfer')
-    .reduce((sum, t) => sum + Math.abs(t.amount), 0);
+    .filter((t) => t.type === 'transfer')
+    .reduce((sum, t) => {
+      if (t.transferPairId) {
+        if (seenTransferPairIds.has(t.transferPairId)) {
+          return sum;
+        }
+        seenTransferPairIds.add(t.transferPairId);
+      }
+      return sum + Math.abs(t.amount);
+    }, 0);
 
   const netSavings = totalIncome - totalExpenses;
   const savingsRate = totalIncome > 0 ? (netSavings / totalIncome) * 100 : 0;
@@ -109,7 +149,7 @@ export const getCategorySpending = (): CategorySpending[] => {
     .split('T')[0];
 
   const monthExpenses = getTransactionsWithDetails().filter(
-    (t) => t.category.type === 'expense' && t.date >= startOfMonth
+    (t) => t.type === 'expense' && t.date >= startOfMonth
   );
 
   const totalExpenses = monthExpenses.reduce((sum, t) => sum + t.amount, 0);

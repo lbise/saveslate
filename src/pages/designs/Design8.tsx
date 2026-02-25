@@ -790,8 +790,8 @@ export function Design8() {
               <div className="d8-tx-list">
                 {transactions.map((tx) => (
                   <div key={tx.id} className="d8-tx">
-                    <div className={`d8-tx-icon ${tx.category.type}`}>
-                      {tx.category.type === 'income' ? <ArrowUpRight size={16} /> : <ArrowDownRight size={16} />}
+                    <div className={`d8-tx-icon ${tx.type}`}>
+                      {tx.type === 'income' ? <ArrowUpRight size={16} /> : <ArrowDownRight size={16} />}
                     </div>
                     <div className="d8-tx-info">
                       <div className="d8-tx-desc">{tx.description}</div>
@@ -800,8 +800,8 @@ export function Design8() {
                         {tx.split && <span className="d8-tx-split">· Split</span>}
                       </div>
                     </div>
-                    <div className={`d8-tx-amount ${tx.category.type}`}>
-                      {tx.category.type === 'income' ? '+' : '-'}{formatCurrency(tx.amount)}
+                    <div className={`d8-tx-amount ${tx.type}`}>
+                      {tx.type === 'income' ? '+' : '-'}{formatCurrency(tx.amount)}
                     </div>
                   </div>
                 ))}

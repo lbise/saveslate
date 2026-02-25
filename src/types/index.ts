@@ -11,9 +11,17 @@ export type ContributionFrequency = 'weekly' | 'monthly';
 export interface Category {
   id: string;
   name: string;
-  type: TransactionType;
   icon: string; // Lucide icon name
+  groupId?: string;
   isDefault?: boolean; // System-provided vs user-created
+}
+
+export interface CategoryGroup {
+  id: string;
+  name: string;
+  icon: string;
+  order: number;
+  isDefault?: boolean;
 }
 
 export interface Goal {
@@ -55,7 +63,8 @@ export interface Transaction {
   date: string; // ISO date string
   time?: string; // Optional transaction time in HH:mm:ss
   accountId: string;
-  destinationAccountId?: string; // For transfers: the account receiving funds
+  transferPairId?: string; // Links two mirrored transfer legs imported from separate account statements
+  transferPairRole?: 'source' | 'destination';
   goalId?: string; // Direct link to a goal this transaction contributes to
   importBatchId?: string; // Links to an ImportBatch if imported from CSV
   split?: SplitInfo;
@@ -123,13 +132,7 @@ export interface SetGoalAutomationAction {
   overwriteExisting?: boolean;
 }
 
-export interface SetDestinationAccountAutomationAction {
-  type: 'set-destination-account';
-  accountId: string;
-  overwriteExisting?: boolean;
-}
-
-export type AutomationAction = SetCategoryAutomationAction | SetGoalAutomationAction | SetDestinationAccountAutomationAction;
+export type AutomationAction = SetCategoryAutomationAction | SetGoalAutomationAction;
 
 export interface AutomationRule {
   id: string;
@@ -154,7 +157,6 @@ export interface AutomationRulePrefillDraft {
   name?: string;
   categoryId?: string;
   goalId?: string;
-  destinationAccountId?: string;
   isEnabled?: boolean;
   triggers?: AutomationTrigger[];
   matchMode?: AutomationMatchMode;
@@ -169,9 +171,10 @@ export interface RulesRouteState {
 
 // Computed/derived types
 export interface TransactionWithDetails extends Transaction {
+  type: TransactionType; // Inferred from amount sign + transfer linkage
   category: Category;
   account: Account;
-  destinationAccount?: Account; // Resolved destination for transfers
+  destinationAccount?: Account; // Resolved counterpart account for linked transfers
   goal?: Goal;
 }
 
