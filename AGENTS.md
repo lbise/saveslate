@@ -18,10 +18,13 @@ npm run dev          # Development server with hot reload
 npm run build        # TypeScript check + Vite production build
 npm run lint         # ESLint
 npm run preview      # Preview production build
+npm test             # Run Vitest test suite once
+npm run test:watch   # Run Vitest in watch mode
+npm run test:coverage # Run tests with coverage report
 npx tsc --noEmit     # Type check only
 ```
 
-**No test framework configured yet.** Consider Vitest + React Testing Library when adding tests.
+Test stack: **Vitest + React Testing Library** (jsdom environment, setup in `tests/setup.ts`).
 
 ## Project Structure
 
