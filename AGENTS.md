@@ -21,10 +21,18 @@ npm run preview      # Preview production build
 npm test             # Run Vitest test suite once
 npm run test:watch   # Run Vitest in watch mode
 npm run test:coverage # Run tests with coverage report
+npm run test:e2e     # Run Playwright end-to-end suite
+npm run test:smoke   # Run Playwright smoke suite only
 npx tsc --noEmit     # Type check only
 ```
 
-Test stack: **Vitest + React Testing Library** (jsdom environment, setup in `tests/setup.ts`).
+Test stack: **Vitest + React Testing Library** (jsdom environment, setup in `tests/setup.ts`) + **Playwright** (browser smoke/E2E).
+
+### Browser Automation (Playwright)
+
+- `playwright-cli` is available in this environment for manual browser automation and debugging.
+- Automated browser smoke tests live in `tests/e2e/smoke.spec.ts`.
+- If Playwright browsers are missing locally, run `npx playwright install chromium` once.
 
 ## Project Structure
 
