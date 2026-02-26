@@ -1,4 +1,4 @@
-import { loadTransactions } from '../../lib/transaction-storage';
+import { loadTransactionsForActiveProfile } from '../../lib/data-repository';
 import type { Transaction } from '../../types';
 
 function sortTransactionsByDate(transactions: Transaction[]): Transaction[] {
@@ -15,7 +15,7 @@ function sortTransactionsByDate(transactions: Transaction[]): Transaction[] {
 
 // Sort transactions by date (newest first)
 export const getTransactionsSorted = (): Transaction[] => {
-  return sortTransactionsByDate(loadTransactions());
+  return sortTransactionsByDate(loadTransactionsForActiveProfile());
 };
 
 export const getRecentTransactions = (count: number = 5): Transaction[] => {

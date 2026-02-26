@@ -5,9 +5,15 @@ import {
   type ComponentType,
   type ReactNode,
 } from 'react';
-import { Globe, DollarSign, Bell, Shield, Download, Trash2 } from 'lucide-react';
+import { Globe, DollarSign, Bell, Shield, Download, Trash2, Database } from 'lucide-react';
 import { PageHeader } from '../components/layout/PageHeader';
 import { getCurrencyOptionsWithFallback } from '../lib/currencies';
+import {
+  DATA_PROFILE_OPTIONS,
+  isDataProfile,
+  loadActiveDataProfile,
+  saveActiveDataProfile,
+} from '../lib/data-profile';
 
 const DEFAULT_CURRENCY_STORAGE_KEY = 'melomoney:settings:default-currency';
 const FALLBACK_CURRENCY = 'CHF';
@@ -56,6 +62,7 @@ function SettingRow({ icon: IconComp, label, description, children }: SettingRow
 
 export function Settings() {
   const [defaultCurrency, setDefaultCurrency] = useState(loadDefaultCurrencySetting);
+  const [dataProfile, setDataProfile] = useState(loadActiveDataProfile);
   const currencyOptions = useMemo(
     () => getCurrencyOptionsWithFallback(defaultCurrency),
     [defaultCurrency],
@@ -65,6 +72,16 @@ export function Settings() {
     const nextCurrency = event.target.value;
     setDefaultCurrency(nextCurrency);
     saveDefaultCurrencySetting(nextCurrency);
+  }
+
+  function handleDataProfileChange(event: ChangeEvent<HTMLSelectElement>) {
+    const nextProfile = event.target.value;
+    if (!isDataProfile(nextProfile)) {
+      return;
+    }
+
+    setDataProfile(nextProfile);
+    saveActiveDataProfile(nextProfile);
   }
 
   return (
@@ -113,6 +130,23 @@ export function Settings() {
             <button className="btn-secondary py-1.5 px-3">
               Enabled
             </button>
+          </SettingRow>
+          <SettingRow
+            icon={Database}
+            label="Data Profile"
+            description="Choose between personal local data and deterministic demo datasets"
+          >
+            <select
+              className="select w-auto text-sm py-2 px-3"
+              value={dataProfile}
+              onChange={handleDataProfileChange}
+            >
+              {DATA_PROFILE_OPTIONS.map((profileOption) => (
+                <option key={profileOption.value} value={profileOption.value}>
+                  {profileOption.label}
+                </option>
+              ))}
+            </select>
           </SettingRow>
         </div>
       </section>

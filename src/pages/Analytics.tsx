@@ -6,12 +6,13 @@ import { StatCard } from '../components/ui';
 import { getTransactionsWithDetails } from '../data/mock';
 import { formatCurrency } from '../lib/utils';
 import { cn } from '../lib/utils';
+import { getDataProfileLabel, loadActiveDataProfile } from '../lib/data-profile';
 import {
   ANALYTICS_COLORS,
   buildSankeyData,
   DATE_RANGE_OPTIONS,
 } from '../lib/analytics';
-import type { DateRangePeriod, SankeyNodeInput } from '../lib/analytics';
+import type { DateRangePeriod, PeriodSummary, SankeyNodeInput } from '../lib/analytics';
 import type { DefaultLink } from '@nivo/sankey';
 
 // ── Nivo theme (matches dark palette from index.css) ──────────
@@ -48,6 +49,7 @@ const SANKEY_LEGEND_ITEMS = [
 
 export function Analytics() {
   const [period, setPeriod] = useState<DateRangePeriod>('this-month');
+  const [activeProfileLabel] = useState(() => getDataProfileLabel(loadActiveDataProfile()));
   const transactions = useMemo(() => getTransactionsWithDetails(), []);
 
   const { nodes, links, summary } = useMemo(
@@ -122,7 +124,7 @@ export function Analytics() {
             </div>
           </div>
         ) : (
-          <EmptyState period={period} />
+          <EmptyState period={period} summary={summary} activeProfileLabel={activeProfileLabel} />
         )}
       </section>
 
@@ -173,8 +175,29 @@ function PeriodSelector({ value, onChange }: PeriodSelectorProps) {
 
 // ── Empty State ───────────────────────────────────────────────
 
-function EmptyState({ period }: { period: DateRangePeriod }) {
+function buildEmptyDiagnostics(summary: PeriodSummary): string[] {
+  const diagnostics: string[] = [];
+
+  if (summary.totalIncome === 0 && summary.totalExpenses === 0 && summary.totalTransfers > 0) {
+    diagnostics.push('Only transfer activity exists in this range. Sankey currently visualizes income and expense flow.');
+  }
+
+  if (summary.totalIncome === 0 && summary.totalExpenses === 0 && summary.totalTransfers === 0) {
+    diagnostics.push('No transactions were found for this date range.');
+  }
+
+  return diagnostics;
+}
+
+interface EmptyStateProps {
+  period: DateRangePeriod;
+  summary: PeriodSummary;
+  activeProfileLabel: string;
+}
+
+function EmptyState({ period, summary, activeProfileLabel }: EmptyStateProps) {
   const periodLabel = DATE_RANGE_OPTIONS.find((o) => o.value === period)?.label ?? period;
+  const diagnostics = buildEmptyDiagnostics(summary);
 
   return (
     <div className="card flex flex-col items-center justify-center gap-4 py-20">
@@ -186,6 +209,18 @@ function EmptyState({ period }: { period: DateRangePeriod }) {
         <p className="text-ui text-text-muted">
           Import transactions to see your money flow visualized here.
         </p>
+        <p className="text-ui text-text-muted mt-2">
+          Active profile: {activeProfileLabel}
+        </p>
+        {diagnostics.length > 0 && (
+          <div className="mt-3 flex flex-col gap-1.5">
+            {diagnostics.map((diagnostic) => (
+              <p key={diagnostic} className="text-ui text-text-secondary">
+                {diagnostic}
+              </p>
+            ))}
+          </div>
+        )}
       </div>
     </div>
   );
