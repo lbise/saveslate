@@ -1,5 +1,6 @@
 import { useMemo, useRef, useState, type ChangeEvent } from 'react';
 import { ArrowUpRight, Pencil, Trash2 } from 'lucide-react';
+import { Link } from 'react-router-dom';
 import {
   AccountFormModal,
   ACCOUNT_TYPE_DEFAULT_ICONS,
@@ -471,9 +472,12 @@ function AccountRow({ account, computedBalance, onEdit, onDelete }: AccountRowPr
         <div className="border-t border-border pt-3 mt-1">
           <div className="flex items-center justify-between mb-2">
             <span className="text-ui text-text-muted uppercase tracking-wider">Recent</span>
-            <span className="text-ui text-text-muted flex items-center gap-0.5">
+            <Link
+              to={`/transactions?account=${encodeURIComponent(account.id)}`}
+              className="text-link"
+            >
               View all <ArrowUpRight size={10} />
-            </span>
+            </Link>
           </div>
           <div className="flex flex-col gap-2">
             {recentTransactions.map((tx) => {

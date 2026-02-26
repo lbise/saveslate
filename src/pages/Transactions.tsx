@@ -17,7 +17,7 @@ import {
   Wallet,
   Upload,
 } from "lucide-react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useSearchParams } from "react-router-dom";
 import { PageHeader, PageHeaderActions } from "../components/layout";
 import { Badge, CategoryPicker, GoalPicker, Icon, Modal, MultiSelectDropdown, PaginationButtons } from "../components/ui";
 import {
@@ -101,6 +101,25 @@ const activeTypePillStyles: Record<TransactionType, string> = {
 };
 
 const MANUAL_SOURCE_ID = "manual";
+
+function parseFilterIdsFromQuery(searchParams: URLSearchParams, key: string): string[] {
+  const values = searchParams
+    .getAll(key)
+    .flatMap((rawValue) => rawValue.split(","))
+    .map((value) => value.trim())
+    .filter((value) => value.length > 0);
+
+  return Array.from(new Set(values));
+}
+
+function parseTypeFilterFromQuery(searchParams: URLSearchParams): TransactionType | "all" {
+  const rawType = searchParams.get("type");
+  if (rawType === "income" || rawType === "expense" || rawType === "transfer") {
+    return rawType;
+  }
+
+  return "all";
+}
 
 interface SourceOption {
   id: string;
@@ -217,6 +236,14 @@ function persistTransactions(transactions: TxDetails[]): TxDetails[] {
 
 export function Transactions() {
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
+
+  const initialTypeFilter = parseTypeFilterFromQuery(searchParams);
+  const initialCategoryFilterIds = parseFilterIdsFromQuery(searchParams, "category");
+  const initialSourceFilterIds = parseFilterIdsFromQuery(searchParams, "source");
+  const initialGoalFilterIds = parseFilterIdsFromQuery(searchParams, "goal");
+  const initialAccountFilterIds = parseFilterIdsFromQuery(searchParams, "account");
+
   // Mutable local state so inline actions (delete, duplicate) work
   const [transactions, setTransactions] = useState(() =>
     loadTransactionsWithDetails(),
@@ -224,17 +251,17 @@ export function Transactions() {
 
   // Filters
   const [searchQuery, setSearchQuery] = useState("");
-  const [typeFilter, setTypeFilter] = useState<TransactionType | "all">("all");
-  const [categoryFilterIds, setCategoryFilterIds] = useState<string[]>([]);
-  const [sourceFilterIds, setSourceFilterIds] = useState<string[]>([]);
+  const [typeFilter, setTypeFilter] = useState<TransactionType | "all">(initialTypeFilter);
+  const [categoryFilterIds, setCategoryFilterIds] = useState<string[]>(initialCategoryFilterIds);
+  const [sourceFilterIds, setSourceFilterIds] = useState<string[]>(initialSourceFilterIds);
   const [showUncategorizedOnly, setShowUncategorizedOnly] = useState(false);
   const [sortField, setSortField] = useState<SortField>("date");
   const [sortDirection, setSortDirection] = useState<SortDirection>("desc");
 
   // Advanced filters
   const [showAdvancedFilters, setShowAdvancedFilters] = useState(false);
-  const [goalFilterIds, setGoalFilterIds] = useState<string[]>([]);
-  const [accountFilterIds, setAccountFilterIds] = useState<string[]>([]);
+  const [goalFilterIds, setGoalFilterIds] = useState<string[]>(initialGoalFilterIds);
+  const [accountFilterIds, setAccountFilterIds] = useState<string[]>(initialAccountFilterIds);
   const [dateFrom, setDateFrom] = useState("");
   const [dateTo, setDateTo] = useState("");
   const [amountMin, setAmountMin] = useState("");
@@ -705,6 +732,8 @@ export function Transactions() {
   const hasAnyFilter =
     categoryFilterIds.length > 0 ||
     activeSourceFilterIds.length > 0 ||
+    goalFilterIds.length > 0 ||
+    accountFilterIds.length > 0 ||
     typeFilter !== "all" ||
     searchQuery !== "" ||
     advancedFilterCount > 0;

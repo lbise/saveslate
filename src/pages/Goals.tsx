@@ -1,6 +1,7 @@
 import { useMemo, useRef, useState, type ChangeEvent, type FormEvent } from 'react';
 import * as LucideIcons from 'lucide-react';
-import { Calendar, ChevronDown, Pencil, Search, Target, Trash2, X } from 'lucide-react';
+import { ArrowUpRight, Calendar, ChevronDown, Pencil, Search, Target, Trash2, X } from 'lucide-react';
+import { Link } from 'react-router-dom';
 import { PageHeader, PageHeaderActions } from '../components/layout';
 import { Icon, Modal, TransactionItem } from '../components/ui';
 import {
@@ -1015,8 +1016,16 @@ export function Goals() {
 
               {goalTransactions.length > 0 && (
                 <div className="border-t border-border pt-4">
-                  <div className="text-ui text-text-muted uppercase tracking-wider mb-3">
-                    Recent Contributions
+                  <div className="flex items-center justify-between gap-2 mb-3">
+                    <span className="text-ui text-text-muted uppercase tracking-wider">
+                      Recent Contributions
+                    </span>
+                    <Link
+                      to={`/transactions?goal=${encodeURIComponent(gp.goal.id)}`}
+                      className="text-link"
+                    >
+                      View all <ArrowUpRight size={10} />
+                    </Link>
                   </div>
                   <div className="flex flex-col">
                     {goalTransactions.map((tx) => (
