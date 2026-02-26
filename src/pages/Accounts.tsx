@@ -1,5 +1,5 @@
 import { useMemo, useRef, useState, type ChangeEvent } from 'react';
-import { ArrowUpRight, Pencil, Trash2 } from 'lucide-react';
+import { ArrowUpRight } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import {
   AccountFormModal,
@@ -13,8 +13,8 @@ import { PageHeader, PageHeaderActions } from '../components/layout';
 import {
   Badge,
   EntityCard,
-  EntityCardActionButton,
   EntityCardDetailList,
+  EntityCardOverflowMenu,
   EntityCardSection,
   Modal,
 } from '../components/ui';
@@ -443,15 +443,13 @@ function AccountRow({ account, computedBalance, onEdit, onDelete }: AccountRowPr
       metricClassName={balanceTone === 'expense' ? 'text-expense' : 'text-text'}
       badges={<Badge variant={ACCOUNT_TYPE_BADGE_VARIANTS[account.type]}>{ACCOUNT_TYPE_LABELS[account.type]}</Badge>}
       actions={(
-        <>
-          <EntityCardActionButton icon={Pencil} label={`Edit ${account.name}`} onClick={onEdit} />
-          <EntityCardActionButton
-            icon={Trash2}
-            label={`Delete ${account.name}`}
-            tone="danger"
-            onClick={onDelete}
-          />
-        </>
+        <EntityCardOverflowMenu
+          label={`More actions for ${account.name}`}
+          actions={[
+            { label: 'Edit', onClick: onEdit },
+            { label: 'Delete', onClick: onDelete, tone: 'danger' },
+          ]}
+        />
       )}
     >
       <EntityCardDetailList

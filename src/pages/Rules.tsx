@@ -6,13 +6,13 @@ import {
   type ChangeEvent,
   type FormEvent,
 } from "react";
-import { Pencil, Play, Trash2, X } from "lucide-react";
+import { Play, X } from "lucide-react";
 import { useLocation, useNavigate } from "react-router-dom";
 import { PageHeader, PageHeaderActions } from "../components/layout";
 import {
   EntityCard,
-  EntityCardActionButton,
   EntityCardDetailList,
+  EntityCardOverflowMenu,
   EntityCardSection,
   Modal,
 } from "../components/ui";
@@ -207,23 +207,6 @@ function formatRuleActionSummary(actions: AutomationAction[]): string {
   }
 
   return `${firstAction} +${actions.length - 1} more`;
-}
-
-function formatRuleConditionSummary(
-  rule: AutomationRule,
-  resolveLabel: (field: string, rawValue: string | undefined) => string | undefined,
-): string {
-  if (rule.conditions.length === 0) {
-    return "No conditions";
-  }
-
-  const first = rule.conditions[0];
-  const firstSummary = formatCondition(first, resolveLabel(first.field, first.value));
-  if (rule.conditions.length === 1) {
-    return firstSummary;
-  }
-
-  return `${firstSummary} +${rule.conditions.length - 1} more`;
 }
 
 function toFormCondition(condition: AutomationCondition): RuleFormCondition {
@@ -1327,17 +1310,17 @@ export function Rules() {
           <div>
             <h2 className="heading-3 text-text">Automation Engine</h2>
             <p className="text-body mt-1">
-              Rules can check any field and run one or more actions.
+              Runs enabled manual rules on current transactions.
             </p>
           </div>
           <button
             type="button"
-            className="btn-secondary"
+            className="btn-primary"
             onClick={handleRunManualRules}
             disabled={manualRunnableRuleCount === 0}
           >
             <Play size={14} />
-            Run rules now
+            Run
           </button>
         </div>
 
@@ -1372,13 +1355,11 @@ export function Rules() {
           <div className="flex flex-col gap-3">
             {rules.map((rule) => {
               const actionSummary = formatRuleActionSummary(rule.actions);
-              const conditionSummary = formatRuleConditionSummary(rule, resolveConditionValueLabel);
               return (
                 <EntityCard
                   key={rule.id}
                   icon="Bot"
                   title={rule.name}
-                  subtitle={rule.matchMode === "all" ? "All conditions must match" : "Any condition can match"}
                   tone={rule.isEnabled ? "income" : "warning"}
                   metric={rule.isEnabled ? "Enabled" : "Disabled"}
                   metricClassName={rule.isEnabled ? "text-income" : "text-text-muted"}
@@ -1388,26 +1369,24 @@ export function Rules() {
                     </span>
                   ))}
                   actions={(
-                    <>
-                      <button
-                        type="button"
-                        onClick={() => handleToggleRuleEnabled(rule)}
-                        className="btn-secondary h-8 px-2.5 py-0"
-                      >
-                        {rule.isEnabled ? "Disable" : "Enable"}
-                      </button>
-                      <EntityCardActionButton
-                        icon={Pencil}
-                        label={`Edit rule ${rule.name}`}
-                        onClick={() => openEditModal(rule)}
-                      />
-                      <EntityCardActionButton
-                        icon={Trash2}
-                        label={`Delete rule ${rule.name}`}
-                        tone="danger"
-                        onClick={() => setRuleToDelete(rule)}
-                      />
-                    </>
+                    <EntityCardOverflowMenu
+                      label={`More actions for ${rule.name}`}
+                      actions={[
+                        {
+                          label: rule.isEnabled ? 'Disable' : 'Enable',
+                          onClick: () => handleToggleRuleEnabled(rule),
+                        },
+                        {
+                          label: 'Edit',
+                          onClick: () => openEditModal(rule),
+                        },
+                        {
+                          label: 'Delete',
+                          onClick: () => setRuleToDelete(rule),
+                          tone: 'danger',
+                        },
+                      ]}
+                    />
                   )}
                 >
                   <EntityCardDetailList
@@ -1421,11 +1400,6 @@ export function Rules() {
                         label: "Action",
                         value: actionSummary,
                         tone: rule.actions.length > 0 ? "default" : "muted",
-                      },
-                      {
-                        label: "Condition",
-                        value: conditionSummary,
-                        tone: rule.conditions.length > 0 ? "strong" : "muted",
                       },
                     ]}
                   />

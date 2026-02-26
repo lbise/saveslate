@@ -1,5 +1,5 @@
-import type { ReactNode } from 'react';
-import type { LucideIcon } from 'lucide-react';
+import { useEffect, useRef, useState, type ReactNode } from 'react';
+import { MoreHorizontal, type LucideIcon } from 'lucide-react';
 import { Icon } from './Icon';
 import { cn } from '../../lib/utils';
 
@@ -61,6 +61,18 @@ interface EntityCardSectionProps {
   action?: ReactNode;
   children: ReactNode;
   className?: string;
+}
+
+interface EntityCardMenuAction {
+  label: string;
+  onClick: () => void;
+  tone?: 'default' | 'danger';
+  disabled?: boolean;
+}
+
+interface EntityCardOverflowMenuProps {
+  label?: string;
+  actions: EntityCardMenuAction[];
 }
 
 const iconToneClasses: Record<EntityCardTone, string> = {
@@ -216,6 +228,77 @@ export function EntityCardSection({ title, action, children, className }: Entity
         </div>
       )}
       {children}
+    </div>
+  );
+}
+
+export function EntityCardOverflowMenu({ label = 'More actions', actions }: EntityCardOverflowMenuProps) {
+  const [isOpen, setIsOpen] = useState(false);
+  const menuRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (!isOpen) {
+      return;
+    }
+
+    function handlePointerDown(event: MouseEvent) {
+      if (!menuRef.current || menuRef.current.contains(event.target as Node)) {
+        return;
+      }
+      setIsOpen(false);
+    }
+
+    function handleEscape(event: KeyboardEvent) {
+      if (event.key === 'Escape') {
+        setIsOpen(false);
+      }
+    }
+
+    document.addEventListener('mousedown', handlePointerDown);
+    document.addEventListener('keydown', handleEscape);
+
+    return () => {
+      document.removeEventListener('mousedown', handlePointerDown);
+      document.removeEventListener('keydown', handleEscape);
+    };
+  }, [isOpen]);
+
+  return (
+    <div className="relative" ref={menuRef}>
+      <button
+        type="button"
+        onClick={() => setIsOpen((current) => !current)}
+        className="w-7 h-7 flex items-center justify-center rounded bg-transparent border-none cursor-pointer text-text-muted hover:text-text transition-colors"
+        aria-label={label}
+        title={label}
+      >
+        <MoreHorizontal size={14} />
+      </button>
+
+      {isOpen && (
+        <div className="absolute right-0 top-full mt-1 z-20 min-w-[144px] rounded-(--radius-md) border border-border bg-surface py-1 shadow-(--shadow-md)">
+          {actions.map((action) => (
+            <button
+              key={action.label}
+              type="button"
+              disabled={action.disabled}
+              onClick={() => {
+                action.onClick();
+                setIsOpen(false);
+              }}
+              className={cn(
+                'w-full text-left px-3 py-2 text-ui transition-colors',
+                action.tone === 'danger'
+                  ? 'text-text-muted hover:text-expense hover:bg-expense/8'
+                  : 'text-text-secondary hover:text-text hover:bg-surface-hover',
+                action.disabled && 'opacity-50 cursor-not-allowed hover:bg-transparent hover:text-text-muted',
+              )}
+            >
+              {action.label}
+            </button>
+          ))}
+        </div>
+      )}
     </div>
   );
 }

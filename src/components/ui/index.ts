@@ -3,6 +3,7 @@ export {
   EntityCard,
   EntityCardActionButton,
   EntityCardDetailList,
+  EntityCardOverflowMenu,
   EntityCardSection,
 } from './EntityCard';
 export type {

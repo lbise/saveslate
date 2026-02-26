@@ -1,13 +1,13 @@
 import { useMemo, useRef, useState, type ChangeEvent, type FormEvent, type ReactNode } from 'react';
 import * as LucideIcons from 'lucide-react';
-import { ArrowUpRight, ChevronDown, Pencil, Search, Target, Trash2, X } from 'lucide-react';
+import { ArrowUpRight, ChevronDown, Search, Target, X } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { PageHeader, PageHeaderActions } from '../components/layout';
 import {
   Badge,
   EntityCard,
-  EntityCardActionButton,
   EntityCardDetailList,
+  EntityCardOverflowMenu,
   EntityCardSection,
   Icon,
   Modal,
@@ -946,21 +946,16 @@ export function Goals() {
           }
 
           const detailItems = [
-            {
-              label: 'Saved',
-              value: formatCurrency(gp.currentAmount),
-              tone: gp.currentAmount < 0 ? 'expense' : 'strong',
-            },
             !isOpenEnded
               ? {
-                label: 'Target',
-                value: formatCurrency(gp.goal.targetAmount),
-                tone: 'default',
+                label: 'Saved / Target',
+                value: `${formatCurrency(gp.currentAmount)} / ${formatCurrency(gp.goal.targetAmount)}`,
+                tone: gp.currentAmount < 0 ? 'expense' : 'strong',
               }
               : {
-                label: 'Target',
-                value: 'Open-ended',
-                tone: 'muted',
+                label: 'Saved',
+                value: formatCurrency(gp.currentAmount),
+                tone: gp.currentAmount < 0 ? 'expense' : 'strong',
               },
             gp.goal.expectedContribution
               ? {
@@ -985,32 +980,21 @@ export function Goals() {
               title={gp.goal.name}
               subtitle={gp.goal.description?.trim() || (gp.goal.deadline ? `Due ${formatDate(gp.goal.deadline)}` : 'Savings goal')}
               tone="goal"
-              metric={isOpenEnded ? 'Open' : `${gp.percentage.toFixed(0)}%`}
-              metricClassName="text-goal"
               badges={badges.length > 0 ? badges : undefined}
               actions={(
-                <>
-                  <EntityCardActionButton
-                    icon={Pencil}
-                    label={`Edit ${gp.goal.name}`}
-                    onClick={() => openEditGoalForm(gp.goal)}
-                  />
-                  <EntityCardActionButton
-                    icon={Trash2}
-                    label={`Delete ${gp.goal.name}`}
-                    tone="danger"
-                    onClick={() => requestDeleteGoal(gp.goal)}
-                  />
-                </>
+                <EntityCardOverflowMenu
+                  label={`More actions for ${gp.goal.name}`}
+                  actions={[
+                    { label: 'Edit', onClick: () => openEditGoalForm(gp.goal) },
+                    { label: 'Delete', onClick: () => requestDeleteGoal(gp.goal), tone: 'danger' },
+                  ]}
+                />
               )}
             >
               <EntityCardDetailList items={detailItems} />
 
               {shouldShowProgressBar && (
-                <EntityCardSection
-                  title="Progress"
-                  action={<span className="text-ui text-goal font-medium">{gp.percentage.toFixed(0)}%</span>}
-                >
+                <EntityCardSection title="Progress">
                   <div className="h-1.5 bg-border rounded-full overflow-hidden">
                     <div
                       className="h-full rounded-full transition-[width] duration-400 ease-out bg-goal"
