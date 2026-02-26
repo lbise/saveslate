@@ -10,7 +10,14 @@ import {
   type AccountFormSubmitPayload,
 } from '../components/accounts';
 import { PageHeader, PageHeaderActions } from '../components/layout';
-import { Icon, Modal } from '../components/ui';
+import {
+  Badge,
+  EntityCard,
+  EntityCardActionButton,
+  EntityCardDetailList,
+  EntityCardSection,
+  Modal,
+} from '../components/ui';
 import {
   addAccount,
   deleteAccount,
@@ -23,16 +30,26 @@ import { formatCurrency, formatRelativeDate, formatSignedCurrency, cn } from '..
 import { getTransactionsByAccount } from '../lib/data-service';
 import { inferTransactionType } from '../lib/transaction-type';
 import type { Account, AccountType } from '../types';
+import type { EntityCardDetailTone, EntityCardTone } from '../components/ui';
 
 const ACCOUNTS_EXPORT_SCHEMA_VERSION = 1;
 
-const ACCOUNT_TYPE_ICON_STYLES: Record<AccountType, { bg: string; text: string }> = {
-  checking: { bg: 'bg-accent/12', text: 'text-accent' },
-  savings: { bg: 'bg-income/12', text: 'text-income' },
-  credit: { bg: 'bg-expense/12', text: 'text-expense' },
-  cash: { bg: 'bg-transfer/12', text: 'text-transfer' },
-  investment: { bg: 'bg-income/12', text: 'text-income' },
-  retirement: { bg: 'bg-accent/12', text: 'text-accent' },
+const ACCOUNT_TONES: Record<AccountType, EntityCardTone> = {
+  checking: 'transfer',
+  savings: 'income',
+  credit: 'expense',
+  cash: 'neutral',
+  investment: 'accent',
+  retirement: 'accent',
+};
+
+const ACCOUNT_TYPE_BADGE_VARIANTS: Record<AccountType, 'default' | 'income' | 'expense' | 'transfer' | 'muted'> = {
+  checking: 'transfer',
+  savings: 'income',
+  credit: 'expense',
+  cash: 'muted',
+  investment: 'default',
+  retirement: 'default',
 };
 
 interface ExportedAccountsFile {
@@ -411,86 +428,60 @@ interface AccountRowProps {
 }
 
 function AccountRow({ account, computedBalance, onEdit, onDelete }: AccountRowProps) {
-  const recentTransactions = getTransactionsByAccount(account.id).slice(0, 3);
+  const accountTransactions = getTransactionsByAccount(account.id);
+  const recentTransactions = accountTransactions.slice(0, 3);
   const isNegative = computedBalance < 0;
-  const iconStyle = ACCOUNT_TYPE_ICON_STYLES[account.type];
+  const balanceTone: EntityCardDetailTone = isNegative ? 'expense' : 'strong';
 
   return (
-    <div className="p-5 bg-surface rounded-(--radius-lg) transition-colors duration-150 hover:bg-surface-hover">
-      <div className="flex items-center justify-between mb-4 gap-3">
-        <div className="flex items-center gap-3 min-w-0">
-          <div className={cn('w-9 h-9 rounded-(--radius-md) flex items-center justify-center shrink-0', iconStyle.bg)}>
-            <Icon name={account.icon} size={18} className={iconStyle.text} />
-          </div>
-          <div className="min-w-0">
-            <div className="text-body font-medium text-text truncate">{account.name}</div>
-            <div className="text-ui text-text-muted flex items-center gap-1 flex-wrap">
-              <span>{ACCOUNT_TYPE_LABELS[account.type]}</span>
-              {account.accountIdentifier && (
-                <>
-                  <span>&middot;</span>
-                  <span className="truncate max-w-[260px]" title={account.accountIdentifier}>
-                    {account.accountIdentifier}
-                  </span>
-                </>
-              )}
-            </div>
-          </div>
-        </div>
-        <div className="flex items-center gap-1.5 shrink-0">
-          <button
-            type="button"
-            onClick={onEdit}
-            className="w-7 h-7 flex items-center justify-center rounded bg-transparent border-none cursor-pointer text-text-muted hover:text-text transition-colors"
-            aria-label={`Edit account ${account.name}`}
-            title={`Edit ${account.name}`}
-          >
-            <Pencil size={14} />
-          </button>
-          <button
-            type="button"
+    <EntityCard
+      icon={account.icon}
+      title={account.name}
+      subtitle={account.currency}
+      tone={ACCOUNT_TONES[account.type]}
+      metric={formatCurrency(computedBalance, account.currency)}
+      metricClassName={balanceTone === 'expense' ? 'text-expense' : 'text-text'}
+      badges={<Badge variant={ACCOUNT_TYPE_BADGE_VARIANTS[account.type]}>{ACCOUNT_TYPE_LABELS[account.type]}</Badge>}
+      actions={(
+        <>
+          <EntityCardActionButton icon={Pencil} label={`Edit ${account.name}`} onClick={onEdit} />
+          <EntityCardActionButton
+            icon={Trash2}
+            label={`Delete ${account.name}`}
+            tone="danger"
             onClick={onDelete}
-            className="w-7 h-7 flex items-center justify-center rounded bg-transparent border-none cursor-pointer text-text-muted hover:text-expense transition-colors"
-            aria-label={`Delete account ${account.name}`}
-            title={`Delete ${account.name}`}
-          >
-            <Trash2 size={14} />
-          </button>
-          <div
-            className={cn(
-              'text-body font-medium shrink-0 ml-1',
-              isNegative ? 'text-expense' : 'text-text',
-            )}
-            style={{ fontFamily: 'var(--font-display)' }}
-          >
-            {formatCurrency(computedBalance, account.currency)}
-          </div>
-        </div>
-      </div>
+          />
+        </>
+      )}
+    >
+      <EntityCardDetailList
+        items={[
+          { label: 'Total transactions', value: String(accountTransactions.length), tone: 'strong' },
+          {
+            label: 'Account number',
+            value: account.accountIdentifier ?? 'Not set',
+            tone: account.accountIdentifier ? 'default' : 'muted',
+          },
+        ]}
+      />
 
       {recentTransactions.length > 0 && (
-        <div className="border-t border-border pt-3 mt-1">
-          <div className="flex items-center justify-between mb-2">
-            <span className="text-ui text-text-muted uppercase tracking-wider">Recent</span>
-            <Link
-              to={`/transactions?account=${encodeURIComponent(account.id)}`}
-              className="text-link"
-            >
+        <EntityCardSection
+          title="Recent"
+          action={(
+            <Link to={`/transactions?account=${encodeURIComponent(account.id)}`} className="text-link">
               View all <ArrowUpRight size={10} />
             </Link>
-          </div>
+          )}
+        >
           <div className="flex flex-col gap-2">
             {recentTransactions.map((tx) => {
               const txType = inferTransactionType(tx);
               return (
                 <div key={tx.id} className="flex items-center justify-between gap-3">
                   <div className="flex flex-col min-w-0">
-                    <span className="text-ui truncate max-w-[200px]">
-                      {tx.description}
-                    </span>
-                    <span className="text-ui text-text-muted">
-                      {formatRelativeDate(tx.date)}
-                    </span>
+                    <span className="text-ui truncate max-w-[220px]">{tx.description}</span>
+                    <span className="text-ui text-text-muted">{formatRelativeDate(tx.date)}</span>
                   </div>
                   <span
                     className={cn(
@@ -513,8 +504,8 @@ function AccountRow({ account, computedBalance, onEdit, onDelete }: AccountRowPr
               );
             })}
           </div>
-        </div>
+        </EntityCardSection>
       )}
-    </div>
+    </EntityCard>
   );
 }

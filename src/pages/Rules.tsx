@@ -9,7 +9,13 @@ import {
 import { Pencil, Play, Trash2, X } from "lucide-react";
 import { useLocation, useNavigate } from "react-router-dom";
 import { PageHeader, PageHeaderActions } from "../components/layout";
-import { Modal } from "../components/ui";
+import {
+  EntityCard,
+  EntityCardActionButton,
+  EntityCardDetailList,
+  EntityCardSection,
+  Modal,
+} from "../components/ui";
 import {
   CATEGORIES,
   getAccounts,
@@ -188,6 +194,36 @@ function formatRuleAction(action: AutomationAction): string {
 
   const goal = getGoalById(action.goalId);
   return `Set goal to ${goal?.name ?? action.goalId}${action.overwriteExisting ? " (allow change)" : ""}`;
+}
+
+function formatRuleActionSummary(actions: AutomationAction[]): string {
+  if (actions.length === 0) {
+    return "No actions";
+  }
+
+  const firstAction = formatRuleAction(actions[0]);
+  if (actions.length === 1) {
+    return firstAction;
+  }
+
+  return `${firstAction} +${actions.length - 1} more`;
+}
+
+function formatRuleConditionSummary(
+  rule: AutomationRule,
+  resolveLabel: (field: string, rawValue: string | undefined) => string | undefined,
+): string {
+  if (rule.conditions.length === 0) {
+    return "No conditions";
+  }
+
+  const first = rule.conditions[0];
+  const firstSummary = formatCondition(first, resolveLabel(first.field, first.value));
+  if (rule.conditions.length === 1) {
+    return firstSummary;
+  }
+
+  return `${firstSummary} +${rule.conditions.length - 1} more`;
 }
 
 function toFormCondition(condition: AutomationCondition): RuleFormCondition {
@@ -1335,34 +1371,24 @@ export function Rules() {
         ) : (
           <div className="flex flex-col gap-3">
             {rules.map((rule) => {
+              const actionSummary = formatRuleActionSummary(rule.actions);
+              const conditionSummary = formatRuleConditionSummary(rule, resolveConditionValueLabel);
               return (
-                <div key={rule.id} className="card p-4">
-                  <div className="flex items-start justify-between gap-3">
-                    <div className="min-w-0">
-                      <div className="flex items-center gap-2 flex-wrap">
-                        <h3 className="heading-3 text-text">{rule.name}</h3>
-                        {!rule.isEnabled && (
-                          <span className="badge-muted">Disabled</span>
-                        )}
-                      </div>
-
-                      <p className="text-ui text-text-muted mt-1">
-                        Match mode:{" "}
-                        {rule.matchMode === "all"
-                          ? "all conditions"
-                          : "any condition"}
-                      </p>
-
-                      <div className="flex flex-wrap gap-1.5 mt-2">
-                        {rule.triggers.map((trigger) => (
-                          <span key={trigger} className="badge-muted">
-                            {getTriggerLabel(trigger)}
-                          </span>
-                        ))}
-                      </div>
-                    </div>
-
-                    <div className="flex items-center gap-1.5 shrink-0">
+                <EntityCard
+                  key={rule.id}
+                  icon="Bot"
+                  title={rule.name}
+                  subtitle={rule.matchMode === "all" ? "All conditions must match" : "Any condition can match"}
+                  tone={rule.isEnabled ? "income" : "warning"}
+                  metric={rule.isEnabled ? "Enabled" : "Disabled"}
+                  metricClassName={rule.isEnabled ? "text-income" : "text-text-muted"}
+                  badges={rule.triggers.map((trigger) => (
+                    <span key={trigger} className="badge-muted">
+                      {getTriggerLabel(trigger)}
+                    </span>
+                  ))}
+                  actions={(
+                    <>
                       <button
                         type="button"
                         onClick={() => handleToggleRuleEnabled(rule)}
@@ -1370,47 +1396,55 @@ export function Rules() {
                       >
                         {rule.isEnabled ? "Disable" : "Enable"}
                       </button>
-                      <button
-                        type="button"
+                      <EntityCardActionButton
+                        icon={Pencil}
+                        label={`Edit rule ${rule.name}`}
                         onClick={() => openEditModal(rule)}
-                        className="w-7 h-7 flex items-center justify-center rounded bg-transparent border-none cursor-pointer text-text-muted hover:text-text transition-colors"
-                        aria-label={`Edit rule ${rule.name}`}
-                      >
-                        <Pencil size={14} />
-                      </button>
-                      <button
-                        type="button"
+                      />
+                      <EntityCardActionButton
+                        icon={Trash2}
+                        label={`Delete rule ${rule.name}`}
+                        tone="danger"
                         onClick={() => setRuleToDelete(rule)}
-                        className="w-7 h-7 flex items-center justify-center rounded bg-transparent border-none cursor-pointer text-text-muted hover:text-expense transition-colors"
-                        aria-label={`Delete rule ${rule.name}`}
-                      >
-                        <Trash2 size={14} />
-                      </button>
-                    </div>
-                  </div>
+                      />
+                    </>
+                  )}
+                >
+                  <EntityCardDetailList
+                    items={[
+                      {
+                        label: "Match mode",
+                        value: rule.matchMode === "all" ? "All conditions" : "Any condition",
+                        tone: "default",
+                      },
+                      {
+                        label: "Action",
+                        value: actionSummary,
+                        tone: rule.actions.length > 0 ? "default" : "muted",
+                      },
+                      {
+                        label: "Condition",
+                        value: conditionSummary,
+                        tone: rule.conditions.length > 0 ? "strong" : "muted",
+                      },
+                    ]}
+                  />
 
-                  <div className="mt-3 pt-3 border-t border-border space-y-1.5">
-                    {rule.conditions.map((condition) => (
-                      <p key={condition.id} className="text-ui text-text-muted">
-                        {formatCondition(
-                          condition,
-                          resolveConditionValueLabel(
-                            condition.field,
-                            condition.value,
-                          ),
-                        )}
-                      </p>
-                    ))}
-                  </div>
-
-                  <div className="mt-3 space-y-1">
-                    {rule.actions.map((action, index) => (
-                      <p key={`${rule.id}-action-${index}`} className="text-ui">
-                        Action {index + 1}: <span className="text-text">{formatRuleAction(action)}</span>
-                      </p>
-                    ))}
-                  </div>
-                </div>
+                  {rule.conditions.length > 0 && (
+                    <EntityCardSection title="Conditions">
+                      <div className="space-y-1.5">
+                        {rule.conditions.map((condition) => (
+                          <p key={condition.id} className="text-ui text-text-muted">
+                            {formatCondition(
+                              condition,
+                              resolveConditionValueLabel(condition.field, condition.value),
+                            )}
+                          </p>
+                        ))}
+                      </div>
+                    </EntityCardSection>
+                  )}
+                </EntityCard>
               );
             })}
           </div>

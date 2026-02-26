@@ -1,9 +1,18 @@
-import { useMemo, useRef, useState, type ChangeEvent, type FormEvent } from 'react';
+import { useMemo, useRef, useState, type ChangeEvent, type FormEvent, type ReactNode } from 'react';
 import * as LucideIcons from 'lucide-react';
-import { ArrowUpRight, Calendar, ChevronDown, Pencil, Search, Target, Trash2, X } from 'lucide-react';
+import { ArrowUpRight, ChevronDown, Pencil, Search, Target, Trash2, X } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { PageHeader, PageHeaderActions } from '../components/layout';
-import { Icon, Modal, TransactionItem } from '../components/ui';
+import {
+  Badge,
+  EntityCard,
+  EntityCardActionButton,
+  EntityCardDetailList,
+  EntityCardSection,
+  Icon,
+  Modal,
+  TransactionItem,
+} from '../components/ui';
 import {
   getGoalProgress,
   getTransactionsWithDetails,
@@ -925,108 +934,116 @@ export function Goals() {
             ? Math.max(0, Math.min((yearToDateContribution / yearlyPlanAmount) * 100, 999))
             : 0;
 
+          const badges: ReactNode[] = [];
+          if (isContributionPlan) {
+            badges.push(<Badge key="goal-plan" variant="default">Contribution plan</Badge>);
+          }
+          if (!isContributionPlan && !isOpenEnded) {
+            badges.push(<Badge key="goal-fixed" variant="muted">Fixed target</Badge>);
+          }
+          if (isOpenEnded) {
+            badges.push(<Badge key="goal-open" variant="muted">Open-ended</Badge>);
+          }
+
+          const detailItems = [
+            {
+              label: 'Saved',
+              value: formatCurrency(gp.currentAmount),
+              tone: gp.currentAmount < 0 ? 'expense' : 'strong',
+            },
+            !isOpenEnded
+              ? {
+                label: 'Target',
+                value: formatCurrency(gp.goal.targetAmount),
+                tone: 'default',
+              }
+              : {
+                label: 'Target',
+                value: 'Open-ended',
+                tone: 'muted',
+              },
+            gp.goal.expectedContribution
+              ? {
+                label: 'Contribution',
+                value: `${formatCurrency(gp.goal.expectedContribution.amount)} ${gp.goal.expectedContribution.frequency}`,
+                tone: 'goal',
+              }
+              : undefined,
+            gp.goal.deadline
+              ? {
+                label: 'Due date',
+                value: formatDate(gp.goal.deadline),
+                tone: 'default',
+              }
+              : undefined,
+          ].filter((item): item is { label: string; value: string; tone: 'default' | 'strong' | 'muted' | 'goal' | 'expense' } => item !== undefined);
+
           return (
-            <div
+            <EntityCard
               key={gp.goal.id}
-              className="p-5 bg-surface rounded-(--radius-lg)"
-            >
-              <div className="flex items-center justify-between mb-4">
-                <div className="flex items-center gap-3">
-                  <div
-                    className="w-10 h-10 rounded-(--radius-md) flex items-center justify-center bg-goal/15"
-                  >
-                    <Icon name={gp.goal.icon} size={20} className="text-goal" />
-                  </div>
-                  <div>
-                    <div className="text-body font-medium text-text">{gp.goal.name}</div>
-                    {gp.goal.description && (
-                      <div className="text-ui text-text-muted mt-0.5">{gp.goal.description}</div>
-                    )}
-                    {gp.goal.deadline && (
-                      <div className="flex items-center gap-1 text-ui text-text-muted mt-0.5">
-                        <Calendar size={10} />
-                        <span>Due {formatDate(gp.goal.deadline)}</span>
-                      </div>
-                    )}
-                  </div>
-                </div>
-                <div className="flex items-center gap-3">
-                  <div className="text-right">
-                    <div
-                      className="text-body font-medium text-text"
-                      style={{ fontFamily: 'var(--font-display)' }}
-                    >
-                      {isContributionPlan
-                        ? `${gp.percentage.toFixed(0)}%`
-                        : (isOpenEnded ? 'Open' : `${gp.percentage.toFixed(0)}%`)}
-                    </div>
-                  </div>
-                  <button
-                    type="button"
-                    className="btn-icon"
+              icon={gp.goal.icon}
+              title={gp.goal.name}
+              subtitle={gp.goal.description?.trim() || (gp.goal.deadline ? `Due ${formatDate(gp.goal.deadline)}` : 'Savings goal')}
+              tone="goal"
+              metric={isOpenEnded ? 'Open' : `${gp.percentage.toFixed(0)}%`}
+              metricClassName="text-goal"
+              badges={badges.length > 0 ? badges : undefined}
+              actions={(
+                <>
+                  <EntityCardActionButton
+                    icon={Pencil}
+                    label={`Edit ${gp.goal.name}`}
                     onClick={() => openEditGoalForm(gp.goal)}
-                    title={`Edit goal ${gp.goal.name}`}
-                  >
-                    <Pencil size={14} />
-                  </button>
-                  <button
-                    type="button"
-                    className="btn-icon text-text-muted hover:text-expense"
+                  />
+                  <EntityCardActionButton
+                    icon={Trash2}
+                    label={`Delete ${gp.goal.name}`}
+                    tone="danger"
                     onClick={() => requestDeleteGoal(gp.goal)}
-                    title={`Delete goal ${gp.goal.name}`}
-                  >
-                    <Trash2 size={14} />
-                  </button>
-                </div>
-              </div>
+                  />
+                </>
+              )}
+            >
+              <EntityCardDetailList items={detailItems} />
 
               {shouldShowProgressBar && (
-                <div className="h-1.5 bg-border rounded-full overflow-hidden mb-3">
-                  <div
-                    className="h-full rounded-full transition-[width] duration-400 ease-out bg-goal"
-                    style={{ width: `${gp.percentage}%` }}
-                  />
-                </div>
+                <EntityCardSection
+                  title="Progress"
+                  action={<span className="text-ui text-goal font-medium">{gp.percentage.toFixed(0)}%</span>}
+                >
+                  <div className="h-1.5 bg-border rounded-full overflow-hidden">
+                    <div
+                      className="h-full rounded-full transition-[width] duration-400 ease-out bg-goal"
+                      style={{ width: `${Math.max(0, Math.min(gp.percentage, 100))}%` }}
+                    />
+                  </div>
+                </EntityCardSection>
               )}
 
-              <div className="flex justify-between text-ui mb-5">
-                <span className={gp.currentAmount < 0 ? 'text-expense' : 'text-text-secondary'}>
-                  {formatCurrency(gp.currentAmount)} saved
-                </span>
-                {isContributionPlan ? (
-                  <span className="text-text-muted">Contribution plan</span>
-                ) : isOpenEnded ? (
-                  <span className="text-text-muted">Open-ended goal</span>
-                ) : (
-                  <span className="text-text-muted">
-                    of {formatCurrency(gp.goal.targetAmount)}
-                  </span>
-                )}
-              </div>
-
               {gp.goal.expectedContribution && (
-                <div className="text-ui text-text-muted mb-4">
-                  Planned contribution: {formatCurrency(gp.goal.expectedContribution.amount)} {gp.goal.expectedContribution.frequency}
-                  {' '}
-                  · {formatCurrency(yearlyPlanAmount)} yearly
-                  {' '}
-                  · This year: {formatCurrency(yearToDateContribution)} ({yearlyPlanProgress.toFixed(0)}%)
-                </div>
+                <EntityCardSection title="Plan">
+                  <p className="text-ui text-text-muted">
+                    {formatCurrency(gp.goal.expectedContribution.amount)} {gp.goal.expectedContribution.frequency}
+                    {' '}
+                    · {formatCurrency(yearlyPlanAmount)} yearly
+                    {' '}
+                    · This year: {formatCurrency(yearToDateContribution)} ({yearlyPlanProgress.toFixed(0)}%)
+                  </p>
+                </EntityCardSection>
               )}
 
               {goalTransactions.length > 0 && (
-                <div className="border-t border-border pt-4">
-                  <div className="flex items-center justify-between gap-2 mb-3">
-                    <span className="text-ui text-text-muted uppercase tracking-wider">
-                      Recent Contributions
-                    </span>
+                <EntityCardSection
+                  title="Recent Contributions"
+                  action={(
                     <Link
                       to={`/transactions?goal=${encodeURIComponent(gp.goal.id)}`}
                       className="text-link"
                     >
                       View all <ArrowUpRight size={10} />
                     </Link>
-                  </div>
+                  )}
+                >
                   <div className="flex flex-col">
                     {goalTransactions.map((tx) => (
                       <TransactionItem
@@ -1043,9 +1060,9 @@ export function Goals() {
                       />
                     ))}
                   </div>
-                </div>
+                </EntityCardSection>
               )}
-            </div>
+            </EntityCard>
           );
         })}
       </div>
