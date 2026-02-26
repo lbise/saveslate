@@ -20,7 +20,7 @@ import {
 } from '../lib/account-storage';
 import { loadTransactions } from '../lib/transaction-storage';
 import { formatCurrency, formatRelativeDate, formatSignedCurrency, cn } from '../lib/utils';
-import { getTransactionsByAccount } from '../data/mock';
+import { getTransactionsByAccount } from '../lib/data-service';
 import { inferTransactionType } from '../lib/transaction-type';
 import type { Account, AccountType } from '../types';
 

@@ -17,7 +17,7 @@ import {
   getCategoryById,
   getGoalById,
   getGoals,
-} from "../data/mock";
+} from "../lib/data-service";
 import {
   addAutomationRule,
   applyAutomationRules,

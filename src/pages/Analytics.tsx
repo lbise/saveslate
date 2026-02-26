@@ -3,7 +3,7 @@ import { ResponsiveSankey } from '@nivo/sankey';
 import { BarChart3 } from 'lucide-react';
 import { PageHeader } from '../components/layout/PageHeader';
 import { StatCard } from '../components/ui';
-import { getTransactionsWithDetails } from '../data/mock';
+import { getTransactionsWithDetails } from '../lib/data-service';
 import { formatCurrency } from '../lib/utils';
 import { cn } from '../lib/utils';
 import { getDataProfileLabel, loadActiveDataProfile } from '../lib/data-profile';

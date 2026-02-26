@@ -32,7 +32,7 @@ import {
   getMonthlyStats,
   getGoalProgress,
   getNetWorth,
-} from '../../data/mock';
+} from '../../lib/data-service';
 import { formatCurrency } from '../../lib/utils';
 
 export function Design10() {

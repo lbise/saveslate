@@ -16,7 +16,7 @@ import {
   getCategoryById,
   getGoalProgress,
   getTransactionsWithDetails,
-} from '../data/mock';
+} from '../lib/data-service';
 import {
   AUTOMATION_TRIGGER_OPTIONS,
   automationOperatorNeedsValue,

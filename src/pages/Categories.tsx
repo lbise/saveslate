@@ -6,7 +6,7 @@ import { Icon, Modal } from '../components/ui';
 import {
   CATEGORIES as DEFAULT_CATEGORIES,
   CATEGORY_GROUPS as DEFAULT_CATEGORY_GROUPS,
-} from '../data/mock';
+} from '../lib/data-service';
 import { cn } from '../lib/utils';
 import type { Category, CategoryGroup } from '../types';
 

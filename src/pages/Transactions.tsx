@@ -27,7 +27,7 @@ import {
   getGoalById,
   getGoals,
   CATEGORIES,
-} from "../data/mock";
+} from "../lib/data-service";
 import {
   deleteImportBatch,
   loadImportBatches,

@@ -2,7 +2,7 @@ import { useState, useEffect, useRef } from 'react';
 import { Search, Check } from 'lucide-react';
 import { Icon } from './Icon';
 import { cn } from '../../lib/utils';
-import { CATEGORIES, CATEGORY_GROUPS } from '../../data/mock';
+import { CATEGORIES, CATEGORY_GROUPS } from '../../lib/data-service';
 
 interface CategoryPickerProps {
   currentCategoryId: string;

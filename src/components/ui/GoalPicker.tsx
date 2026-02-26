@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { Check, Search, Target } from 'lucide-react';
-import { getActiveGoals } from '../../data/mock';
+import { getActiveGoals } from '../../lib/data-service';
 import { cn } from '../../lib/utils';
 import { Icon } from './Icon';
 

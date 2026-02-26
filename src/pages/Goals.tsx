@@ -7,7 +7,7 @@ import { Icon, Modal, TransactionItem } from '../components/ui';
 import {
   getGoalProgress,
   getTransactionsWithDetails,
-} from '../data/mock';
+} from '../lib/data-service';
 import { addGoal, deleteGoal, mergeGoals, updateGoal } from '../lib/goal-storage';
 import { loadTransactions, saveTransactions } from '../lib/transaction-storage';
 import { formatCurrency, formatDate } from '../lib/utils';
