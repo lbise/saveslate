@@ -7,6 +7,7 @@ import { getTransactionsWithDetails } from '../data/mock';
 import { formatCurrency } from '../lib/utils';
 import { cn } from '../lib/utils';
 import {
+  ANALYTICS_COLORS,
   buildSankeyData,
   DATE_RANGE_OPTIONS,
 } from '../lib/analytics';
@@ -17,15 +18,15 @@ import type { DefaultLink } from '@nivo/sankey';
 
 const nivoTheme = {
   text: {
-    fill: '#9aa8a6',
+    fill: ANALYTICS_COLORS.textSecondary,
     fontSize: 13,
     fontFamily: 'Satoshi, sans-serif',
   },
   tooltip: {
     container: {
-      background: '#121215',
-      color: '#e9f0ef',
-      border: '1px solid #27272a',
+      background: ANALYTICS_COLORS.surface,
+      color: ANALYTICS_COLORS.text,
+      border: `1px solid ${ANALYTICS_COLORS.border}`,
       borderRadius: '8px',
       padding: '8px 12px',
       fontSize: '14px',
@@ -34,6 +35,14 @@ const nivoTheme = {
     },
   },
 };
+
+const SANKEY_LEGEND_ITEMS = [
+  { label: 'Income Categories', color: ANALYTICS_COLORS.income },
+  { label: 'Gross Income', color: ANALYTICS_COLORS.accent },
+  { label: 'Total Expenses', color: ANALYTICS_COLORS.expense },
+  { label: 'Savings', color: ANALYTICS_COLORS.goal },
+  { label: 'Shortfall', color: ANALYTICS_COLORS.warning },
+];
 
 // ── Component ─────────────────────────────────────────────────
 
@@ -59,43 +68,58 @@ export function Analytics() {
         <div className="section-header">
           <h2 className="section-title">Money Flow</h2>
           <span className="text-ui text-text-muted">
-            Where your income goes
+            Income to gross income to expenses and savings
           </span>
         </div>
 
         {hasData ? (
-          <div className="card" style={{ height: 520, padding: '24px 0 16px' }}>
-            <ResponsiveSankey<SankeyNodeInput, DefaultLink>
-              data={{ nodes, links }}
-              margin={{ top: 16, right: 160, bottom: 16, left: 160 }}
-              align="justify"
-              sort="descending"
-              colors={(node) => node.nodeColor}
-              label={(node) => node.nodeLabel}
-              theme={nivoTheme}
-              nodeOpacity={1}
-              nodeHoverOpacity={1}
-              nodeHoverOthersOpacity={0.25}
-              nodeThickness={16}
-              nodeSpacing={14}
-              nodeInnerPadding={2}
-              nodeBorderWidth={0}
-              nodeBorderRadius={3}
-              linkOpacity={0.35}
-              linkHoverOpacity={0.6}
-              linkHoverOthersOpacity={0.08}
-              linkContract={2}
-              linkBlendMode="normal"
-              enableLinkGradient
-              enableLabels
-              labelPosition="outside"
-              labelPadding={12}
-              labelOrientation="horizontal"
-              labelTextColor={{ from: 'color', modifiers: [['brighter', 0.6]] }}
-              valueFormat={(v) => formatCurrency(v)}
-              animate
-              motionConfig="gentle"
-            />
+          <div className="card" style={{ padding: '24px 0 16px' }}>
+            <div style={{ height: 520 }}>
+              <ResponsiveSankey<SankeyNodeInput, DefaultLink>
+                data={{ nodes, links }}
+                margin={{ top: 16, right: 160, bottom: 16, left: 160 }}
+                align="justify"
+                sort="descending"
+                colors={(node) => node.nodeColor}
+                label={(node) => node.nodeLabel}
+                theme={nivoTheme}
+                nodeOpacity={1}
+                nodeHoverOpacity={1}
+                nodeHoverOthersOpacity={0.25}
+                nodeThickness={16}
+                nodeSpacing={14}
+                nodeInnerPadding={2}
+                nodeBorderWidth={0}
+                nodeBorderRadius={3}
+                linkOpacity={0.35}
+                linkHoverOpacity={0.6}
+                linkHoverOthersOpacity={0.08}
+                linkContract={2}
+                linkBlendMode="normal"
+                enableLinkGradient
+                enableLabels
+                labelPosition="outside"
+                labelPadding={12}
+                labelOrientation="horizontal"
+                labelTextColor={{ from: 'color', modifiers: [['brighter', 0.6]] }}
+                valueFormat={(v) => formatCurrency(v)}
+                animate
+                motionConfig="gentle"
+              />
+            </div>
+
+            <div className="mt-3 px-6 flex flex-wrap gap-x-4 gap-y-2">
+              {SANKEY_LEGEND_ITEMS.map((item) => (
+                <div key={item.label} className="flex items-center gap-2">
+                  <span
+                    className="block w-2.5 h-2.5 rounded-(--radius-full)"
+                    style={{ backgroundColor: item.color }}
+                    aria-hidden
+                  />
+                  <span className="text-ui text-text-secondary">{item.label}</span>
+                </div>
+              ))}
+            </div>
           </div>
         ) : (
           <EmptyState period={period} />

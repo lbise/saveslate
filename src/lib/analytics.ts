@@ -1,6 +1,5 @@
 import type { TransactionWithDetails } from '../types';
 import type { DefaultLink } from '@nivo/sankey';
-import { getCategoryGroupById } from '../data/mock/category-groups';
 
 // ── Types ──────────────────────────────────────────────────────
 
@@ -73,42 +72,39 @@ export function getDateRange(period: DateRangePeriod): { start: string; end: str
   }
 }
 
-// ── Node colours ──────────────────────────────────────────────
-// Matches CSS variables from index.css (dark-only palette)
+// ── Chart palette ──────────────────────────────────────────────
+// Keep in sync with src/index.css @theme color variables.
 
-const COLORS = {
+export const ANALYTICS_COLORS = {
+  bg: '#09090b',
+  surface: '#121215',
+  border: '#27272a',
+  text: '#e9f0ef',
+  textSecondary: '#9aa8a6',
+  accent: '#55aec8',
+  goal: '#6aa7ff',
   income: '#4fd08a',
-  incomeHub: '#3ab876',
-  netSavings: '#55aec8',
-  deficit: '#ef6a6a',
-
-  // Category groups (bright, used for group nodes)
-  living: '#e8a87c',
-  lifestyle: '#c7a2ff',
-  finance: '#6aa7ff',
-  transfers: '#7e9ab3',
-
-  // Individual categories per group (slightly muted)
-  livingCat: '#d4956a',
-  lifestyleCat: '#b48ce6',
-  financeCat: '#5590d9',
-  transfersCat: '#6b8999',
-
-  fallback: '#9aa8a6',
+  expense: '#ef6a6a',
+  transfer: '#7e9ab3',
+  split: '#c7a2ff',
+  warning: '#f5bb00',
 } as const;
 
-const GROUP_NODE_COLOR: Record<string, string> = {
-  living: COLORS.living,
-  lifestyle: COLORS.lifestyle,
-  finance: COLORS.finance,
-  transfers: COLORS.transfers,
-};
+const NODE_COLORS = {
+  incomeCategory: ANALYTICS_COLORS.income,
+  grossIncome: ANALYTICS_COLORS.accent,
+  expenseTotal: ANALYTICS_COLORS.expense,
+  savings: ANALYTICS_COLORS.goal,
+  shortfall: ANALYTICS_COLORS.warning,
+  fallback: ANALYTICS_COLORS.textSecondary,
+} as const;
 
-const GROUP_CAT_COLOR: Record<string, string> = {
-  living: COLORS.livingCat,
-  lifestyle: COLORS.lifestyleCat,
-  finance: COLORS.financeCat,
-  transfers: COLORS.transfersCat,
+const EXPENSE_CATEGORY_COLORS: Record<string, string> = {
+  living: ANALYTICS_COLORS.accent,
+  lifestyle: ANALYTICS_COLORS.split,
+  finance: ANALYTICS_COLORS.goal,
+  transfers: ANALYTICS_COLORS.transfer,
+  income: ANALYTICS_COLORS.income,
 };
 
 // ── Main builder ──────────────────────────────────────────────
@@ -164,13 +160,12 @@ export function buildSankeyData(
   const totalIncome = [...incomeByCategory.values()].reduce((s, c) => s + c.amount, 0);
   const totalExpenses = [...expenseByCategory.values()].reduce((s, c) => s + c.amount, 0);
   const totalTransfers = [...transferByCategory.values()].reduce((s, c) => s + c.amount, 0);
-  const totalOutflows = totalExpenses + totalTransfers;
-  const netSavings = totalIncome - totalOutflows;
+  const netSavings = totalIncome - totalExpenses;
 
   const summary: PeriodSummary = { totalIncome, totalExpenses, totalTransfers, netSavings };
 
   // If nothing to show, return empty
-  if (totalIncome === 0 && totalOutflows === 0) {
+  if (totalIncome === 0 && totalExpenses === 0) {
     return { nodes: [], links: [], summary };
   }
 
@@ -178,94 +173,74 @@ export function buildSankeyData(
   const nodes: SankeyNodeInput[] = [];
   const links: DefaultLink[] = [];
 
-  // ── Income category nodes → hub ──
+  // ── Income category nodes → gross income ──
   for (const [catId, data] of incomeByCategory) {
     if (data.amount <= 0) continue;
-    nodes.push({ id: `income:${catId}`, nodeLabel: data.name, nodeColor: COLORS.income });
-    links.push({ source: `income:${catId}`, target: 'hub:income', value: data.amount });
+    nodes.push({
+      id: `income:${catId}`,
+      nodeLabel: data.name,
+      nodeColor: NODE_COLORS.incomeCategory,
+    });
+    links.push({ source: `income:${catId}`, target: 'hub:gross-income', value: data.amount });
   }
 
-  // ── Deficit node (if outflows exceed income) ──
+  // ── Shortfall node (if expenses exceed income) ──
   if (netSavings < 0) {
-    nodes.push({ id: 'special:deficit', nodeLabel: 'Shortfall', nodeColor: COLORS.deficit });
-    links.push({ source: 'special:deficit', target: 'hub:income', value: Math.abs(netSavings) });
-  }
-
-  // ── Hub node ──
-  if (totalIncome > 0 || totalOutflows > 0) {
-    nodes.push({ id: 'hub:income', nodeLabel: 'Total Income', nodeColor: COLORS.incomeHub });
-  }
-
-  // ── Expense groups ──
-  const expenseByGroup = new Map<string, number>();
-  for (const [, data] of expenseByCategory) {
-    expenseByGroup.set(data.groupId, (expenseByGroup.get(data.groupId) ?? 0) + data.amount);
-  }
-
-  const EXPENSE_GROUP_ORDER = ['living', 'lifestyle', 'finance'];
-  for (const groupId of EXPENSE_GROUP_ORDER) {
-    const groupTotal = expenseByGroup.get(groupId);
-    if (!groupTotal || groupTotal <= 0) continue;
-
-    const group = getCategoryGroupById(groupId);
     nodes.push({
-      id: `group:${groupId}`,
-      nodeLabel: group?.name ?? groupId,
-      nodeColor: GROUP_NODE_COLOR[groupId] ?? COLORS.fallback,
+      id: 'special:shortfall',
+      nodeLabel: 'Shortfall',
+      nodeColor: NODE_COLORS.shortfall,
     });
-    links.push({ source: 'hub:income', target: `group:${groupId}`, value: groupTotal });
+    links.push({
+      source: 'special:shortfall',
+      target: 'hub:gross-income',
+      value: Math.abs(netSavings),
+    });
   }
 
-  // Handle expenses in unknown groups (custom categories)
-  for (const groupId of expenseByGroup.keys()) {
-    if (EXPENSE_GROUP_ORDER.includes(groupId)) continue;
-    const groupTotal = expenseByGroup.get(groupId)!;
-    if (groupTotal <= 0) continue;
-
-    const group = getCategoryGroupById(groupId);
+  // ── Gross income hub ──
+  if (totalIncome > 0 || totalExpenses > 0) {
     nodes.push({
-      id: `group:${groupId}`,
-      nodeLabel: group?.name ?? 'Other',
-      nodeColor: COLORS.fallback,
+      id: 'hub:gross-income',
+      nodeLabel: 'Gross Income',
+      nodeColor: NODE_COLORS.grossIncome,
     });
-    links.push({ source: 'hub:income', target: `group:${groupId}`, value: groupTotal });
+  }
+
+  // ── Expenses split: gross income → total → categories ──
+  if (totalExpenses > 0) {
+    nodes.push({
+      id: 'expense:total',
+      nodeLabel: 'Total Expenses',
+      nodeColor: NODE_COLORS.expenseTotal,
+    });
+    links.push({
+      source: 'hub:gross-income',
+      target: 'expense:total',
+      value: totalExpenses,
+    });
   }
 
   // ── Individual expense category nodes ──
-  for (const [catId, data] of expenseByCategory) {
+  const expenseEntries = [...expenseByCategory.entries()].sort(([, left], [, right]) => right.amount - left.amount);
+  for (const [catId, data] of expenseEntries) {
     if (data.amount <= 0) continue;
     nodes.push({
       id: `expense:${catId}`,
       nodeLabel: data.name,
-      nodeColor: GROUP_CAT_COLOR[data.groupId] ?? COLORS.fallback,
+      nodeColor: EXPENSE_CATEGORY_COLORS[data.groupId] ?? NODE_COLORS.fallback,
     });
-    links.push({ source: `group:${data.groupId}`, target: `expense:${catId}`, value: data.amount });
+    links.push({ source: 'expense:total', target: `expense:${catId}`, value: data.amount });
   }
 
-  // ── Transfers group + individual transfer categories ──
-  if (totalTransfers > 0) {
-    nodes.push({
-      id: 'group:transfers',
-      nodeLabel: 'Transfers',
-      nodeColor: COLORS.transfers,
-    });
-    links.push({ source: 'hub:income', target: 'group:transfers', value: totalTransfers });
-
-    for (const [catId, data] of transferByCategory) {
-      if (data.amount <= 0) continue;
-      nodes.push({
-        id: `transfer:${catId}`,
-        nodeLabel: data.name,
-        nodeColor: COLORS.transfersCat,
-      });
-      links.push({ source: 'group:transfers', target: `transfer:${catId}`, value: data.amount });
-    }
-  }
-
-  // ── Net savings (surplus) ──
+  // ── Savings (surplus) ──
   if (netSavings > 0) {
-    nodes.push({ id: 'special:net-savings', nodeLabel: 'Net Savings', nodeColor: COLORS.netSavings });
-    links.push({ source: 'hub:income', target: 'special:net-savings', value: netSavings });
+    nodes.push({
+      id: 'special:savings',
+      nodeLabel: 'Savings',
+      nodeColor: NODE_COLORS.savings,
+    });
+    links.push({ source: 'hub:gross-income', target: 'special:savings', value: netSavings });
   }
 
   return { nodes, links, summary };
