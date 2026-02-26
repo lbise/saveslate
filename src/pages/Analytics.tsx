@@ -5,8 +5,7 @@ import { BarChart3 } from 'lucide-react';
 import { PageHeader } from '../components/layout/PageHeader';
 import { StatCard } from '../components/ui';
 import { getTransactionsWithDetails } from '../lib/data-service';
-import { formatCurrency } from '../lib/utils';
-import { cn } from '../lib/utils';
+import { cn, formatCurrency } from '../lib/utils';
 import { getDataProfileLabel, loadActiveDataProfile } from '../lib/data-profile';
 import {
   ANALYTICS_COLORS,
@@ -24,11 +23,19 @@ import type { DefaultLink } from '@nivo/sankey';
 
 // ── Nivo theme (matches dark palette from index.css) ──────────
 
+const ANALYTICS_FONT_FAMILY = 'var(--font-body)';
+
 const nivoTheme = {
   text: {
     fill: ANALYTICS_COLORS.textSecondary,
     fontSize: 13,
-    fontFamily: 'Satoshi, sans-serif',
+    fontFamily: ANALYTICS_FONT_FAMILY,
+  },
+  labels: {
+    text: {
+      fontFamily: ANALYTICS_FONT_FAMILY,
+      fontSize: 13,
+    },
   },
   tooltip: {
     container: {
@@ -38,7 +45,7 @@ const nivoTheme = {
       borderRadius: '8px',
       padding: '8px 12px',
       fontSize: '14px',
-      fontFamily: 'Satoshi, sans-serif',
+      fontFamily: ANALYTICS_FONT_FAMILY,
       boxShadow: '0 2px 8px rgba(0,0,0,0.3)',
     },
   },
@@ -51,6 +58,84 @@ const SANKEY_LEGEND_ITEMS = [
   { label: 'Savings', color: ANALYTICS_COLORS.goal },
   { label: 'Shortfall', color: ANALYTICS_COLORS.warning },
 ];
+
+const TARGET_BAR_AXIS_TICK_COUNT = 4;
+
+const incomeExpenseTheme = {
+  ...nivoTheme,
+  axis: {
+    ticks: {
+      line: {
+        stroke: 'transparent',
+      },
+      text: {
+        fill: ANALYTICS_COLORS.transfer,
+        fontSize: 12,
+        fontFamily: ANALYTICS_FONT_FAMILY,
+      },
+    },
+    legend: {
+      text: {
+        fill: ANALYTICS_COLORS.textSecondary,
+        fontSize: 12,
+        fontFamily: ANALYTICS_FONT_FAMILY,
+      },
+    },
+  },
+  grid: {
+    line: {
+      stroke: 'rgba(126, 154, 179, 0.24)',
+      strokeWidth: 1,
+    },
+  },
+};
+
+const barTooltipStyle = {
+  background: 'rgba(18, 18, 21, 0.96)',
+  border: `1px solid ${ANALYTICS_COLORS.border}`,
+  borderRadius: 8,
+  padding: '8px 10px',
+  boxShadow: '0 8px 18px rgba(0, 0, 0, 0.35)',
+};
+
+function formatYAxisValue(value: number): string {
+  return new Intl.NumberFormat('de-CH', {
+    minimumFractionDigits: 0,
+    maximumFractionDigits: 0,
+  }).format(value);
+}
+
+function buildYAxisTicks(series: MonthlyIncomeExpensePoint[]): number[] {
+  const maxValue = series.reduce((currentMax, point) => {
+    return Math.max(currentMax, point.income, point.expenses);
+  }, 0);
+
+  if (maxValue <= 0) {
+    return [0];
+  }
+
+  const roughStep = maxValue / TARGET_BAR_AXIS_TICK_COUNT;
+  const magnitude = 10 ** Math.floor(Math.log10(roughStep));
+  const normalizedStep = roughStep / magnitude;
+
+  const snappedStep = normalizedStep <= 1
+    ? 1
+    : normalizedStep <= 2
+      ? 2
+      : normalizedStep <= 5
+        ? 5
+        : 10;
+
+  const step = snappedStep * magnitude;
+  const maxTick = Math.ceil(maxValue / step) * step;
+  const ticks: number[] = [];
+
+  for (let value = 0; value <= maxTick; value += step) {
+    ticks.push(value);
+  }
+
+  return ticks;
+}
 
 // ── Component ─────────────────────────────────────────────────
 
@@ -69,6 +154,11 @@ export function Analytics() {
     [transactions, period],
   );
 
+  const monthlyYAxisTicks = useMemo(
+    () => buildYAxisTicks(monthlySeries),
+    [monthlySeries],
+  );
+
   const hasData = nodes.length > 0 && links.length > 0;
   const hasMonthlyData = monthlySeries.some((point) => point.income > 0 || point.expenses > 0);
 
@@ -77,6 +167,28 @@ export function Analytics() {
       <PageHeader title="Analytics">
         <PeriodSelector value={period} onChange={setPeriod} />
       </PageHeader>
+
+      {/* Summary Stats */}
+      <section className="card px-5 py-4 sm:px-6">
+        <div className="flex items-center gap-8 overflow-x-auto whitespace-nowrap pb-1">
+          <div className="shrink-0">
+            <StatCard label="Income" value={formatCurrency(summary.totalIncome)} dotColor="income" />
+          </div>
+          <div className="shrink-0">
+            <StatCard label="Expenses" value={formatCurrency(summary.totalExpenses)} dotColor="expense" />
+          </div>
+          <div className="shrink-0">
+            <StatCard label="Transfers" value={formatCurrency(summary.totalTransfers)} dotColor="transfer" />
+          </div>
+          <div className="shrink-0">
+            <StatCard
+              label={summary.netSavings >= 0 ? 'Net Savings' : 'Shortfall'}
+              value={formatCurrency(Math.abs(summary.netSavings))}
+              dotColor="muted"
+            />
+          </div>
+        </div>
+      </section>
 
       {/* Sankey Chart */}
       <section>
@@ -145,12 +257,16 @@ export function Analytics() {
 
         {hasMonthlyData ? (
           <div className="card" style={{ padding: '16px 20px 16px' }}>
-            <div style={{ height: 320 }}>
+            <div className="relative" style={{ height: 320 }}>
+              <span className="pointer-events-none absolute left-0 top-0 z-10 text-ui text-text-muted">
+                CHF
+              </span>
+
               <ResponsiveBar<MonthlyIncomeExpensePoint>
                 data={monthlySeries}
                 keys={['income', 'expenses']}
                 indexBy="monthLabel"
-                margin={{ top: 12, right: 8, bottom: 40, left: 72 }}
+                margin={{ top: 12, right: 8, bottom: 40, left: 64 }}
                 padding={0.28}
                 groupMode="grouped"
                 borderRadius={3}
@@ -161,19 +277,21 @@ export function Analytics() {
                 axisLeft={{
                   tickSize: 0,
                   tickPadding: 10,
-                  format: (value: string | number) => formatCurrency(Number(value)),
+                  tickValues: monthlyYAxisTicks,
+                  format: (value: string | number) => formatYAxisValue(Number(value)),
                 }}
                 labelSkipWidth={100}
                 labelSkipHeight={100}
                 valueFormat={(value: string | number) => formatCurrency(Number(value))}
-                theme={nivoTheme}
+                theme={incomeExpenseTheme}
                 enableGridY
+                gridYValues={monthlyYAxisTicks}
                 tooltip={(bar: import('@nivo/bar').BarTooltipProps<MonthlyIncomeExpensePoint>) => {
                   const data = bar.data as MonthlyIncomeExpensePoint;
                   const net = data.income - data.expenses;
                   return (
-                    <div>
-                      <div className="text-ui text-text-secondary mb-1">{String(bar.indexValue)}</div>
+                    <div style={barTooltipStyle}>
+                      <div className="text-ui text-text-muted mb-1">{String(bar.indexValue)}</div>
                       <div className="text-ui text-income">Income: {formatCurrency(data.income)}</div>
                       <div className="text-ui text-expense">Expenses: {formatCurrency(data.expenses)}</div>
                       <div className="text-ui text-text mt-1">Net: {formatCurrency(net)}</div>
@@ -193,19 +311,6 @@ export function Analytics() {
         )}
       </section>
 
-      {/* Summary Stats */}
-      <section className="mt-10">
-        <div className="flex flex-wrap gap-10">
-          <StatCard label="Income" value={formatCurrency(summary.totalIncome)} dotColor="income" />
-          <StatCard label="Expenses" value={formatCurrency(summary.totalExpenses)} dotColor="expense" />
-          <StatCard label="Transfers" value={formatCurrency(summary.totalTransfers)} dotColor="transfer" />
-          <StatCard
-            label={summary.netSavings >= 0 ? 'Net Savings' : 'Shortfall'}
-            value={formatCurrency(Math.abs(summary.netSavings))}
-            dotColor="muted"
-          />
-        </div>
-      </section>
     </div>
   );
 }
