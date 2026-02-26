@@ -1,4 +1,14 @@
 export { Card, CardHeader, CardTitle, CardContent } from './Card';
+export {
+  EntityCard,
+  EntityCardActionButton,
+  EntityCardDetailList,
+} from './EntityCard';
+export type {
+  EntityCardTone,
+  EntityCardDetailTone,
+  EntityCardDetailItem,
+} from './EntityCard';
 export { Badge } from './Badge';
 export { CategoryPicker } from './CategoryPicker';
 export { GoalPicker } from './GoalPicker';

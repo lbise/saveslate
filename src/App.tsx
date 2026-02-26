@@ -11,6 +11,8 @@ import {
   Settings,
   Help,
   Import,
+  TestMockup,
+  TestMockup2,
 } from "./pages";
 import {
   Design1,
@@ -53,6 +55,8 @@ function App() {
           <Route path="/rules" element={<Rules />} />
           <Route path="/settings" element={<Settings />} />
           <Route path="/help" element={<Help />} />
+          <Route path="/test-mockup" element={<TestMockup />} />
+          <Route path="/test-mockup2" element={<TestMockup2 />} />
         </Route>
       </Routes>
     </BrowserRouter>
