@@ -1,5 +1,5 @@
 import { useMemo } from 'react';
-import { ArrowUpRight, Pencil, Trash2 } from 'lucide-react';
+import { ArrowUpRight, MoreHorizontal } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { ACCOUNT_TYPE_LABELS } from '../components/accounts';
 import { PageHeader } from '../components/layout';
@@ -8,6 +8,7 @@ import {
   EntityCard,
   EntityCardActionButton,
   EntityCardDetailList,
+  EntityCardSection,
 } from '../components/ui';
 import {
   CATEGORIES,
@@ -108,12 +109,13 @@ const ACCOUNT_TONES: Record<Account['type'], EntityCardTone> = {
   retirement: 'accent',
 };
 
-const CATEGORY_GROUP_TONES: Record<string, EntityCardTone> = {
-  living: 'accent',
-  lifestyle: 'goal',
-  finance: 'warning',
-  income: 'income',
-  transfers: 'transfer',
+const ACCOUNT_BADGE_VARIANT_BY_TYPE: Record<Account['type'], MockBadgeVariant> = {
+  checking: 'transfer',
+  savings: 'income',
+  credit: 'expense',
+  cash: 'muted',
+  investment: 'default',
+  retirement: 'default',
 };
 
 const OPERATOR_LABELS: Record<AutomationConditionOperator, string> = {
@@ -429,6 +431,19 @@ function formatRuleAction(action: AutomationAction, goalNameById: Map<string, st
   return `Set goal to ${goalName}`;
 }
 
+function formatRuleConditionsSummary(conditions: AutomationCondition[]): string {
+  if (conditions.length === 0) {
+    return 'No conditions';
+  }
+
+  const firstCondition = formatRuleCondition(conditions[0]);
+  if (conditions.length === 1) {
+    return firstCondition;
+  }
+
+  return `${firstCondition} +${conditions.length - 1} more`;
+}
+
 function getTriggerLabel(trigger: AutomationRule['triggers'][number]): string {
   return AUTOMATION_TRIGGER_OPTIONS.find((option) => option.value === trigger)?.label ?? trigger;
 }
@@ -470,30 +485,20 @@ function MockSection({ section }: MockSectionProps) {
                 </Badge>
               ))}
               actions={(
-                <>
-                  <EntityCardActionButton icon={Pencil} label={`Edit ${card.title}`} />
-                  {!card.locked && (
-                    <EntityCardActionButton
-                      icon={Trash2}
-                      label={`Delete ${card.title}`}
-                      tone="danger"
-                    />
-                  )}
-                </>
+                <EntityCardActionButton icon={MoreHorizontal} label={`More actions for ${card.title}`} />
               )}
             >
-              <EntityCardDetailList items={card.details} />
+              {card.details.length > 0 && <EntityCardDetailList items={card.details} />}
 
               {card.activityPreview && (
-                <div className="mt-3 pt-3 border-t border-border">
-                  <div className="mb-2 flex items-center justify-between gap-3">
-                    <span className="text-ui text-text-muted uppercase tracking-wider">
-                      {card.activityPreview.label}
-                    </span>
+                <EntityCardSection
+                  title={card.activityPreview.label}
+                  action={(
                     <Link to={card.activityPreview.linkTo} className="text-link">
                       {card.activityPreview.linkLabel ?? 'View all'} <ArrowUpRight size={10} />
                     </Link>
-                  </div>
+                  )}
+                >
 
                   <div className="space-y-2">
                     {card.activityPreview.items.map((item) => (
@@ -518,13 +523,13 @@ function MockSection({ section }: MockSectionProps) {
                       </div>
                     ))}
                   </div>
-                </div>
+                </EntityCardSection>
               )}
 
               {card.progress && (
-                <div className="mt-3 pt-3 border-t border-border">
-                  <div className="mb-2 flex items-center justify-between gap-3">
-                    <span className="text-ui text-text-muted uppercase tracking-wider">Progress</span>
+                <EntityCardSection
+                  title="Progress"
+                  action={(
                     <span
                       className={cn(
                         'text-ui font-medium',
@@ -534,7 +539,8 @@ function MockSection({ section }: MockSectionProps) {
                     >
                       {Math.round(card.progress.percentage)}%
                     </span>
-                  </div>
+                  )}
+                >
 
                   <div className="h-2 overflow-hidden rounded-full bg-border">
                     <div
@@ -551,7 +557,7 @@ function MockSection({ section }: MockSectionProps) {
                       style={{ width: `${Math.max(0, Math.min(card.progress.percentage, 100))}%` }}
                     />
                   </div>
-                </div>
+                </EntityCardSection>
               )}
             </EntityCard>
           );
@@ -623,22 +629,6 @@ export function TestMockup() {
     return counts;
   }, [sortedTransactions]);
 
-  const linkedRuleCountByCategoryId = useMemo(() => {
-    const counts = new Map<string, number>();
-
-    rules.forEach((rule) => {
-      rule.actions.forEach((action) => {
-        if (action.type !== 'set-category') {
-          return;
-        }
-
-        counts.set(action.categoryId, (counts.get(action.categoryId) ?? 0) + 1);
-      });
-    });
-
-    return counts;
-  }, [rules]);
-
   const categoryGroupById = useMemo(
     () => new Map(CATEGORY_GROUPS.map((group) => [group.id, group] as const)),
     [],
@@ -669,10 +659,16 @@ export function TestMockup() {
         id: account.id,
         icon: account.icon,
         title: account.name,
-        subtitle: `${ACCOUNT_TYPE_LABELS[account.type]} · ${account.currency}`,
+        subtitle: account.currency,
         tone: ACCOUNT_TONES[account.type],
         metric: formatCurrency(accountBalance, account.currency),
         metricTone: accountBalance < 0 ? 'expense' : 'strong',
+        badges: [
+          {
+            label: ACCOUNT_TYPE_LABELS[account.type],
+            variant: ACCOUNT_BADGE_VARIANT_BY_TYPE[account.type],
+          },
+        ],
         details: [
           {
             label: 'Total transactions',
@@ -823,8 +819,6 @@ export function TestMockup() {
       const categoryGroup = category.groupId
         ? categoryGroupById.get(category.groupId)
         : undefined;
-      const transactionCount = transactionCountByCategoryId.get(category.id) ?? 0;
-      const linkedRules = linkedRuleCountByCategoryId.get(category.id) ?? 0;
 
       const badges: MockCardBadge[] = [
         {
@@ -839,40 +833,20 @@ export function TestMockup() {
         id: category.id,
         icon: category.icon,
         title: category.name,
-        subtitle: categoryGroup?.name ? `${categoryGroup.name} group` : 'Ungrouped',
-        tone: CATEGORY_GROUP_TONES[category.groupId ?? ''] ?? 'neutral',
-        metric: `${transactionCount} tx`,
-        metricTone: transactionCount > 0 ? 'strong' : 'muted',
+        subtitle: categoryGroup?.name ?? 'Ungrouped',
+        tone: 'neutral',
         badges,
         locked: isLocked,
-        details: [
-          {
-            label: 'Group',
-            value: categoryGroup?.name ?? 'Ungrouped',
-            tone: 'default',
-          },
-          {
-            label: 'Total transactions',
-            value: String(transactionCount),
-            tone: transactionCount > 0 ? 'strong' : 'muted',
-          },
-          {
-            label: 'Linked rules',
-            value: linkedRules > 0 ? `${linkedRules} linked` : 'None',
-            tone: linkedRules > 0 ? 'accent' : 'muted',
-          },
-        ],
+        details: [],
       };
     });
   }, [
     categoryGroupById,
-    linkedRuleCountByCategoryId,
     transactionCountByCategoryId,
   ]);
 
   const ruleCards = useMemo<MockCard[]>(() => {
     return rules.slice(0, MAX_CARDS_PER_SECTION).map((rule) => {
-      const firstCondition = rule.conditions[0];
       const firstAction = rule.actions[0];
       const actionSummary = firstAction
         ? `${formatRuleAction(firstAction, goalNameById)}${rule.actions.length > 1 ? ` +${rule.actions.length - 1} more` : ''}`
@@ -882,7 +856,7 @@ export function TestMockup() {
         id: rule.id,
         icon: 'Bot',
         title: rule.name,
-        subtitle: `${rule.triggers.length > 0 ? getTriggerLabel(rule.triggers[0]) : 'No trigger'} · ${rule.matchMode === 'all' ? 'all conditions' : 'any condition'}`,
+        subtitle: rule.matchMode === 'all' ? 'All conditions must match' : 'Any condition can match',
         tone: rule.isEnabled ? 'income' : 'warning',
         metric: rule.isEnabled ? 'Enabled' : 'Disabled',
         metricTone: rule.isEnabled ? 'income' : 'muted',
@@ -897,14 +871,14 @@ export function TestMockup() {
             tone: 'default',
           },
           {
-            label: 'Condition sample',
-            value: firstCondition ? formatRuleCondition(firstCondition) : 'No conditions',
-            tone: firstCondition ? 'strong' : 'muted',
-          },
-          {
             label: 'Action',
             value: actionSummary,
             tone: firstAction ? 'default' : 'muted',
+          },
+          {
+            label: 'Condition',
+            value: formatRuleConditionsSummary(rule.conditions),
+            tone: rule.conditions.length > 0 ? 'strong' : 'muted',
           },
         ],
       };
@@ -923,7 +897,7 @@ export function TestMockup() {
     {
       id: 'categories',
       title: 'Categories',
-      description: 'Category cards show group placement, usage, and linked rules from the same shared card shell.',
+      description: 'Category cards stay intentionally minimal with group context and quick actions.',
       sourceLabel: 'Default catalog',
       countLabel: createCountLabel(categoryCards.length, CATEGORIES.length),
       cards: categoryCards,

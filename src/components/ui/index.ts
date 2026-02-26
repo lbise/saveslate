@@ -3,6 +3,7 @@ export {
   EntityCard,
   EntityCardActionButton,
   EntityCardDetailList,
+  EntityCardSection,
 } from './EntityCard';
 export type {
   EntityCardTone,

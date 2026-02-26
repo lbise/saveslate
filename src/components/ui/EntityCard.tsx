@@ -52,6 +52,14 @@ interface EntityCardActionButtonProps {
 
 interface EntityCardDetailListProps {
   items: EntityCardDetailItem[];
+  layout?: 'compact' | 'split';
+  className?: string;
+}
+
+interface EntityCardSectionProps {
+  title?: ReactNode;
+  action?: ReactNode;
+  children: ReactNode;
   className?: string;
 }
 
@@ -162,17 +170,52 @@ export function EntityCardActionButton({
   );
 }
 
-export function EntityCardDetailList({ items, className }: EntityCardDetailListProps) {
+export function EntityCardDetailList({ items, layout = 'compact', className }: EntityCardDetailListProps) {
+
+  if (layout === 'split') {
+    return (
+      <div className={cn('space-y-1.5', className)}>
+        {items.map((item) => (
+          <div key={`${item.label}-${item.value}`} className="flex items-center justify-between gap-3">
+            <span className="text-ui text-text-muted">{item.label}</span>
+            <span className={cn('text-ui text-right', detailToneClasses[item.tone ?? 'default'])}>
+              {item.value}
+            </span>
+          </div>
+        ))}
+      </div>
+    );
+  }
+
   return (
-    <div className={cn('space-y-1.5', className)}>
+    <div
+      className={cn(
+        'grid grid-cols-[max-content_minmax(0,1fr)] items-center gap-x-2 gap-y-1.5',
+        className,
+      )}
+    >
       {items.map((item) => (
-        <div key={`${item.label}-${item.value}`} className="flex items-center justify-between gap-3">
-          <span className="text-ui text-text-muted">{item.label}</span>
-          <span className={cn('text-ui text-right', detailToneClasses[item.tone ?? 'default'])}>
+        <div key={`${item.label}-${item.value}`} className="contents">
+          <span className="text-ui text-text-muted whitespace-nowrap">{item.label}</span>
+          <span className={cn('text-ui min-w-0', detailToneClasses[item.tone ?? 'default'])}>
             {item.value}
           </span>
         </div>
       ))}
+    </div>
+  );
+}
+
+export function EntityCardSection({ title, action, children, className }: EntityCardSectionProps) {
+  return (
+    <div className={cn('mt-3 pt-3 border-t border-border', className)}>
+      {(title || action) && (
+        <div className="mb-2 flex items-center justify-between gap-3">
+          {title ? <span className="text-ui text-text-muted uppercase tracking-wider">{title}</span> : <span />}
+          {action}
+        </div>
+      )}
+      {children}
     </div>
   );
 }

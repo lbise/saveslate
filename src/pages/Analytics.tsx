@@ -1,4 +1,5 @@
 import { useState, useMemo } from 'react';
+import { ResponsiveBar } from '@nivo/bar';
 import { ResponsiveSankey } from '@nivo/sankey';
 import { BarChart3 } from 'lucide-react';
 import { PageHeader } from '../components/layout/PageHeader';
@@ -9,10 +10,16 @@ import { cn } from '../lib/utils';
 import { getDataProfileLabel, loadActiveDataProfile } from '../lib/data-profile';
 import {
   ANALYTICS_COLORS,
+  buildMonthlyIncomeExpenseSeries,
   buildSankeyData,
   DATE_RANGE_OPTIONS,
 } from '../lib/analytics';
-import type { DateRangePeriod, PeriodSummary, SankeyNodeInput } from '../lib/analytics';
+import type {
+  DateRangePeriod,
+  MonthlyIncomeExpensePoint,
+  PeriodSummary,
+  SankeyNodeInput,
+} from '../lib/analytics';
 import type { DefaultLink } from '@nivo/sankey';
 
 // ── Nivo theme (matches dark palette from index.css) ──────────
@@ -39,8 +46,8 @@ const nivoTheme = {
 
 const SANKEY_LEGEND_ITEMS = [
   { label: 'Income Categories', color: ANALYTICS_COLORS.income },
-  { label: 'Gross Income', color: ANALYTICS_COLORS.accent },
-  { label: 'Total Expenses', color: ANALYTICS_COLORS.expense },
+  { label: 'Gross Income', color: ANALYTICS_COLORS.income },
+  { label: 'Expenses (total + categories)', color: ANALYTICS_COLORS.expense },
   { label: 'Savings', color: ANALYTICS_COLORS.goal },
   { label: 'Shortfall', color: ANALYTICS_COLORS.warning },
 ];
@@ -57,7 +64,13 @@ export function Analytics() {
     [transactions, period],
   );
 
+  const monthlySeries = useMemo(
+    () => buildMonthlyIncomeExpenseSeries(transactions, period),
+    [transactions, period],
+  );
+
   const hasData = nodes.length > 0 && links.length > 0;
+  const hasMonthlyData = monthlySeries.some((point) => point.income > 0 || point.expenses > 0);
 
   return (
     <div className="page-container">
@@ -69,9 +82,6 @@ export function Analytics() {
       <section>
         <div className="section-header">
           <h2 className="section-title">Money Flow</h2>
-          <span className="text-ui text-text-muted">
-            Income to gross income to expenses and savings
-          </span>
         </div>
 
         {hasData ? (
@@ -125,6 +135,61 @@ export function Analytics() {
           </div>
         ) : (
           <EmptyState period={period} summary={summary} activeProfileLabel={activeProfileLabel} />
+        )}
+      </section>
+
+      <section className="mt-10">
+        <div className="section-header">
+          <h2 className="section-title">Income vs Expenses</h2>
+        </div>
+
+        {hasMonthlyData ? (
+          <div className="card" style={{ padding: '16px 20px 16px' }}>
+            <div style={{ height: 320 }}>
+              <ResponsiveBar<MonthlyIncomeExpensePoint>
+                data={monthlySeries}
+                keys={['income', 'expenses']}
+                indexBy="monthLabel"
+                margin={{ top: 12, right: 8, bottom: 40, left: 72 }}
+                padding={0.28}
+                groupMode="grouped"
+                borderRadius={3}
+                colors={({ id }) => (String(id) === 'income' ? ANALYTICS_COLORS.income : ANALYTICS_COLORS.expense)}
+                axisTop={null}
+                axisRight={null}
+                axisBottom={{ tickSize: 0, tickPadding: 10 }}
+                axisLeft={{
+                  tickSize: 0,
+                  tickPadding: 10,
+                  format: (value: string | number) => formatCurrency(Number(value)),
+                }}
+                labelSkipWidth={100}
+                labelSkipHeight={100}
+                valueFormat={(value: string | number) => formatCurrency(Number(value))}
+                theme={nivoTheme}
+                enableGridY
+                tooltip={(bar: import('@nivo/bar').BarTooltipProps<MonthlyIncomeExpensePoint>) => {
+                  const data = bar.data as MonthlyIncomeExpensePoint;
+                  const net = data.income - data.expenses;
+                  return (
+                    <div>
+                      <div className="text-ui text-text-secondary mb-1">{String(bar.indexValue)}</div>
+                      <div className="text-ui text-income">Income: {formatCurrency(data.income)}</div>
+                      <div className="text-ui text-expense">Expenses: {formatCurrency(data.expenses)}</div>
+                      <div className="text-ui text-text mt-1">Net: {formatCurrency(net)}</div>
+                    </div>
+                  );
+                }}
+                animate
+                motionConfig="gentle"
+              />
+            </div>
+          </div>
+        ) : (
+          <div className="card flex flex-col items-center justify-center gap-2 py-12">
+            <p className="text-body text-text">No monthly income or expense data</p>
+            <p className="text-ui text-text-muted">Try a wider date range or switch the data profile in settings.</p>
+          </div>
         )}
       </section>
 
