@@ -16,6 +16,7 @@
   },
   "dependencies": {
     "@nivo/bar": "^0.99.0",
+    "@nivo/pie": "^0.99.0",
     "@nivo/sankey": "^0.99.0",
     "@tailwindcss/vite": "^4.1.18",
     "lucide-react": "^0.563.0",

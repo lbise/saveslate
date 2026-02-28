@@ -1,4 +1,4 @@
-import type { TransactionWithDetails } from '../types';
+import type { GoalProgress, TransactionWithDetails } from '../types';
 import type { DefaultLink } from '@nivo/sankey';
 
 // ── Types ──────────────────────────────────────────────────────
@@ -37,6 +37,20 @@ export interface MonthlyIncomeExpensePoint {
   income: number;
   expenses: number;
   net: number;
+}
+
+export interface AnalyticsPieDatum {
+  id: string;
+  label: string;
+  value: number;
+  color: string;
+}
+
+export interface GoalSavedPoint {
+  [key: string]: string | number;
+  goalId: string;
+  goalLabel: string;
+  saved: number;
 }
 
 // ── Period helpers ─────────────────────────────────────────────
@@ -97,18 +111,21 @@ function formatMonthLabel(date: Date): string {
   return date.toLocaleDateString('en-US', { month: 'short', year: '2-digit' });
 }
 
+function getFilteredTransactions(
+  transactions: TransactionWithDetails[],
+  period: DateRangePeriod,
+): TransactionWithDetails[] {
+  const { start, end } = getDateRange(period);
+  return transactions.filter((transaction) => transaction.date >= start && transaction.date <= end);
+}
+
 export function buildMonthlyIncomeExpenseSeries(
   transactions: TransactionWithDetails[],
   period: DateRangePeriod,
 ): MonthlyIncomeExpensePoint[] {
   const { start, end } = getDateRange(period);
-
-  const filtered = transactions.filter(
-    (transaction) => (
-      transaction.date >= start
-      && transaction.date <= end
-      && (transaction.type === 'income' || transaction.type === 'expense')
-    ),
+  const filtered = getFilteredTransactions(transactions, period).filter(
+    (transaction) => transaction.type === 'income' || transaction.type === 'expense',
   );
 
   if (filtered.length === 0) {
@@ -163,6 +180,48 @@ export function buildMonthlyIncomeExpenseSeries(
   }));
 }
 
+export function buildCategoryPieSeries(
+  transactions: TransactionWithDetails[],
+  period: DateRangePeriod,
+  type: 'income' | 'expense',
+): AnalyticsPieDatum[] {
+  const filtered = getFilteredTransactions(transactions, period).filter((transaction) => transaction.type === type);
+
+  const totalsByCategory = new Map<string, { label: string; value: number }>();
+  for (const transaction of filtered) {
+    const existing = totalsByCategory.get(transaction.categoryId) ?? {
+      label: transaction.category.name,
+      value: 0,
+    };
+    const amount = type === 'expense' ? Math.abs(transaction.amount) : transaction.amount;
+    existing.value += amount;
+    totalsByCategory.set(transaction.categoryId, existing);
+  }
+
+  const sorted = [...totalsByCategory.entries()]
+    .map(([id, data]) => ({ id, ...data }))
+    .filter((entry) => entry.value > 0)
+    .sort((left, right) => right.value - left.value);
+
+  const palette = type === 'income' ? INCOME_PIE_COLORS : EXPENSE_PIE_COLORS;
+  return sorted.map((entry, index) => ({
+    id: entry.id,
+    label: entry.label,
+    value: Number(entry.value.toFixed(2)),
+    color: palette[index % palette.length],
+  }));
+}
+
+export function buildGoalSavedSeries(goalProgress: GoalProgress[]): GoalSavedPoint[] {
+  return goalProgress
+    .map((entry) => ({
+      goalId: entry.goal.id,
+      goalLabel: entry.goal.name,
+      saved: Math.max(0, Number(entry.currentAmount.toFixed(2))),
+    }))
+    .sort((left, right) => right.saved - left.saved);
+}
+
 // ── Chart palette ──────────────────────────────────────────────
 // Keep in sync with src/index.css @theme color variables.
 
@@ -180,6 +239,22 @@ export const ANALYTICS_COLORS = {
   split: '#c7a2ff',
   warning: '#f5bb00',
 } as const;
+
+const INCOME_PIE_COLORS = [
+  ANALYTICS_COLORS.income,
+  ANALYTICS_COLORS.accent,
+  ANALYTICS_COLORS.goal,
+  ANALYTICS_COLORS.transfer,
+  ANALYTICS_COLORS.split,
+] as const;
+
+const EXPENSE_PIE_COLORS = [
+  ANALYTICS_COLORS.expense,
+  ANALYTICS_COLORS.warning,
+  ANALYTICS_COLORS.transfer,
+  ANALYTICS_COLORS.accent,
+  ANALYTICS_COLORS.split,
+] as const;
 
 const NODE_COLORS = {
   incomeCategory: ANALYTICS_COLORS.income,

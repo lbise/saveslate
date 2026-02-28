@@ -1,20 +1,25 @@
 import { useState, useMemo } from 'react';
 import { ResponsiveBar } from '@nivo/bar';
+import { ResponsivePie } from '@nivo/pie';
 import { ResponsiveSankey } from '@nivo/sankey';
 import { BarChart3 } from 'lucide-react';
 import { PageHeader } from '../components/layout/PageHeader';
 import { StatCard } from '../components/ui';
-import { getTransactionsWithDetails } from '../lib/data-service';
+import { getGoalProgress, getTransactionsWithDetails } from '../lib/data-service';
 import { cn, formatCurrency } from '../lib/utils';
 import { getDataProfileLabel, loadActiveDataProfile } from '../lib/data-profile';
 import {
   ANALYTICS_COLORS,
+  buildGoalSavedSeries,
+  buildCategoryPieSeries,
   buildMonthlyIncomeExpenseSeries,
   buildSankeyData,
   DATE_RANGE_OPTIONS,
 } from '../lib/analytics';
 import type {
+  AnalyticsPieDatum,
   DateRangePeriod,
+  GoalSavedPoint,
   MonthlyIncomeExpensePoint,
   PeriodSummary,
   SankeyNodeInput,
@@ -98,6 +103,14 @@ const barTooltipStyle = {
   boxShadow: '0 8px 18px rgba(0, 0, 0, 0.35)',
 };
 
+const pieTooltipStyle = {
+  background: 'rgba(18, 18, 21, 0.96)',
+  border: `1px solid ${ANALYTICS_COLORS.border}`,
+  borderRadius: 8,
+  padding: '8px 10px',
+  boxShadow: '0 8px 18px rgba(0, 0, 0, 0.35)',
+};
+
 function formatYAxisValue(value: number): string {
   return new Intl.NumberFormat('de-CH', {
     minimumFractionDigits: 0,
@@ -143,6 +156,7 @@ export function Analytics() {
   const [period, setPeriod] = useState<DateRangePeriod>('this-month');
   const [activeProfileLabel] = useState(() => getDataProfileLabel(loadActiveDataProfile()));
   const transactions = useMemo(() => getTransactionsWithDetails(), []);
+  const goalProgress = useMemo(() => getGoalProgress(), []);
 
   const { nodes, links, summary } = useMemo(
     () => buildSankeyData(transactions, period),
@@ -154,6 +168,21 @@ export function Analytics() {
     [transactions, period],
   );
 
+  const incomePieSeries = useMemo(
+    () => buildCategoryPieSeries(transactions, period, 'income'),
+    [transactions, period],
+  );
+
+  const expensePieSeries = useMemo(
+    () => buildCategoryPieSeries(transactions, period, 'expense'),
+    [transactions, period],
+  );
+
+  const goalSavedSeries = useMemo(
+    () => buildGoalSavedSeries(goalProgress),
+    [goalProgress],
+  );
+
   const monthlyYAxisTicks = useMemo(
     () => buildYAxisTicks(monthlySeries),
     [monthlySeries],
@@ -161,6 +190,10 @@ export function Analytics() {
 
   const hasData = nodes.length > 0 && links.length > 0;
   const hasMonthlyData = monthlySeries.some((point) => point.income > 0 || point.expenses > 0);
+  const hasIncomePieData = incomePieSeries.length > 0;
+  const hasExpensePieData = expensePieSeries.length > 0;
+  const hasGoalSavedData = goalSavedSeries.some((goal) => goal.saved > 0);
+  const totalGoalSaved = goalSavedSeries.reduce((sum, goal) => sum + goal.saved, 0);
 
   return (
     <div className="page-container">
@@ -311,6 +344,166 @@ export function Analytics() {
         )}
       </section>
 
+      <section className="mt-10">
+        <div className="section-header">
+          <h2 className="section-title">Category Split</h2>
+        </div>
+
+        <div className="grid grid-cols-1 xl:grid-cols-2 gap-4">
+          <PieCard
+            title="Income Pie"
+            emptyLabel="No income categories in this period"
+            data={incomePieSeries}
+            hasData={hasIncomePieData}
+          />
+          <PieCard
+            title="Expense Breakdown"
+            emptyLabel="No expense categories in this period"
+            data={expensePieSeries}
+            hasData={hasExpensePieData}
+          />
+        </div>
+      </section>
+
+      <section className="mt-10">
+        <div className="section-header">
+          <h2 className="section-title">Goal Savings</h2>
+          <span className="text-ui text-text-muted">Total saved: {formatCurrency(totalGoalSaved)}</span>
+        </div>
+
+        {hasGoalSavedData ? (
+          <div className="card" style={{ padding: '16px 20px 16px' }}>
+            <div className="relative" style={{ height: Math.max(260, goalSavedSeries.length * 46) }}>
+              <span className="pointer-events-none absolute left-0 top-0 z-10 text-ui text-text-muted">
+                CHF
+              </span>
+
+              <ResponsiveBar<GoalSavedPoint>
+                data={goalSavedSeries}
+                keys={['saved']}
+                indexBy="goalLabel"
+                layout="horizontal"
+                margin={{ top: 12, right: 12, bottom: 12, left: 140 }}
+                padding={0.28}
+                borderRadius={3}
+                colors={[ANALYTICS_COLORS.goal]}
+                axisTop={null}
+                axisRight={null}
+                axisBottom={{
+                  tickSize: 0,
+                  tickPadding: 10,
+                  format: (value: string | number) => formatYAxisValue(Number(value)),
+                }}
+                axisLeft={{ tickSize: 0, tickPadding: 8 }}
+                labelSkipWidth={70}
+                labelSkipHeight={18}
+                valueFormat={(value: string | number) => formatCurrency(Number(value))}
+                theme={incomeExpenseTheme}
+                enableGridX
+                tooltip={(bar: import('@nivo/bar').BarTooltipProps<GoalSavedPoint>) => {
+                  const data = bar.data as GoalSavedPoint;
+                  return (
+                    <div style={barTooltipStyle}>
+                      <div className="text-ui text-text mb-1">{data.goalLabel}</div>
+                      <div className="text-ui text-goal">Saved: {formatCurrency(data.saved)}</div>
+                    </div>
+                  );
+                }}
+                animate
+                motionConfig="gentle"
+              />
+            </div>
+          </div>
+        ) : (
+          <div className="card flex flex-col items-center justify-center gap-2 py-12">
+            <p className="text-body text-text">No saved amount on goals yet</p>
+            <p className="text-ui text-text-muted">Set a goal and link transactions to it to populate this chart.</p>
+          </div>
+        )}
+      </section>
+
+    </div>
+  );
+}
+
+interface PieCardProps {
+  title: string;
+  emptyLabel: string;
+  data: AnalyticsPieDatum[];
+  hasData: boolean;
+}
+
+function PieCard({ title, emptyLabel, data, hasData }: PieCardProps) {
+  const total = data.reduce((sum, entry) => sum + entry.value, 0);
+
+  return (
+    <div className="card" style={{ padding: '16px 20px 16px' }}>
+      <div className="mb-2 flex items-center justify-between">
+        <h3 className="heading-3 text-text">{title}</h3>
+        {hasData && <span className="text-ui text-text-muted">{formatCurrency(total)}</span>}
+      </div>
+
+      {hasData ? (
+        <div className="grid grid-cols-1 lg:grid-cols-[minmax(0,280px)_minmax(0,1fr)] gap-3 items-start">
+          <div style={{ height: 260 }}>
+            <ResponsivePie<AnalyticsPieDatum>
+              data={data}
+              margin={{ top: 12, right: 12, bottom: 12, left: 12 }}
+              innerRadius={0.58}
+              padAngle={1.1}
+              cornerRadius={3}
+              activeOuterRadiusOffset={6}
+              colors={(datum) => datum.data.color}
+              borderWidth={0}
+              enableArcLabels={false}
+              enableArcLinkLabels={false}
+              sortByValue
+              theme={nivoTheme}
+              valueFormat={(value) => formatCurrency(Number(value))}
+              tooltip={(item: import('@nivo/pie').PieTooltipProps<AnalyticsPieDatum>) => {
+                const share = total > 0 ? (item.datum.value / total) * 100 : 0;
+                return (
+                  <div style={pieTooltipStyle}>
+                    <div className="text-ui text-text mb-1">{item.datum.label}</div>
+                    <div className="text-ui text-text-secondary">{formatCurrency(item.datum.value)}</div>
+                    <div className="text-ui text-text-muted">{share.toFixed(1)}%</div>
+                  </div>
+                );
+              }}
+              animate
+              motionConfig="gentle"
+            />
+          </div>
+
+          <div className="flex flex-col gap-1.5 mt-2 min-w-0">
+            {data.map((entry) => {
+              const share = total > 0 ? (entry.value / total) * 100 : 0;
+              return (
+                <div key={entry.id} className="flex items-center gap-2 min-w-0">
+                  <span
+                    className="block w-2.5 h-2.5 rounded-(--radius-full)"
+                    style={{ backgroundColor: entry.color }}
+                    aria-hidden
+                  />
+                  <span className="text-ui text-text-secondary truncate flex-1 min-w-0" title={entry.label}>
+                    {entry.label}
+                  </span>
+                  <span className="text-ui text-text tabular-nums whitespace-nowrap shrink-0">
+                    {formatCurrency(entry.value)}
+                  </span>
+                  <span className="text-ui text-text-muted tabular-nums whitespace-nowrap text-right w-12 shrink-0">
+                    {share.toFixed(1)}%
+                  </span>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      ) : (
+        <div className="flex items-center justify-center py-14">
+          <p className="text-ui text-text-muted">{emptyLabel}</p>
+        </div>
+      )}
     </div>
   );
 }
