@@ -1,8 +1,14 @@
 import { useMemo, useRef, useState, type ChangeEvent, type FormEvent } from 'react';
 import * as LucideIcons from 'lucide-react';
-import { ChevronDown, Pencil, Search, Trash2, X } from 'lucide-react';
+import { ChevronDown, Search, X } from 'lucide-react';
 import { PageHeader, PageHeaderActions } from '../components/layout';
-import { Icon, Modal } from '../components/ui';
+import {
+  EntityCard,
+  EntityCardOverflowMenu,
+  Icon,
+  Modal,
+} from '../components/ui';
+import type { EntityCardTone } from '../components/ui';
 import {
   CATEGORIES as DEFAULT_CATEGORIES,
   CATEGORY_GROUPS as DEFAULT_CATEGORY_GROUPS,
@@ -13,60 +19,14 @@ import type { Category, CategoryGroup } from '../types';
 const LOCKED_CATEGORY_IDS = new Set(['transfer']);
 const UNGROUPED_CATEGORY_GROUP_ID = 'ungrouped';
 
-interface GroupTone {
-  shell: string;
-  icon: string;
-  badge: string;
-  categoryIcon: string;
-  categoryCard: string;
-}
-
-const GROUP_TONES: Record<string, GroupTone> = {
-  living: {
-    shell: 'border-accent/25 bg-accent/8',
-    icon: 'bg-accent/18 text-accent',
-    badge: 'bg-accent/16 text-accent border-accent/30',
-    categoryIcon: 'bg-accent/14 text-accent',
-    categoryCard: 'border-accent/20 bg-bg/45 hover:border-accent/35 hover:bg-accent/10',
-  },
-  lifestyle: {
-    shell: 'border-goal/25 bg-goal/8',
-    icon: 'bg-goal/18 text-goal',
-    badge: 'bg-goal/16 text-goal border-goal/30',
-    categoryIcon: 'bg-goal/14 text-goal',
-    categoryCard: 'border-goal/20 bg-bg/45 hover:border-goal/35 hover:bg-goal/10',
-  },
-  finance: {
-    shell: 'border-warning/30 bg-warning/10',
-    icon: 'bg-warning/20 text-warning',
-    badge: 'bg-warning/16 text-warning border-warning/35',
-    categoryIcon: 'bg-warning/16 text-warning',
-    categoryCard: 'border-warning/22 bg-bg/45 hover:border-warning/36 hover:bg-warning/10',
-  },
-  income: {
-    shell: 'border-income/25 bg-income/8',
-    icon: 'bg-income/18 text-income',
-    badge: 'bg-income/16 text-income border-income/30',
-    categoryIcon: 'bg-income/14 text-income',
-    categoryCard: 'border-income/20 bg-bg/45 hover:border-income/35 hover:bg-income/10',
-  },
-  transfers: {
-    shell: 'border-transfer/25 bg-transfer/10',
-    icon: 'bg-transfer/18 text-transfer',
-    badge: 'bg-transfer/16 text-transfer border-transfer/30',
-    categoryIcon: 'bg-transfer/14 text-transfer',
-    categoryCard: 'border-transfer/20 bg-bg/45 hover:border-transfer/35 hover:bg-transfer/10',
-  },
-  [UNGROUPED_CATEGORY_GROUP_ID]: {
-    shell: 'border-border bg-surface/80',
-    icon: 'bg-text/10 text-text-secondary',
-    badge: 'bg-border text-text-secondary border-border',
-    categoryIcon: 'bg-text/10 text-text-secondary',
-    categoryCard: 'border-border bg-bg/45 hover:border-text-muted/50 hover:bg-surface-hover/45',
-  },
+const GROUP_ENTITY_TONES: Record<string, EntityCardTone> = {
+  living: 'accent',
+  lifestyle: 'goal',
+  finance: 'warning',
+  income: 'income',
+  transfers: 'transfer',
+  [UNGROUPED_CATEGORY_GROUP_ID]: 'neutral',
 };
-
-const DEFAULT_GROUP_TONE = GROUP_TONES[UNGROUPED_CATEGORY_GROUP_ID];
 
 interface ExportedCategoriesFile {
   schemaVersion: number;
@@ -593,19 +553,11 @@ export function Categories() {
           {groupedCategories.map((group) => (
             <section
               key={group.id}
-              className={cn(
-                'card p-4 sm:p-5',
-                (GROUP_TONES[group.id] ?? DEFAULT_GROUP_TONE).shell,
-              )}
+              className="card p-4 sm:p-5"
             >
               <div className="mb-3 flex items-center justify-between gap-3">
                 <div className="flex min-w-0 items-center gap-2.5">
-                  <div
-                    className={cn(
-                      'w-9 h-9 rounded-(--radius-md) flex items-center justify-center shrink-0',
-                      (GROUP_TONES[group.id] ?? DEFAULT_GROUP_TONE).icon,
-                    )}
-                  >
+                  <div className="w-9 h-9 rounded-(--radius-md) flex items-center justify-center shrink-0 bg-text/10 text-text-secondary">
                     <Icon name={group.icon} size={16} />
                   </div>
                   <div className="min-w-0">
@@ -614,12 +566,7 @@ export function Categories() {
                   </div>
                 </div>
 
-                <span
-                  className={cn(
-                    'badge border shrink-0',
-                    (GROUP_TONES[group.id] ?? DEFAULT_GROUP_TONE).badge,
-                  )}
-                >
+                <span className="badge-muted shrink-0">
                   {group.categories.length}
                 </span>
               </div>
@@ -627,63 +574,28 @@ export function Categories() {
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
                 {group.categories.map((cat) => {
                   const isLocked = LOCKED_CATEGORY_IDS.has(cat.id);
-                  const groupTone = GROUP_TONES[group.id] ?? DEFAULT_GROUP_TONE;
+                  const entityTone = GROUP_ENTITY_TONES[group.id] ?? 'neutral';
 
                   return (
-                    <div
+                    <EntityCard
                       key={cat.id}
-                      className={cn(
-                        'group flex items-center gap-3 p-3.5 rounded-(--radius-md) border transition-colors duration-150',
-                        groupTone.categoryCard,
-                      )}
-                    >
-                      <div
-                        className={cn(
-                          'w-8 h-8 rounded-(--radius-md) flex items-center justify-center shrink-0',
-                          groupTone.categoryIcon,
-                        )}
-                      >
-                        <Icon name={cat.icon} size={16} />
-                      </div>
-
-                      <div className="flex-1 min-w-0">
-                        <div className="text-body text-text truncate">{cat.name}</div>
-                        <div className="text-ui text-text-muted">
-                          {cat.isDefault ? 'Default category' : 'Custom category'}
-                        </div>
-                      </div>
-
-                      <div className="flex items-center gap-1">
-                        {!isLocked && (
-                          <>
-                            <button
-                              type="button"
-                              onClick={() => openEditModal(cat)}
-                              className={cn(
-                                'w-7 h-7 flex items-center justify-center rounded bg-transparent border-none cursor-pointer text-text-muted hover:text-text transition-opacity',
-                                'opacity-0 group-hover:opacity-100 focus-visible:opacity-100',
-                              )}
-                              title={`Edit category ${cat.name}`}
-                            >
-                              <Pencil size={14} />
-                            </button>
-                            <button
-                              type="button"
-                              onClick={() => handleDelete(cat.id)}
-                              className={cn(
-                                'w-7 h-7 flex items-center justify-center rounded bg-transparent border-none cursor-pointer text-text-muted hover:text-expense transition-opacity',
-                                'opacity-0 group-hover:opacity-100 focus-visible:opacity-100',
-                              )}
-                              title={`Delete category ${cat.name}`}
-                            >
-                              <Trash2 size={14} />
-                            </button>
-                          </>
-                        )}
-
-                        {isLocked && <span className="badge-muted">Locked</span>}
-                      </div>
-                    </div>
+                      icon={cat.icon}
+                      title={cat.name}
+                      tone={entityTone}
+                      actions={
+                        isLocked
+                          ? <span className="badge-muted">Locked</span>
+                          : (
+                            <EntityCardOverflowMenu
+                              label={`Actions for ${cat.name}`}
+                              actions={[
+                                { label: 'Edit', onClick: () => openEditModal(cat) },
+                                { label: 'Delete', onClick: () => handleDelete(cat.id), tone: 'danger' },
+                              ]}
+                            />
+                          )
+                      }
+                    />
                   );
                 })}
               </div>

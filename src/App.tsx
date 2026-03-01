@@ -11,6 +11,8 @@ import {
   Settings,
   Help,
   Import,
+  Login,
+  Register,
   TestMockup,
   TestMockup2,
 } from "./pages";
@@ -42,6 +44,10 @@ function App() {
         <Route path="/8" element={<Design8 />} />
         <Route path="/9" element={<Design9 />} />
         <Route path="/10" element={<Design10 />} />
+
+        {/* Auth pages without app shell */}
+        <Route path="/login" element={<Login />} />
+        <Route path="/register" element={<Register />} />
 
         {/* Main app with layout */}
         <Route element={<AppLayout />}>
