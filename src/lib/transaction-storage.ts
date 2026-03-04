@@ -1,8 +1,77 @@
+import { readStorageWithLegacy } from './storage-migration';
 import type { Transaction, ImportBatch } from '../types';
 
-const TRANSACTIONS_KEY = 'melomoney:transactions';
-const BATCHES_KEY = 'melomoney:import-batches';
+const TRANSACTIONS_KEY = 'saveslate:transactions';
+const LEGACY_TRANSACTIONS_KEY = 'melomoney:transactions';
+const BATCHES_KEY = 'saveslate:import-batches';
+const LEGACY_BATCHES_KEY = 'melomoney:import-batches';
 const LEGACY_MOCK_ID_PATTERN = /^t\d+$/;
+
+function normalizeTagIds(tagIds: unknown): string[] | undefined {
+  if (!Array.isArray(tagIds)) {
+    return undefined;
+  }
+
+  const normalized = Array.from(
+    new Set(
+      tagIds
+        .filter((tagId): tagId is string => typeof tagId === 'string')
+        .map((tagId) => tagId.trim())
+        .filter((tagId) => tagId.length > 0),
+    ),
+  );
+
+  return normalized.length > 0 ? normalized : undefined;
+}
+
+function areTagIdListsEqual(left: string[] | undefined, right: string[] | undefined): boolean {
+  if (left === undefined && right === undefined) {
+    return true;
+  }
+  if (left === undefined || right === undefined) {
+    return false;
+  }
+  if (left.length !== right.length) {
+    return false;
+  }
+
+  for (let index = 0; index < left.length; index += 1) {
+    if (left[index] !== right[index]) {
+      return false;
+    }
+  }
+
+  return true;
+}
+
+function normalizeTransactionTags(transactions: Transaction[]): Transaction[] {
+  if (transactions.length === 0) {
+    return transactions;
+  }
+
+  return transactions.map((transaction) => {
+    const currentTagIds = Array.isArray(transaction.tagIds)
+      ? transaction.tagIds
+      : undefined;
+    const nextTagIds = normalizeTagIds(transaction.tagIds);
+
+    if (areTagIdListsEqual(currentTagIds, nextTagIds)) {
+      return transaction;
+    }
+
+    if (!nextTagIds) {
+      return {
+        ...transaction,
+        tagIds: undefined,
+      };
+    }
+
+    return {
+      ...transaction,
+      tagIds: nextTagIds,
+    };
+  });
+}
 
 function normalizeTransferPairs(transactions: Transaction[]): Transaction[] {
   if (transactions.length === 0) {
@@ -104,7 +173,7 @@ function isLegacyMockTransaction(transaction: Transaction): boolean {
  */
 export function loadTransactions(): Transaction[] {
   try {
-    const raw = localStorage.getItem(TRANSACTIONS_KEY);
+    const raw = readStorageWithLegacy(TRANSACTIONS_KEY, LEGACY_TRANSACTIONS_KEY);
     if (!raw) return [];
 
     const parsed = JSON.parse(raw) as unknown;
@@ -112,7 +181,8 @@ export function loadTransactions(): Transaction[] {
 
     const transactions = parsed as Transaction[];
     const cleaned = transactions.filter((transaction) => !isLegacyMockTransaction(transaction));
-    const normalized = normalizeTransferPairs(cleaned);
+    const normalizedTags = normalizeTransactionTags(cleaned);
+    const normalized = normalizeTransferPairs(normalizedTags);
 
     if (JSON.stringify(normalized) !== JSON.stringify(transactions)) {
       localStorage.setItem(TRANSACTIONS_KEY, JSON.stringify(normalized));
@@ -128,7 +198,8 @@ export function loadTransactions(): Transaction[] {
  * Replace all transactions in localStorage.
  */
 export function saveTransactions(transactions: Transaction[]): void {
-  const normalized = normalizeTransferPairs(transactions);
+  const normalizedTags = normalizeTransactionTags(transactions);
+  const normalized = normalizeTransferPairs(normalizedTags);
   localStorage.setItem(TRANSACTIONS_KEY, JSON.stringify(normalized));
 }
 
@@ -149,7 +220,7 @@ export function addTransactions(newTransactions: Transaction[]): Transaction[] {
  */
 export function loadImportBatches(): ImportBatch[] {
   try {
-    const raw = localStorage.getItem(BATCHES_KEY);
+    const raw = readStorageWithLegacy(BATCHES_KEY, LEGACY_BATCHES_KEY);
     if (!raw) return [];
     return JSON.parse(raw) as ImportBatch[];
   } catch {

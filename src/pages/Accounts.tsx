@@ -1,5 +1,5 @@
 import { useMemo, useRef, useState, type ChangeEvent } from 'react';
-import { ArrowUpRight } from 'lucide-react';
+import { ArrowUpRight, Pencil, Trash2 } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import {
   AccountFormModal,
@@ -16,7 +16,7 @@ import {
   EntityCardDetailList,
   EntityCardOverflowMenu,
   EntityCardSection,
-  Modal,
+  DeleteConfirmationModal,
 } from '../components/ui';
 import {
   addAccount,
@@ -239,7 +239,7 @@ export function Accounts() {
     };
 
     const fileDate = new Date().toISOString().split('T')[0];
-    const fileName = `melomoney-accounts-${fileDate}.json`;
+    const fileName = `saveslate-accounts-${fileDate}.json`;
     const blob = new Blob([JSON.stringify(exportPayload, null, 2)], {
       type: 'application/json',
     });
@@ -333,38 +333,22 @@ export function Accounts() {
       )}
 
       {accountToDelete && (
-        <Modal onClose={() => setAccountToDelete(null)} panelClassName="max-w-md p-5 space-y-4">
-          <div>
-              <h2 className="heading-2">Delete account?</h2>
-              <p className="text-body">
-                This will permanently delete <span className="text-text">{accountToDelete.name}</span>.
-              </p>
-              {accountToDeleteTransactionCount > 0 ? (
-                <p className="text-ui text-warning">
-                  {accountToDeleteTransactionCount} transaction{accountToDeleteTransactionCount === 1 ? '' : 's'} are linked to this account.
-                  They will stay in your history and appear as Unknown Account.
-                </p>
-              ) : (
-                <p className="text-ui text-text-muted">This action cannot be undone.</p>
-              )}
-              <div className="flex items-center justify-end gap-2">
-                <button
-                  type="button"
-                  onClick={() => setAccountToDelete(null)}
-                  className="btn-secondary"
-                >
-                  Cancel
-                </button>
-                <button
-                  type="button"
-                  onClick={handleConfirmDeleteAccount}
-                  className="btn-secondary border-expense/40 text-expense hover:bg-expense/10 hover:border-expense"
-                >
-                  Delete account
-                </button>
-              </div>
-          </div>
-        </Modal>
+        <DeleteConfirmationModal
+          title="Delete account?"
+          description={(
+            <>
+              This will permanently delete <span className="text-text">{accountToDelete.name}</span>.
+            </>
+          )}
+          details={accountToDeleteTransactionCount > 0 ? (
+            <p className="text-ui text-warning">
+              {accountToDeleteTransactionCount} transaction{accountToDeleteTransactionCount === 1 ? '' : 's'} are linked to this account. They will stay in your history and appear as Unknown Account.
+            </p>
+          ) : undefined}
+          confirmLabel="Delete account"
+          onConfirm={handleConfirmDeleteAccount}
+          onClose={() => setAccountToDelete(null)}
+        />
       )}
 
       {isCreateModalOpen && (
@@ -446,8 +430,8 @@ function AccountRow({ account, computedBalance, onEdit, onDelete }: AccountRowPr
         <EntityCardOverflowMenu
           label={`More actions for ${account.name}`}
           actions={[
-            { label: 'Edit', onClick: onEdit },
-            { label: 'Delete', onClick: onDelete, tone: 'danger' },
+            { label: 'Edit', icon: Pencil, onClick: onEdit },
+            { label: 'Delete', icon: Trash2, onClick: onDelete, tone: 'danger' },
           ]}
         />
       )}

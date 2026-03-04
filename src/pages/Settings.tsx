@@ -8,6 +8,7 @@ import {
 import { Globe, DollarSign, Bell, Shield, Download, Trash2, Database } from 'lucide-react';
 import { PageHeader } from '../components/layout/PageHeader';
 import { getCurrencyOptionsWithFallback } from '../lib/currencies';
+import { readStorageWithLegacy } from '../lib/storage-migration';
 import {
   DATA_PROFILE_OPTIONS,
   isDataProfile,
@@ -15,12 +16,16 @@ import {
   saveActiveDataProfile,
 } from '../lib/data-profile';
 
-const DEFAULT_CURRENCY_STORAGE_KEY = 'melomoney:settings:default-currency';
+const DEFAULT_CURRENCY_STORAGE_KEY = 'saveslate:settings:default-currency';
+const LEGACY_DEFAULT_CURRENCY_STORAGE_KEY = 'melomoney:settings:default-currency';
 const FALLBACK_CURRENCY = 'CHF';
 
 function loadDefaultCurrencySetting(): string {
   try {
-    const rawCurrency = localStorage.getItem(DEFAULT_CURRENCY_STORAGE_KEY);
+    const rawCurrency = readStorageWithLegacy(
+      DEFAULT_CURRENCY_STORAGE_KEY,
+      LEGACY_DEFAULT_CURRENCY_STORAGE_KEY,
+    );
     if (!rawCurrency) {
       return FALLBACK_CURRENCY;
     }
@@ -201,8 +206,8 @@ export function Settings() {
              className="text-muted"
              style={{ fontFamily: 'var(--font-display)' }}
            >
-             MeloMoney v0.1.0
-           </div>
+             SaveSlate v0.1.0
+            </div>
            <div className="text-ui text-text-muted mt-1">
             Made with care in Switzerland
           </div>

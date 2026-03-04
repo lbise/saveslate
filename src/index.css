@@ -1,6 +1,6 @@
 @import "tailwindcss";
 
-/* MeloMoney Theme - Minimalist Noir (Design 8) */
+/* SaveSlate Theme - Minimalist Noir (Design 8) */
 
 @theme {
   /* Dark-only palette */
@@ -239,6 +239,35 @@
 
   .section-action {
     @apply text-sm text-text-muted hover:text-text inline-flex items-center gap-1 transition-colors duration-150 bg-transparent border-none cursor-pointer;
+  }
+
+  /* ---------- Menus ---------- */
+  .menu-popover {
+    @apply absolute top-full mt-1 z-20 rounded-(--radius-md) border border-border bg-surface py-1 shadow-(--shadow-md);
+  }
+
+  .menu-item,
+  .menu-item-danger {
+    @apply flex w-full items-center gap-2.5 border-none bg-transparent px-3 py-2 text-left transition-colors;
+    font-size: 14px;
+    line-height: 1.2;
+  }
+
+  .menu-item {
+    @apply cursor-pointer text-text-secondary hover:bg-surface-hover hover:text-text;
+  }
+
+  .menu-item-danger {
+    @apply cursor-pointer text-expense hover:bg-expense/8 hover:text-expense;
+  }
+
+  .menu-item:disabled,
+  .menu-item-danger:disabled {
+    @apply cursor-not-allowed opacity-50 hover:bg-transparent hover:text-text-muted;
+  }
+
+  .menu-divider {
+    @apply mx-2 my-1 h-px bg-border;
   }
 }
 

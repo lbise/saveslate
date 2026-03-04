@@ -761,9 +761,9 @@ export function Design7() {
         <div className="d7-sidebar-header">
           <div className="d7-sidebar-masthead">
             <div className="d7-sidebar-edition">Personal Finance</div>
-            <div className="d7-sidebar-logo">Melo<em>Money</em></div>
+            <div className="d7-sidebar-logo">Save<em>Slate</em></div>
           </div>
-          <span className="d7-sidebar-logo-mark">M</span>
+          <span className="d7-sidebar-logo-mark">S</span>
           <button 
             className="d7-collapse-btn"
             onClick={() => setSidebarCollapsed(!sidebarCollapsed)}

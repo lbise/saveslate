@@ -1,6 +1,6 @@
-# AGENTS.md - MeloMoney
+# AGENTS.md - SaveSlate
 
-Guidance for AI agents working on the MeloMoney codebase.
+Guidance for AI agents working on the SaveSlate codebase.
 
 ## Project Overview
 

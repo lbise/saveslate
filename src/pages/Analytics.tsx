@@ -1,5 +1,5 @@
-import { useState, useMemo } from 'react';
-import { ResponsiveBar } from '@nivo/bar';
+import { useEffect, useMemo, useState } from 'react';
+import { ResponsiveBar, type BarCustomLayerProps } from '@nivo/bar';
 import { ResponsivePie } from '@nivo/pie';
 import { ResponsiveSankey } from '@nivo/sankey';
 import { BarChart3 } from 'lucide-react';
@@ -28,7 +28,7 @@ import type { DefaultLink } from '@nivo/sankey';
 
 // ── Nivo theme (matches dark palette from index.css) ──────────
 
-const ANALYTICS_FONT_FAMILY = 'var(--font-body)';
+const ANALYTICS_FONT_FAMILY = 'Satoshi, ui-sans-serif, system-ui, sans-serif';
 
 const nivoTheme = {
   text: {
@@ -118,6 +118,13 @@ function formatYAxisValue(value: number): string {
   }).format(value);
 }
 
+function truncateLabel(label: string, maxLength: number): string {
+  if (label.length <= maxLength) {
+    return label;
+  }
+  return `${label.slice(0, maxLength - 1)}…`;
+}
+
 function buildYAxisTicks(series: MonthlyIncomeExpensePoint[]): number[] {
   const maxValue = series.reduce((currentMax, point) => {
     return Math.max(currentMax, point.income, point.expenses);
@@ -150,13 +157,52 @@ function buildYAxisTicks(series: MonthlyIncomeExpensePoint[]): number[] {
   return ticks;
 }
 
+function GoalSavedValueLabels({ bars, innerWidth }: BarCustomLayerProps<GoalSavedPoint>) {
+  return (
+    <g pointerEvents="none">
+      {bars.map((bar) => {
+        const value = Number(bar.data.value ?? 0);
+        const label = formatCurrency(value);
+        const estimatedLabelWidth = label.length * 7;
+        const outsideX = bar.x + bar.width + 8;
+        const hasRoomOutside = outsideX + estimatedLabelWidth <= innerWidth;
+
+        return (
+          <text
+            key={`${bar.key}-${bar.index}`}
+            x={hasRoomOutside ? outsideX : Math.max(bar.x + 8, bar.x + bar.width - 8)}
+            y={bar.y + bar.height / 2}
+            textAnchor={hasRoomOutside ? 'start' : 'end'}
+            dominantBaseline="central"
+            style={{
+              fill: hasRoomOutside ? ANALYTICS_COLORS.text : '#10243B',
+              fontSize: 12,
+              fontFamily: ANALYTICS_FONT_FAMILY,
+              fontWeight: 600,
+            }}
+          >
+            {label}
+          </text>
+        );
+      })}
+    </g>
+  );
+}
+
 // ── Component ─────────────────────────────────────────────────
 
 export function Analytics() {
   const [period, setPeriod] = useState<DateRangePeriod>('this-month');
   const [activeProfileLabel] = useState(() => getDataProfileLabel(loadActiveDataProfile()));
+  const [viewportWidth, setViewportWidth] = useState(() => window.innerWidth);
   const transactions = useMemo(() => getTransactionsWithDetails(), []);
   const goalProgress = useMemo(() => getGoalProgress(), []);
+
+  useEffect(() => {
+    const handleResize = () => setViewportWidth(window.innerWidth);
+    window.addEventListener('resize', handleResize);
+    return () => window.removeEventListener('resize', handleResize);
+  }, []);
 
   const { nodes, links, summary } = useMemo(
     () => buildSankeyData(transactions, period),
@@ -188,12 +234,40 @@ export function Analytics() {
     [monthlySeries],
   );
 
+  const monthlyBarMaxValue = useMemo<number | 'auto'>(() => {
+    if (monthlyYAxisTicks.length < 2) {
+      return 'auto';
+    }
+
+    const step = monthlyYAxisTicks[1] - monthlyYAxisTicks[0];
+    const topTick = monthlyYAxisTicks[monthlyYAxisTicks.length - 1];
+    return topTick + step * 0.35;
+  }, [monthlyYAxisTicks]);
+
+  const monthlyAxisTicks = useMemo(() => {
+    if (monthlyYAxisTicks.length <= 1) {
+      return monthlyYAxisTicks;
+    }
+    return monthlyYAxisTicks.slice(0, -1);
+  }, [monthlyYAxisTicks]);
+
   const hasData = nodes.length > 0 && links.length > 0;
   const hasMonthlyData = monthlySeries.some((point) => point.income > 0 || point.expenses > 0);
   const hasIncomePieData = incomePieSeries.length > 0;
   const hasExpensePieData = expensePieSeries.length > 0;
   const hasGoalSavedData = goalSavedSeries.some((goal) => goal.saved > 0);
   const totalGoalSaved = goalSavedSeries.reduce((sum, goal) => sum + goal.saved, 0);
+
+  const isMobileViewport = viewportWidth < 640;
+  const isNarrowViewport = viewportWidth < 1024;
+  const sankeyChartMargin = isMobileViewport
+    ? { top: 12, right: 86, bottom: 16, left: 86 }
+    : isNarrowViewport
+      ? { top: 16, right: 112, bottom: 16, left: 112 }
+      : { top: 16, right: 160, bottom: 16, left: 160 };
+  const sankeyChartHeight = isMobileViewport ? 460 : 520;
+  const sankeyLabelMaxLength = isMobileViewport ? 9 : isNarrowViewport ? 18 : 26;
+  const goalLabelMaxLength = isMobileViewport ? 12 : 22;
 
   return (
     <div className="page-container">
@@ -231,20 +305,20 @@ export function Analytics() {
 
         {hasData ? (
           <div className="card" style={{ padding: '24px 0 16px' }}>
-            <div style={{ height: 520 }}>
+            <div style={{ height: sankeyChartHeight }}>
               <ResponsiveSankey<SankeyNodeInput, DefaultLink>
                 data={{ nodes, links }}
-                margin={{ top: 16, right: 160, bottom: 16, left: 160 }}
+                margin={sankeyChartMargin}
                 align="justify"
                 sort="descending"
                 colors={(node) => node.nodeColor}
-                label={(node) => node.nodeLabel}
+                label={(node) => truncateLabel(node.nodeLabel, sankeyLabelMaxLength)}
                 theme={nivoTheme}
                 nodeOpacity={1}
                 nodeHoverOpacity={1}
                 nodeHoverOthersOpacity={0.25}
-                nodeThickness={16}
-                nodeSpacing={14}
+                nodeThickness={isMobileViewport ? 12 : 16}
+                nodeSpacing={isMobileViewport ? 10 : 14}
                 nodeInnerPadding={2}
                 nodeBorderWidth={0}
                 nodeBorderRadius={3}
@@ -256,7 +330,7 @@ export function Analytics() {
                 enableLinkGradient
                 enableLabels
                 labelPosition="outside"
-                labelPadding={12}
+                labelPadding={isMobileViewport ? 8 : 12}
                 labelOrientation="horizontal"
                 labelTextColor={{ from: 'color', modifiers: [['brighter', 0.6]] }}
                 valueFormat={(v) => formatCurrency(v)}
@@ -299,18 +373,19 @@ export function Analytics() {
                 data={monthlySeries}
                 keys={['income', 'expenses']}
                 indexBy="monthLabel"
-                margin={{ top: 12, right: 8, bottom: 40, left: 64 }}
+                margin={{ top: 32, right: 8, bottom: 40, left: 64 }}
                 padding={0.28}
                 groupMode="grouped"
                 borderRadius={3}
                 colors={({ id }) => (String(id) === 'income' ? ANALYTICS_COLORS.income : ANALYTICS_COLORS.expense)}
+                valueScale={{ type: 'linear', max: monthlyBarMaxValue }}
                 axisTop={null}
                 axisRight={null}
                 axisBottom={{ tickSize: 0, tickPadding: 10 }}
                 axisLeft={{
                   tickSize: 0,
                   tickPadding: 10,
-                  tickValues: monthlyYAxisTicks,
+                  tickValues: monthlyAxisTicks,
                   format: (value: string | number) => formatYAxisValue(Number(value)),
                 }}
                 labelSkipWidth={100}
@@ -318,7 +393,7 @@ export function Analytics() {
                 valueFormat={(value: string | number) => formatCurrency(Number(value))}
                 theme={incomeExpenseTheme}
                 enableGridY
-                gridYValues={monthlyYAxisTicks}
+                gridYValues={monthlyAxisTicks}
                 tooltip={(bar: import('@nivo/bar').BarTooltipProps<MonthlyIncomeExpensePoint>) => {
                   const data = bar.data as MonthlyIncomeExpensePoint;
                   const net = data.income - data.expenses;
@@ -383,7 +458,7 @@ export function Analytics() {
                 keys={['saved']}
                 indexBy="goalLabel"
                 layout="horizontal"
-                margin={{ top: 12, right: 12, bottom: 12, left: 140 }}
+                margin={{ top: 16, right: isMobileViewport ? 96 : 132, bottom: 12, left: isMobileViewport ? 104 : 148 }}
                 padding={0.28}
                 borderRadius={3}
                 colors={[ANALYTICS_COLORS.goal]}
@@ -394,12 +469,16 @@ export function Analytics() {
                   tickPadding: 10,
                   format: (value: string | number) => formatYAxisValue(Number(value)),
                 }}
-                axisLeft={{ tickSize: 0, tickPadding: 8 }}
-                labelSkipWidth={70}
-                labelSkipHeight={18}
+                axisLeft={{
+                  tickSize: 0,
+                  tickPadding: 8,
+                  format: (value: string | number) => truncateLabel(String(value), goalLabelMaxLength),
+                }}
+                enableLabel={false}
                 valueFormat={(value: string | number) => formatCurrency(Number(value))}
                 theme={incomeExpenseTheme}
                 enableGridX
+                layers={['grid', 'axes', 'bars', GoalSavedValueLabels, 'markers', 'legends', 'annotations']}
                 tooltip={(bar: import('@nivo/bar').BarTooltipProps<GoalSavedPoint>) => {
                   const data = bar.data as GoalSavedPoint;
                   return (
@@ -475,25 +554,29 @@ function PieCard({ title, emptyLabel, data, hasData }: PieCardProps) {
             />
           </div>
 
-          <div className="flex flex-col gap-1.5 mt-2 min-w-0">
+          <div className="flex flex-col gap-2 mt-2 min-w-0 overflow-hidden">
             {data.map((entry) => {
               const share = total > 0 ? (entry.value / total) * 100 : 0;
               return (
-                <div key={entry.id} className="flex items-center gap-2 min-w-0">
-                  <span
-                    className="block w-2.5 h-2.5 rounded-(--radius-full)"
-                    style={{ backgroundColor: entry.color }}
-                    aria-hidden
-                  />
-                  <span className="text-ui text-text-secondary truncate flex-1 min-w-0" title={entry.label}>
-                    {entry.label}
-                  </span>
-                  <span className="text-ui text-text tabular-nums whitespace-nowrap shrink-0">
-                    {formatCurrency(entry.value)}
-                  </span>
-                  <span className="text-ui text-text-muted tabular-nums whitespace-nowrap text-right w-12 shrink-0">
-                    {share.toFixed(1)}%
-                  </span>
+                <div key={entry.id} className="rounded-(--radius-sm) border border-border/60 bg-surface-hover/35 px-2.5 py-2 min-w-0">
+                  <div className="flex items-start gap-2 min-w-0">
+                    <span
+                      className="block w-2.5 h-2.5 rounded-(--radius-full) mt-1 shrink-0"
+                      style={{ backgroundColor: entry.color }}
+                      aria-hidden
+                    />
+                    <span className="text-ui text-text-secondary leading-5 break-words min-w-0">
+                      {entry.label}
+                    </span>
+                  </div>
+                  <div className="mt-1.5 flex items-center justify-between gap-3 min-w-0">
+                    <span className="text-ui text-text tabular-nums min-w-0">
+                      {formatCurrency(entry.value)}
+                    </span>
+                    <span className="text-ui text-text-muted tabular-nums shrink-0">
+                      {share.toFixed(1)}%
+                    </span>
+                  </div>
                 </div>
               );
             })}

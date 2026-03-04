@@ -6,10 +6,11 @@ import {
   type ChangeEvent,
   type FormEvent,
 } from "react";
-import { Play, X } from "lucide-react";
+import { Pencil, Play, Power, Trash2, X } from "lucide-react";
 import { useLocation, useNavigate } from "react-router-dom";
 import { PageHeader, PageHeaderActions } from "../components/layout";
 import {
+  DeleteConfirmationModal,
   EntityCard,
   EntityCardDetailList,
   EntityCardOverflowMenu,
@@ -616,7 +617,7 @@ export function Rules() {
     };
 
     const fileDate = new Date().toISOString().split("T")[0];
-    const fileName = `melomoney-rules-${fileDate}.json`;
+    const fileName = `saveslate-rules-${fileDate}.json`;
     const blob = new Blob([JSON.stringify(exportPayload, null, 2)], {
       type: "application/json",
     });
@@ -871,34 +872,17 @@ export function Rules() {
       )}
 
       {ruleToDelete && (
-        <Modal onClose={() => setRuleToDelete(null)} panelClassName="max-w-md p-5 space-y-4">
-          <div>
-              <h2 className="heading-2">Delete rule?</h2>
-              <p className="text-body">
-                This will permanently delete{" "}
-                <span className="text-text">{ruleToDelete.name}</span>.
-              </p>
-              <p className="text-ui text-text-muted">
-                This action cannot be undone.
-              </p>
-              <div className="flex items-center justify-end gap-2">
-                <button
-                  type="button"
-                  onClick={() => setRuleToDelete(null)}
-                  className="btn-secondary"
-                >
-                  Cancel
-                </button>
-                <button
-                  type="button"
-                  onClick={handleConfirmDeleteRule}
-                  className="btn-secondary border-expense/40 text-expense hover:bg-expense/10 hover:border-expense"
-                >
-                  Delete rule
-                </button>
-              </div>
-          </div>
-        </Modal>
+        <DeleteConfirmationModal
+          title="Delete rule?"
+          description={(
+            <>
+              This will permanently delete <span className="text-text">{ruleToDelete.name}</span>.
+            </>
+          )}
+          confirmLabel="Delete rule"
+          onConfirm={handleConfirmDeleteRule}
+          onClose={() => setRuleToDelete(null)}
+        />
       )}
 
       {isRuleModalOpen && (
@@ -1374,14 +1358,17 @@ export function Rules() {
                       actions={[
                         {
                           label: rule.isEnabled ? 'Disable' : 'Enable',
+                          icon: Power,
                           onClick: () => handleToggleRuleEnabled(rule),
                         },
                         {
                           label: 'Edit',
+                          icon: Pencil,
                           onClick: () => openEditModal(rule),
                         },
                         {
                           label: 'Delete',
+                          icon: Trash2,
                           onClick: () => setRuleToDelete(rule),
                           tone: 'danger',
                         },

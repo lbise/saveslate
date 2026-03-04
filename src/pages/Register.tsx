@@ -7,7 +7,7 @@ export function Register() {
         <div className="card p-6 sm:p-7">
           <div className="mb-5">
             <h1 className="heading-1">Create account</h1>
-            <p className="text-body text-text-muted mt-1">Set up your MeloMoney profile.</p>
+            <p className="text-body text-text-muted mt-1">Set up your SaveSlate profile.</p>
           </div>
 
           <form className="space-y-4" onSubmit={(event) => event.preventDefault()}>

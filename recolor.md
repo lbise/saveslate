@@ -2,7 +2,7 @@
 
 ## Context
 
-I want to refine the theme of MeloMoney my personal finance manager web app.
+I want to refine the theme of SaveSlate my personal finance manager web app.
 This app is for personal use, not for business. The theme is very minimalist and dark only, think nordic/noir minimalism.
 I'd like to convey that this app is cool and calming with an unserious pinch.
 The expense and income colors are very important since every transactions are either that or a transfer.

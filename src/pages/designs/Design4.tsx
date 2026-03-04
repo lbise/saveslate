@@ -513,7 +513,7 @@ export function Design4() {
           <div className="d4-masthead">
             <div className="d4-issue">Personal Finance Edition</div>
             <div className="d4-logo">
-              Melo<span>Money</span>
+              Save<span>Slate</span>
             </div>
           </div>
           <div className="d4-header-actions">

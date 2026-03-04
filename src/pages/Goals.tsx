@@ -1,10 +1,11 @@
 import { useMemo, useRef, useState, type ChangeEvent, type FormEvent, type ReactNode } from 'react';
 import * as LucideIcons from 'lucide-react';
-import { ArrowUpRight, ChevronDown, Search, Target, X } from 'lucide-react';
+import { ArrowUpRight, ChevronDown, Pencil, Search, Target, Trash2, X } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { PageHeader, PageHeaderActions } from '../components/layout';
 import {
   Badge,
+  DeleteConfirmationModal,
   EntityCard,
   EntityCardDetailList,
   EntityCardOverflowMenu,
@@ -456,7 +457,7 @@ export function Goals() {
     };
 
     const fileDate = new Date().toISOString().split('T')[0];
-    const fileName = `melomoney-goals-${fileDate}.json`;
+    const fileName = `saveslate-goals-${fileDate}.json`;
     const blob = new Blob([JSON.stringify(exportPayload, null, 2)], {
       type: 'application/json',
     });
@@ -844,30 +845,17 @@ export function Goals() {
       )}
 
       {goalToDelete && (
-        <Modal onClose={closeDeleteGoalModal} panelClassName="max-w-md p-5 space-y-4">
-          <div>
-              <h2 className="heading-2">Delete goal?</h2>
-              <p className="text-body text-text-muted">
-                This will delete <span className="text-text">{goalToDelete.name}</span> and remove its goal link from related transactions.
-              </p>
-              <div className="flex items-center justify-end gap-2">
-                <button
-                  type="button"
-                  onClick={closeDeleteGoalModal}
-                  className="btn-secondary"
-                >
-                  Cancel
-                </button>
-                <button
-                  type="button"
-                  onClick={handleConfirmDeleteGoal}
-                  className="btn-primary"
-                >
-                  Delete goal
-                </button>
-              </div>
-          </div>
-        </Modal>
+        <DeleteConfirmationModal
+          title="Delete goal?"
+          description={(
+            <>
+              This will delete <span className="text-text">{goalToDelete.name}</span> and remove its goal link from related transactions.
+            </>
+          )}
+          confirmLabel="Delete goal"
+          onConfirm={handleConfirmDeleteGoal}
+          onClose={closeDeleteGoalModal}
+        />
       )}
 
       <div className="flex flex-wrap gap-8 mb-2">
@@ -985,8 +973,8 @@ export function Goals() {
                 <EntityCardOverflowMenu
                   label={`More actions for ${gp.goal.name}`}
                   actions={[
-                    { label: 'Edit', onClick: () => openEditGoalForm(gp.goal) },
-                    { label: 'Delete', onClick: () => requestDeleteGoal(gp.goal), tone: 'danger' },
+                    { label: 'Edit', icon: Pencil, onClick: () => openEditGoalForm(gp.goal) },
+                    { label: 'Delete', icon: Trash2, onClick: () => requestDeleteGoal(gp.goal), tone: 'danger' },
                   ]}
                 />
               )}

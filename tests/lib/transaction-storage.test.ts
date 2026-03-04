@@ -76,7 +76,7 @@ describe('transaction storage transfer normalization', () => {
     expect(remainingTransaction.transferPairRole).toBeUndefined();
   });
 
-  it('removes legacy mock transactions when loading', () => {
+  it('removes legacy mock transactions when loading and migrates storage key', () => {
     localStorage.setItem(
       'melomoney:transactions',
       JSON.stringify([
@@ -94,5 +94,20 @@ describe('transaction storage transfer normalization', () => {
 
     expect(loadedTransactions).toHaveLength(1);
     expect(loadedTransactions[0].id).toBe('t2');
+    expect(localStorage.getItem('saveslate:transactions')).not.toBeNull();
+    expect(localStorage.getItem('melomoney:transactions')).toBeNull();
+  });
+
+  it('normalizes duplicate and empty transaction tag IDs', () => {
+    saveTransactions([
+      createTransaction({
+        id: 'txn-with-tags',
+        tagIds: [' tax ', 'travel', 'tax', '', '  '],
+      }),
+    ]);
+
+    const [storedTransaction] = loadTransactions();
+
+    expect(storedTransaction.tagIds).toEqual(['tax', 'travel']);
   });
 });

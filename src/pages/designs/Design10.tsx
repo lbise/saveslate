@@ -712,7 +712,7 @@ export function Design10() {
         <div className="d10-sidebar-header">
           <div className="d10-sidebar-logo">
             <Circle className="d10-sidebar-logo-icon" size={16} strokeWidth={1.5} />
-            <span className="d10-sidebar-logo-text">MeloMoney</span>
+            <span className="d10-sidebar-logo-text">SaveSlate</span>
           </div>
           <button 
             className="d10-collapse-btn"

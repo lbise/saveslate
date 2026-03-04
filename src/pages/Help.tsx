@@ -109,7 +109,7 @@ export function Help() {
             </div>
           </a>
           <a
-            href="mailto:support@melomoney.ch"
+            href="mailto:support@saveslate.ch"
             className="flex items-center gap-3 p-4 bg-surface rounded-(--radius-md) transition-colors duration-150 hover:bg-surface-hover cursor-pointer no-underline"
           >
             <div className="w-9 h-9 bg-bg rounded-(--radius-sm) flex items-center justify-center shrink-0">
@@ -142,10 +142,10 @@ export function Help() {
             Can&apos;t find what you need?
           </div>
           <a
-            href="mailto:support@melomoney.ch"
+            href="mailto:support@saveslate.ch"
             className="text-ui hover:text-text transition-colors mt-1 inline-block"
           >
-            support@melomoney.ch
+            support@saveslate.ch
           </a>
         </div>
       </section>

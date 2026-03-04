@@ -494,7 +494,7 @@ export function Design2() {
             <div className="d2-logo-icon">
               <Leaf size={24} />
             </div>
-            <span className="d2-logo-text">MeloMoney</span>
+            <span className="d2-logo-text">SaveSlate</span>
           </div>
           <div className="d2-header-actions">
             <button className="d2-btn d2-btn-secondary">

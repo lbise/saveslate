@@ -682,8 +682,8 @@ export function Design8() {
       {/* Sidebar */}
       <aside className={`d8-sidebar ${sidebarCollapsed ? 'collapsed' : ''}`}>
         <div className="d8-sidebar-header">
-          <span className="d8-logo">MeloMoney</span>
-          <span className="d8-logo-mark">M</span>
+          <span className="d8-logo">SaveSlate</span>
+          <span className="d8-logo-mark">S</span>
           <button 
             className="d8-collapse-btn"
             onClick={() => setSidebarCollapsed(!sidebarCollapsed)}

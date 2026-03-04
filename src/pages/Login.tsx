@@ -7,7 +7,7 @@ export function Login() {
         <div className="card p-6 sm:p-7">
           <div className="mb-5">
             <h1 className="heading-1">Welcome back</h1>
-            <p className="text-body text-text-muted mt-1">Sign in to continue to MeloMoney.</p>
+            <p className="text-body text-text-muted mt-1">Sign in to continue to SaveSlate.</p>
           </div>
 
           <form className="space-y-4" onSubmit={(event) => event.preventDefault()}>

@@ -732,7 +732,7 @@ export function Design6() {
             <div className="d6-sidebar-logo-mark">
               <Leaf size={18} />
             </div>
-            <span className="d6-sidebar-logo-text">MeloMoney</span>
+            <span className="d6-sidebar-logo-text">SaveSlate</span>
           </div>
           <button 
             className="d6-collapse-btn"

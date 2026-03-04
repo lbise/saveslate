@@ -796,7 +796,7 @@ export function Design9() {
         <div className="d9-sidebar-header">
           <div className="d9-sidebar-logo">
             <Diamond className="d9-sidebar-logo-icon" size={18} />
-            <span className="d9-sidebar-logo-text">MeloMoney</span>
+            <span className="d9-sidebar-logo-text">SaveSlate</span>
           </div>
           <button 
             className="d9-collapse-btn"

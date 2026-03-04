@@ -552,7 +552,7 @@ export function Design5() {
             <div className="d5-logo-icon">
               <PiggyBank size={28} />
             </div>
-            <span className="d5-logo-text">MeloMoney</span>
+            <span className="d5-logo-text">SaveSlate</span>
           </div>
           <button className="d5-btn d5-btn-primary">
             <Upload size={18} />

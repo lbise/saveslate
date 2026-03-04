@@ -68,6 +68,7 @@ interface EntityCardMenuAction {
   onClick: () => void;
   tone?: 'default' | 'danger';
   disabled?: boolean;
+  icon?: LucideIcon;
 }
 
 interface EntityCardOverflowMenuProps {
@@ -98,8 +99,8 @@ const detailToneClasses: Record<EntityCardDetailTone, string> = {
 };
 
 const actionToneClasses = {
-  default: 'text-text-muted hover:text-text',
-  danger: 'text-text-muted hover:text-expense',
+  default: 'menu-item',
+  danger: 'menu-item-danger',
 };
 
 export function EntityCard({
@@ -235,6 +236,7 @@ export function EntityCardSection({ title, action, children, className }: Entity
 export function EntityCardOverflowMenu({ label = 'More actions', actions }: EntityCardOverflowMenuProps) {
   const [isOpen, setIsOpen] = useState(false);
   const menuRef = useRef<HTMLDivElement>(null);
+  const firstDangerActionIndex = actions.findIndex((action) => action.tone === 'danger');
 
   useEffect(() => {
     if (!isOpen) {
@@ -276,27 +278,31 @@ export function EntityCardOverflowMenu({ label = 'More actions', actions }: Enti
       </button>
 
       {isOpen && (
-        <div className="absolute right-0 top-full mt-1 z-20 min-w-[144px] rounded-(--radius-md) border border-border bg-surface py-1 shadow-(--shadow-md)">
-          {actions.map((action) => (
-            <button
-              key={action.label}
-              type="button"
-              disabled={action.disabled}
-              onClick={() => {
-                action.onClick();
-                setIsOpen(false);
-              }}
-              className={cn(
-                'w-full text-left px-3 py-2 text-ui transition-colors',
-                action.tone === 'danger'
-                  ? 'text-text-muted hover:text-expense hover:bg-expense/8'
-                  : 'text-text-secondary hover:text-text hover:bg-surface-hover',
-                action.disabled && 'opacity-50 cursor-not-allowed hover:bg-transparent hover:text-text-muted',
-              )}
-            >
-              {action.label}
-            </button>
-          ))}
+        <div className="menu-popover right-0 min-w-[144px]">
+          {actions.map((action, index) => {
+            const ActionIcon = action.icon;
+            const showDivider = firstDangerActionIndex > 0 && firstDangerActionIndex === index;
+
+            return (
+              <div key={`${action.label}-${index}`}>
+                {showDivider && <div className="menu-divider" />}
+                <button
+                  type="button"
+                  disabled={action.disabled}
+                  onClick={() => {
+                    action.onClick();
+                    setIsOpen(false);
+                  }}
+                  className={cn(
+                    actionToneClasses[action.tone ?? 'default'],
+                  )}
+                >
+                  {ActionIcon && <ActionIcon size={12} />}
+                  {action.label}
+                </button>
+              </div>
+            );
+          })}
         </div>
       )}
     </div>

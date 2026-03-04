@@ -416,7 +416,7 @@ export function Design1() {
         <div className="d1-logo">
           <Terminal size={28} strokeWidth={2} />
           <div>
-            <div className="d1-logo-text">MELO_MONEY</div>
+              <div className="d1-logo-text">SAVE_SLATE</div>
             <div className="d1-logo-sub">Financial Terminal v2.0</div>
           </div>
         </div>

@@ -14,12 +14,23 @@ import {
   X,
   SlidersHorizontal,
   Tag,
+  Tags,
   Wallet,
   Upload,
 } from "lucide-react";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import { PageHeader, PageHeaderActions } from "../components/layout";
-import { Badge, CategoryPicker, GoalPicker, Icon, Modal, MultiSelectDropdown, PaginationButtons } from "../components/ui";
+import {
+  Badge,
+  CategoryPicker,
+  DeleteConfirmationModal,
+  GoalPicker,
+  Icon,
+  Modal,
+  MultiSelectDropdown,
+  PaginationButtons,
+  TagPicker,
+} from "../components/ui";
 import {
   getAccountById,
   getAccounts,
@@ -37,6 +48,12 @@ import {
   saveTransactions,
 } from "../lib/transaction-storage";
 import {
+  addTag,
+  deleteTag,
+  loadTags,
+  updateTag,
+} from "../lib/tag-storage";
+import {
   inferTransactionType,
   UNCATEGORIZED_CATEGORY_ID,
 } from "../lib/transaction-type";
@@ -50,6 +67,7 @@ import {
 import type {
   ImportBatch,
   AutomationRulePrefillDraft,
+  Tag as TransactionTag,
   Transaction,
   TransactionType,
   TransactionWithDetails as TxDetails,
@@ -224,6 +242,7 @@ function toStoredTransaction(transaction: TxDetails): Transaction {
     ...(transaction.goalId !== undefined && { goalId: transaction.goalId }),
     ...(transaction.importBatchId !== undefined && { importBatchId: transaction.importBatchId }),
     ...(transaction.split !== undefined && { split: transaction.split }),
+    ...(transaction.tagIds !== undefined && { tagIds: transaction.tagIds }),
     ...(transaction.metadata !== undefined && { metadata: transaction.metadata }),
     ...(transaction.rawData !== undefined && { rawData: transaction.rawData }),
   };
@@ -243,6 +262,7 @@ export function Transactions() {
   const initialSourceFilterIds = parseFilterIdsFromQuery(searchParams, "source");
   const initialGoalFilterIds = parseFilterIdsFromQuery(searchParams, "goal");
   const initialAccountFilterIds = parseFilterIdsFromQuery(searchParams, "account");
+  const initialTagFilterIds = parseFilterIdsFromQuery(searchParams, "tag");
 
   // Mutable local state so inline actions (delete, duplicate) work
   const [transactions, setTransactions] = useState(() =>
@@ -253,6 +273,7 @@ export function Transactions() {
   const [searchQuery, setSearchQuery] = useState("");
   const [typeFilter, setTypeFilter] = useState<TransactionType | "all">(initialTypeFilter);
   const [categoryFilterIds, setCategoryFilterIds] = useState<string[]>(initialCategoryFilterIds);
+  const [tagFilterIds, setTagFilterIds] = useState<string[]>(initialTagFilterIds);
   const [sourceFilterIds, setSourceFilterIds] = useState<string[]>(initialSourceFilterIds);
   const [showUncategorizedOnly, setShowUncategorizedOnly] = useState(false);
   const [sortField, setSortField] = useState<SortField>("date");
@@ -271,13 +292,18 @@ export function Transactions() {
   const [page, setPage] = useState(0);
   const [pageSize, setPageSize] = useState<number>(PAGE_SIZES[0]);
 
+  // Tags state
+  const [tags, setTags] = useState<TransactionTag[]>(() => loadTags());
+
   // Popover state — at most one open at a time
   const [openActionId, setOpenActionId] = useState<string | null>(null);
   const [editingCategoryId, setEditingCategoryId] = useState<string | null>(
     null,
   );
   const [editingGoalId, setEditingGoalId] = useState<string | null>(null);
+  const [editingTagsId, setEditingTagsId] = useState<string | null>(null);
   const [isSourceMenuOpen, setIsSourceMenuOpen] = useState(false);
+  const [transactionToDelete, setTransactionToDelete] = useState<TxDetails | null>(null);
   const [sourceToDelete, setSourceToDelete] = useState<SourceOption | null>(null);
   const [sourceToRename, setSourceToRename] = useState<SourceOption | null>(null);
   const [sourceRenameValue, setSourceRenameValue] = useState("");
@@ -289,6 +315,7 @@ export function Transactions() {
     searchQuery,
     typeFilter,
     categoryFilterIds,
+    tagFilterIds,
     sourceFilterIds,
     goalFilterIds,
     accountFilterIds,
@@ -305,25 +332,36 @@ export function Transactions() {
     setOpenActionId(null);
     setEditingCategoryId(null);
     setEditingGoalId(null);
+    setEditingTagsId(null);
     setIsSourceMenuOpen(false);
   };
 
   const toggleAction = (txId: string) => {
     setEditingCategoryId(null);
     setEditingGoalId(null);
+    setEditingTagsId(null);
     setOpenActionId((prev) => (prev === txId ? null : txId));
   };
 
   const toggleEditCategory = (txId: string) => {
     setOpenActionId(null);
     setEditingGoalId(null);
+    setEditingTagsId(null);
     setEditingCategoryId((prev) => (prev === txId ? null : txId));
   };
 
   const toggleEditGoal = (txId: string) => {
     setOpenActionId(null);
     setEditingCategoryId(null);
+    setEditingTagsId(null);
     setEditingGoalId((prev) => (prev === txId ? null : txId));
+  };
+
+  const toggleEditTags = (txId: string) => {
+    setOpenActionId(null);
+    setEditingCategoryId(null);
+    setEditingGoalId(null);
+    setEditingTagsId((prev) => (prev === txId ? null : txId));
   };
 
   const handleAction = (
@@ -332,10 +370,11 @@ export function Transactions() {
   ) => {
     closePopovers();
     if (action === "delete") {
-      setTransactions((prev) => {
-        const nextTransactions = prev.filter((tx) => tx.id !== txId);
-        return persistTransactions(nextTransactions);
-      });
+      const targetTransaction = transactions.find((transaction) => transaction.id === txId);
+      if (targetTransaction) {
+        setTransactionToDelete(targetTransaction);
+      }
+      return;
     } else if (action === "duplicate") {
       setTransactions((prev) => {
         const tx = prev.find((t) => t.id === txId);
@@ -348,6 +387,18 @@ export function Transactions() {
       });
     }
     // edit: no-op for mockup
+  };
+
+  const handleConfirmDeleteTransaction = () => {
+    if (!transactionToDelete) {
+      return;
+    }
+
+    setTransactions((prev) => {
+      const nextTransactions = prev.filter((tx) => tx.id !== transactionToDelete.id);
+      return persistTransactions(nextTransactions);
+    });
+    setTransactionToDelete(null);
   };
 
   const handleCategoryChange = (txId: string, categoryId: string) => {
@@ -393,6 +444,32 @@ export function Transactions() {
 
     setEditingGoalId(null);
     setOpenActionId(null);
+  };
+
+  const handleTagsChange = (txId: string, nextTagIds: string[]) => {
+    const availableTagIds = new Set(tags.map((tag) => tag.id));
+    const normalizedTagIds = Array.from(
+      new Set(
+        nextTagIds
+          .map((tagId) => tagId.trim())
+          .filter((tagId) => tagId.length > 0 && availableTagIds.has(tagId)),
+      ),
+    );
+
+    setTransactions((prev) => {
+      const nextTransactions = prev.map((tx) => {
+        if (tx.id !== txId) {
+          return tx;
+        }
+
+        return {
+          ...tx,
+          tagIds: normalizedTagIds.length > 0 ? normalizedTagIds : undefined,
+        };
+      });
+
+      return persistTransactions(nextTransactions);
+    });
   };
 
   const openQuickAutoRuleModal = (transaction: TxDetails) => {
@@ -460,6 +537,32 @@ export function Transactions() {
       })),
     [availableCategories],
   );
+
+  const tagsById = useMemo(
+    () => new Map(tags.map((tag) => [tag.id, tag] as const)),
+    [tags],
+  );
+
+  const tagOptions = useMemo(
+    () =>
+      [...tags]
+        .sort((left, right) => left.name.localeCompare(right.name))
+        .map((tag) => ({
+          id: tag.id,
+          label: tag.name,
+        })),
+    [tags],
+  );
+
+  const tagTransactionCountById = useMemo(() => {
+    const counts = new Map<string, number>();
+    transactions.forEach((transaction) => {
+      transaction.tagIds?.forEach((tagId) => {
+        counts.set(tagId, (counts.get(tagId) ?? 0) + 1);
+      });
+    });
+    return counts;
+  }, [transactions]);
 
   const goalOptions = useMemo(
     () => getGoals().map((g) => ({ id: g.id, label: g.name })),
@@ -606,6 +709,41 @@ export function Transactions() {
     setSourceToDelete(null);
   };
 
+  const handleCreateTag = (draft: { name: string; color: string }): TransactionTag => {
+    const createdTag = addTag(draft);
+    setTags(loadTags());
+    return createdTag;
+  };
+
+  const handleUpdateTag = (
+    tagId: string,
+    updates: { name: string; color: string },
+  ): TransactionTag => {
+    const updatedTag = updateTag(tagId, updates);
+    if (!updatedTag) {
+      throw new Error("Tag not found.");
+    }
+
+    setTags(loadTags());
+    return updatedTag;
+  };
+
+  const handleDeleteTag = (tagId: string): boolean => {
+    const deleteResult = deleteTag(tagId);
+    if (!deleteResult.deleted) {
+      return false;
+    }
+
+    setTags(loadTags());
+    setTagFilterIds((prev) => prev.filter((selectedTagId) => selectedTagId !== tagId));
+
+    if (deleteResult.unlinkedTransactions > 0) {
+      setTransactions(loadTransactionsWithDetails());
+    }
+
+    return true;
+  };
+
   // Filtered scope before uncategorized toggle
   const scopedTransactions = useMemo(() => {
     let result = [...transactions];
@@ -616,7 +754,8 @@ export function Transactions() {
         (t) =>
           t.description.toLowerCase().includes(query) ||
           t.category.name.toLowerCase().includes(query) ||
-          t.goal?.name.toLowerCase().includes(query),
+          t.goal?.name.toLowerCase().includes(query) ||
+          (t.tagIds ?? []).some((tagId) => tagsById.get(tagId)?.name.toLowerCase().includes(query)),
       );
     }
 
@@ -627,6 +766,13 @@ export function Transactions() {
     if (categoryFilterIds.length > 0) {
       const selected = new Set(categoryFilterIds);
       result = result.filter((t) => selected.has(t.categoryId));
+    }
+
+    if (tagFilterIds.length > 0) {
+      const selected = new Set(tagFilterIds);
+      result = result.filter((transaction) =>
+        transaction.tagIds?.some((tagId) => selected.has(tagId)),
+      );
     }
 
     if (activeSourceFilterIds.length > 0) {
@@ -670,8 +816,10 @@ export function Transactions() {
   }, [
     transactions,
     searchQuery,
+    tagsById,
     typeFilter,
     categoryFilterIds,
+    tagFilterIds,
     activeSourceFilterIds,
     goalFilterIds,
     accountFilterIds,
@@ -731,6 +879,7 @@ export function Transactions() {
 
   const hasAnyFilter =
     categoryFilterIds.length > 0 ||
+    tagFilterIds.length > 0 ||
     activeSourceFilterIds.length > 0 ||
     goalFilterIds.length > 0 ||
     accountFilterIds.length > 0 ||
@@ -742,6 +891,7 @@ export function Transactions() {
     setSearchQuery("");
     setTypeFilter("all");
     setCategoryFilterIds([]);
+    setTagFilterIds([]);
     setSourceFilterIds([]);
     setGoalFilterIds([]);
     setAccountFilterIds([]);
@@ -783,6 +933,7 @@ export function Transactions() {
           searchQuery,
           type: typeFilter,
           categoryIds: categoryFilterIds,
+          tagIds: tagFilterIds,
           sourceIds: activeSourceFilterIds,
           goalIds: goalFilterIds,
           accountIds: accountFilterIds,
@@ -812,6 +963,10 @@ export function Transactions() {
         transferPairRole: transaction.transferPairRole ?? null,
         goalId: transaction.goalId ?? null,
         goalName: transaction.goal?.name ?? null,
+        tagIds: transaction.tagIds ?? [],
+        tagNames: (transaction.tagIds ?? [])
+          .map((tagId) => tagsById.get(tagId)?.name)
+          .filter((tagName): tagName is string => Boolean(tagName)),
         importBatchId: transaction.importBatchId ?? null,
         split: transaction.split ?? null,
         metadata: transaction.metadata ?? null,
@@ -820,7 +975,7 @@ export function Transactions() {
     };
 
     const fileDate = new Date().toISOString().split("T")[0];
-    const fileName = `melomoney-transactions-filtered-${fileDate}.json`;
+    const fileName = `saveslate-transactions-filtered-${fileDate}.json`;
     const blob = new Blob([JSON.stringify(exportPayload, null, 2)], {
       type: "application/json",
     });
@@ -837,37 +992,36 @@ export function Transactions() {
   return (
     <div className="page-container">
       {/* Backdrop — closes any open popover on click */}
-      {(openActionId || editingCategoryId || editingGoalId) && (
+      {(openActionId || editingCategoryId || editingGoalId || editingTagsId) && (
         <div className="fixed inset-0 z-10" onClick={closePopovers} />
       )}
 
+      {transactionToDelete && (
+        <DeleteConfirmationModal
+          title="Delete transaction?"
+          description={(
+            <>
+              This will permanently delete <span className="text-text">{transactionToDelete.description}</span> ({formatSignedCurrency(transactionToDelete.amount, transactionToDelete.currency)}).
+            </>
+          )}
+          confirmLabel="Delete transaction"
+          onConfirm={handleConfirmDeleteTransaction}
+          onClose={() => setTransactionToDelete(null)}
+        />
+      )}
+
       {sourceToDelete && (
-        <Modal onClose={() => setSourceToDelete(null)} panelClassName="max-w-md p-5 space-y-4">
-          <div>
-              <h2 className="heading-2">Delete source?</h2>
-              <p className="text-body">
-                This will permanently delete <span className="text-text">{sourceToDelete.label}</span> and
-                <span className="text-expense"> {sourceToDelete.count} transaction{sourceToDelete.count === 1 ? "" : "s"}</span>.
-              </p>
-              <p className="text-ui text-text-muted">This action cannot be undone.</p>
-              <div className="flex items-center justify-end gap-2">
-                <button
-                  type="button"
-                  onClick={() => setSourceToDelete(null)}
-                  className="btn-secondary"
-                >
-                  Cancel
-                </button>
-                <button
-                  type="button"
-                  onClick={handleConfirmDeleteSource}
-                  className="btn-secondary border-expense/40 text-expense hover:bg-expense/10 hover:border-expense"
-                >
-                  Delete source
-                </button>
-              </div>
-          </div>
-        </Modal>
+        <DeleteConfirmationModal
+          title="Delete source?"
+          description={(
+            <>
+              This will permanently delete <span className="text-text">{sourceToDelete.label}</span> and <span className="text-expense">{sourceToDelete.count} transaction{sourceToDelete.count === 1 ? "" : "s"}</span>.
+            </>
+          )}
+          confirmLabel="Delete source"
+          onConfirm={handleConfirmDeleteSource}
+          onClose={() => setSourceToDelete(null)}
+        />
       )}
 
       {sourceToRename && (
@@ -1012,7 +1166,7 @@ export function Transactions() {
           />
         </div>
 
-        {/* Row 2: 4 multi-select dropdowns + Filters toggle */}
+        {/* Row 2: 5 multi-select dropdowns + Filters toggle */}
         <div className="flex flex-col lg:flex-row gap-3">
           {/* Category multi-select */}
           <MultiSelectDropdown
@@ -1021,6 +1175,16 @@ export function Transactions() {
             onChange={setCategoryFilterIds}
             allLabel="Categories"
             icon={<Tag size={14} />}
+            className="w-full lg:flex-1 lg:min-w-0"
+          />
+
+          {/* Tag multi-select */}
+          <MultiSelectDropdown
+            options={tagOptions}
+            selectedIds={tagFilterIds}
+            onChange={setTagFilterIds}
+            allLabel="Tags"
+            icon={<Tags size={14} />}
             className="w-full lg:flex-1 lg:min-w-0"
           />
 
@@ -1052,6 +1216,7 @@ export function Transactions() {
                 setOpenActionId(null);
                 setEditingCategoryId(null);
                 setEditingGoalId(null);
+                setEditingTagsId(null);
                 setIsSourceMenuOpen((prev) => !prev);
               }}
               className={cn(
@@ -1264,6 +1429,18 @@ export function Transactions() {
               <X size={12} />
             </button>
           )}
+          {tagFilterIds.length > 0 && (
+            <button
+              type="button"
+              onClick={() => setTagFilterIds([])}
+              className="flex items-center gap-1 px-2 py-1 rounded-full text-sm bg-accent/10 text-accent border border-accent/20 cursor-pointer transition-opacity hover:opacity-80"
+            >
+              {tagFilterIds.length === 1
+                ? (tagOptions.find((tagOption) => tagOption.id === tagFilterIds[0])?.label ?? "1 tag")
+                : `${tagFilterIds.length} tags`}
+              <X size={12} />
+            </button>
+          )}
           {goalFilterIds.length > 0 && (
             <button
               type="button"
@@ -1397,11 +1574,20 @@ export function Transactions() {
               isActionOpen={openActionId === tx.id}
               isEditingCategory={editingCategoryId === tx.id}
               isEditingGoal={editingGoalId === tx.id}
+              isEditingTags={editingTagsId === tx.id}
+              availableTags={tags}
+              availableTagsById={tagsById}
+              tagUsageCountById={tagTransactionCountById}
               onToggleAction={() => toggleAction(tx.id)}
               onToggleEditCategory={() => toggleEditCategory(tx.id)}
               onToggleEditGoal={() => toggleEditGoal(tx.id)}
+              onToggleEditTags={() => toggleEditTags(tx.id)}
               onCategoryChange={(catId) => handleCategoryChange(tx.id, catId)}
               onGoalChange={(goalId) => handleGoalChange(tx.id, goalId)}
+              onTagsChange={(tagIds) => handleTagsChange(tx.id, tagIds)}
+              onCreateTag={handleCreateTag}
+              onUpdateTag={handleUpdateTag}
+              onDeleteTag={handleDeleteTag}
               onCreateRule={() => openQuickAutoRuleModal(tx)}
               onAction={(action) => handleAction(tx.id, action)}
             />
@@ -1444,11 +1630,20 @@ interface TransactionRowProps {
   isActionOpen: boolean;
   isEditingCategory: boolean;
   isEditingGoal: boolean;
+  isEditingTags: boolean;
+  availableTags: TransactionTag[];
+  availableTagsById: Map<string, TransactionTag>;
+  tagUsageCountById: Map<string, number>;
   onToggleAction: () => void;
   onToggleEditCategory: () => void;
   onToggleEditGoal: () => void;
+  onToggleEditTags: () => void;
   onCategoryChange: (categoryId: string) => void;
   onGoalChange: (goalId: string | null) => void;
+  onTagsChange: (tagIds: string[]) => void;
+  onCreateTag: (draft: { name: string; color: string }) => TransactionTag;
+  onUpdateTag: (tagId: string, updates: { name: string; color: string }) => TransactionTag;
+  onDeleteTag: (tagId: string) => boolean;
   onCreateRule: () => void;
   onAction: (action: "edit" | "duplicate" | "delete") => void;
 }
@@ -1459,11 +1654,20 @@ function TransactionRow({
   isActionOpen,
   isEditingCategory,
   isEditingGoal,
+  isEditingTags,
+  availableTags,
+  availableTagsById,
+  tagUsageCountById,
   onToggleAction,
   onToggleEditCategory,
   onToggleEditGoal,
+  onToggleEditTags,
   onCategoryChange,
   onGoalChange,
+  onTagsChange,
+  onCreateTag,
+  onUpdateTag,
+  onDeleteTag,
   onCreateRule,
   onAction,
 }: TransactionRowProps) {
@@ -1480,6 +1684,11 @@ function TransactionRow({
         transferPairRole: transaction.transferPairRole,
       })
     : null;
+  const resolvedTags = (transaction.tagIds ?? [])
+    .map((tagId) => availableTagsById.get(tagId))
+    .filter((tag): tag is TransactionTag => tag !== undefined);
+  const visibleTags = resolvedTags.slice(0, 2);
+  const hiddenTagCount = resolvedTags.length - visibleTags.length;
 
   return (
     <div className="group flex items-center gap-3 py-3 border-b border-border last:border-b-0 transition-colors duration-150 hover:bg-surface-hover/30 relative">
@@ -1544,8 +1753,21 @@ function TransactionRow({
             </div>
             {transaction.goal && (
               <span className="inline-flex items-center gap-1 text-ui text-goal max-w-36">
-                <Target size={10} className="shrink-0" />
+                <Icon name={transaction.goal.icon} size={10} className="shrink-0" />
                 <span className="truncate">{transaction.goal.name}</span>
+              </span>
+            )}
+            {resolvedTags.length > 0 && (
+              <span className="inline-flex items-center gap-2 flex-wrap max-w-full">
+                {visibleTags.map((tag) => (
+                  <span key={tag.id} className="inline-flex items-center gap-1 text-ui max-w-36" style={{ color: tag.color }}>
+                    <Tag size={10} className="shrink-0" />
+                    <span className="truncate">{tag.name}</span>
+                  </span>
+                ))}
+                {hiddenTagCount > 0 && (
+                  <span className="text-ui text-text-muted">+{hiddenTagCount}</span>
+                )}
               </span>
             )}
             {transferFlow && (
@@ -1597,9 +1819,11 @@ function TransactionRow({
               <ActionMenu
                 onAction={onAction}
                 onEditGoal={onToggleEditGoal}
+                onEditTags={onToggleEditTags}
                 onRemoveGoal={() => onGoalChange(null)}
                 onCreateRule={onCreateRule}
                 hasGoal={Boolean(transaction.goalId)}
+                hasTags={resolvedTags.length > 0}
                 className="right-0"
               />
             )}
@@ -1608,6 +1832,19 @@ function TransactionRow({
                 currentGoalId={transaction.goalId}
                 onSelect={onGoalChange}
                 onClose={onToggleEditGoal}
+                className="top-full right-0 mt-1"
+              />
+            )}
+            {isEditingTags && (
+              <TagPicker
+                tags={availableTags}
+                selectedTagIds={transaction.tagIds ?? []}
+                onChange={onTagsChange}
+                onCreateTag={onCreateTag}
+                onUpdateTag={onUpdateTag}
+                onDeleteTag={onDeleteTag}
+                tagUsageCountById={tagUsageCountById}
+                onClose={onToggleEditTags}
                 className="top-full right-0 mt-1"
               />
             )}
@@ -1663,11 +1900,27 @@ function TransactionRow({
                 openUpward={openCategoryUpward}
               />
             )}
+            {resolvedTags.length > 0 && (
+              <>
+                <span>&middot;</span>
+                <span className="inline-flex items-center gap-2 flex-wrap max-w-[360px]">
+                  {visibleTags.map((tag) => (
+                    <span key={tag.id} className="inline-flex items-center gap-1 text-ui max-w-40" style={{ color: tag.color }}>
+                      <Tag size={10} className="shrink-0" />
+                      <span className="truncate">{tag.name}</span>
+                    </span>
+                  ))}
+                  {hiddenTagCount > 0 && (
+                    <span className="text-ui text-text-muted">+{hiddenTagCount}</span>
+                  )}
+                </span>
+              </>
+            )}
             {transaction.goal && (
               <>
                 <span>&middot;</span>
                 <span className="inline-flex items-center gap-1 text-goal max-w-40">
-                  <Target size={10} className="shrink-0" />
+                  <Icon name={transaction.goal.icon} size={10} className="shrink-0" />
                   <span className="truncate">{transaction.goal.name}</span>
                 </span>
               </>
@@ -1709,9 +1962,11 @@ function TransactionRow({
               <ActionMenu
                 onAction={onAction}
                 onEditGoal={onToggleEditGoal}
+                onEditTags={onToggleEditTags}
                 onRemoveGoal={() => onGoalChange(null)}
                 onCreateRule={onCreateRule}
                 hasGoal={Boolean(transaction.goalId)}
+                hasTags={resolvedTags.length > 0}
                 className="right-0"
               />
           )}
@@ -1720,6 +1975,19 @@ function TransactionRow({
               currentGoalId={transaction.goalId}
               onSelect={onGoalChange}
               onClose={onToggleEditGoal}
+              className="top-full right-0 mt-1"
+            />
+          )}
+          {isEditingTags && (
+            <TagPicker
+              tags={availableTags}
+              selectedTagIds={transaction.tagIds ?? []}
+              onChange={onTagsChange}
+              onCreateTag={onCreateTag}
+              onUpdateTag={onUpdateTag}
+              onDeleteTag={onDeleteTag}
+              tagUsageCountById={tagUsageCountById}
+              onClose={onToggleEditTags}
               className="top-full right-0 mt-1"
             />
           )}
@@ -1736,34 +2004,37 @@ function TransactionRow({
 interface ActionMenuProps {
   onAction: (action: "edit" | "duplicate" | "delete") => void;
   onEditGoal: () => void;
+  onEditTags: () => void;
   onRemoveGoal: () => void;
   onCreateRule: () => void;
   hasGoal: boolean;
+  hasTags: boolean;
   className?: string;
 }
 
 function ActionMenu({
   onAction,
   onEditGoal,
+  onEditTags,
   onRemoveGoal,
   onCreateRule,
   hasGoal,
+  hasTags,
   className,
 }: ActionMenuProps) {
-  const itemClass =
-    "flex items-center gap-2.5 w-full px-3 py-2 text-left bg-transparent border-none cursor-pointer text-ui hover:bg-surface-hover transition-colors";
+  const itemClass = "menu-item";
 
   return (
     <div
       className={cn(
-        "absolute top-full w-44 bg-surface border border-border rounded-(--radius-md) py-1 z-20 shadow-(--shadow-md)",
+        "menu-popover w-44",
         className,
       )}
       onClick={(e) => e.stopPropagation()}
     >
       <button
         onClick={onEditGoal}
-        className={cn(itemClass, "text-text-secondary hover:text-text")}
+        className={itemClass}
       >
         <Target size={12} />
         {hasGoal ? "Change goal" : "Set goal"}
@@ -1771,38 +2042,45 @@ function ActionMenu({
       {hasGoal && (
         <button
           onClick={onRemoveGoal}
-          className={cn(itemClass, "text-text-muted hover:text-text")}
+          className={itemClass}
         >
           <Target size={12} />
           Unlink goal
         </button>
       )}
       <button
+        onClick={onEditTags}
+        className={itemClass}
+      >
+        <Tags size={12} />
+        {hasTags ? "Edit tags" : "Set tags"}
+      </button>
+      <button
         onClick={onCreateRule}
-        className={cn(itemClass, "text-text-secondary hover:text-text")}
+        className={itemClass}
       >
         <Filter size={12} />
         Create rule
       </button>
-      <div className="h-px bg-border mx-2 my-1" />
+      <div className="menu-divider" />
       <button
         onClick={() => onAction("edit")}
-        className={cn(itemClass, "text-text-secondary hover:text-text")}
+        className={itemClass}
       >
         <Pencil size={12} />
         Edit
       </button>
       <button
         onClick={() => onAction("duplicate")}
-        className={cn(itemClass, "text-text-secondary hover:text-text")}
+        className={itemClass}
       >
         <Copy size={12} />
         Duplicate
       </button>
-      <div className="h-px bg-border mx-2 my-1" />
+      <div className="menu-divider" />
       <button
         onClick={() => onAction("delete")}
-        className={cn(itemClass, "text-expense hover:text-expense")}
+        className="menu-item-danger"
       >
         <Trash2 size={12} />
         Delete

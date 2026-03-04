@@ -499,7 +499,7 @@ export function Design3() {
               <Grid size={26} />
             </div>
             <div>
-              <div className="d3-logo-text">MELO MONEY</div>
+              <div className="d3-logo-text">SAVE SLATE</div>
               <div className="d3-logo-sub">Neon Finance System</div>
             </div>
           </div>

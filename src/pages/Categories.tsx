@@ -1,8 +1,9 @@
 import { useMemo, useRef, useState, type ChangeEvent, type FormEvent } from 'react';
 import * as LucideIcons from 'lucide-react';
-import { ChevronDown, Search, X } from 'lucide-react';
+import { ChevronDown, Pencil, Search, Trash2, X } from 'lucide-react';
 import { PageHeader, PageHeaderActions } from '../components/layout';
 import {
+  DeleteConfirmationModal,
   EntityCard,
   EntityCardOverflowMenu,
   Icon,
@@ -155,6 +156,7 @@ export function Categories() {
   const [categoryGroups, setCategoryGroups] = useState<CategoryGroup[]>(DEFAULT_CATEGORY_GROUPS);
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
   const [editingCategoryId, setEditingCategoryId] = useState<string | null>(null);
+  const [categoryToDelete, setCategoryToDelete] = useState<Category | null>(null);
   const [isIconPickerOpen, setIsIconPickerOpen] = useState(false);
   const [iconSearchQuery, setIconSearchQuery] = useState('');
   const [importError, setImportError] = useState<string | null>(null);
@@ -257,6 +259,26 @@ export function Categories() {
     setCategories((prev) => prev.filter((c) => c.id !== categoryId));
   };
 
+  const requestDeleteCategory = (category: Category) => {
+    if (LOCKED_CATEGORY_IDS.has(category.id)) {
+      return;
+    }
+
+    setCategoryToDelete(category);
+  };
+
+  const handleConfirmDeleteCategory = () => {
+    if (!categoryToDelete) {
+      return;
+    }
+
+    handleDelete(categoryToDelete.id);
+    if (editingCategoryId === categoryToDelete.id) {
+      closeModal();
+    }
+    setCategoryToDelete(null);
+  };
+
   const handleCreateCategory = (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
     const categoryName = form.name.trim();
@@ -309,7 +331,7 @@ export function Categories() {
     };
 
     const fileDate = new Date().toISOString().split('T')[0];
-    const fileName = `melomoney-categories-${fileDate}.json`;
+    const fileName = `saveslate-categories-${fileDate}.json`;
     const blob = new Blob([JSON.stringify(exportPayload, null, 2)], {
       type: 'application/json',
     });
@@ -416,6 +438,20 @@ export function Categories() {
 
       {importError && (
         <p className="text-ui text-expense mb-3">{importError}</p>
+      )}
+
+      {categoryToDelete && (
+        <DeleteConfirmationModal
+          title="Delete category?"
+          description={(
+            <>
+              This will permanently delete <span className="text-text">{categoryToDelete.name}</span>.
+            </>
+          )}
+          confirmLabel="Delete category"
+          onConfirm={handleConfirmDeleteCategory}
+          onClose={() => setCategoryToDelete(null)}
+        />
       )}
 
       {isCreateModalOpen && (
@@ -589,8 +625,8 @@ export function Categories() {
                             <EntityCardOverflowMenu
                               label={`Actions for ${cat.name}`}
                               actions={[
-                                { label: 'Edit', onClick: () => openEditModal(cat) },
-                                { label: 'Delete', onClick: () => handleDelete(cat.id), tone: 'danger' },
+                                { label: 'Edit', icon: Pencil, onClick: () => openEditModal(cat) },
+                                { label: 'Delete', icon: Trash2, onClick: () => requestDeleteCategory(cat), tone: 'danger' },
                               ]}
                             />
                           )

@@ -1,4 +1,4 @@
-// Core domain types for MeloMoney
+// Core domain types for SaveSlate
 
 export type TransactionType = 'income' | 'expense' | 'transfer';
 
@@ -22,6 +22,14 @@ export interface CategoryGroup {
   icon: string;
   order: number;
   isDefault?: boolean;
+}
+
+export interface Tag {
+  id: string;
+  name: string;
+  color: string;
+  createdAt: string;
+  updatedAt: string;
 }
 
 export interface Goal {
@@ -68,6 +76,7 @@ export interface Transaction {
   goalId?: string; // Direct link to a goal this transaction contributes to
   importBatchId?: string; // Links to an ImportBatch if imported from CSV
   split?: SplitInfo;
+  tagIds?: string[];
   metadata?: TransactionMetadataEntry[]; // Curated key/value metadata shown in-app
   rawData?: Record<string, string>; // Original CSV row data (header -> value)
 }

@@ -12,6 +12,7 @@ import {
   HelpCircle,
   LogOut,
   ChevronLeft,
+  PiggyBank,
   type LucideIcon,
 } from 'lucide-react';
 import { cn } from '../../lib/utils';
@@ -75,20 +76,27 @@ export function Sidebar({ collapsed, onToggleCollapse }: SidebarProps) {
         {!isCollapsed && (
           <Link
             to="/"
-            className="text-lg font-semibold tracking-tight whitespace-nowrap overflow-hidden text-text hover:text-text transition-colors"
-            style={{ fontFamily: 'var(--font-display)', letterSpacing: '-0.03em', textDecoration: 'none' }}
+            className="inline-flex items-center gap-2.5 whitespace-nowrap overflow-hidden text-text hover:text-text transition-colors"
+            style={{ textDecoration: 'none' }}
           >
-            <span className="text-accent">M</span>
-            <span>eloMoney</span>
+            <span className="w-8 h-8 rounded-(--radius-md) border border-accent/40 bg-accent/12 text-accent flex items-center justify-center shrink-0">
+              <PiggyBank size={16} />
+            </span>
+            <span
+              className="text-text"
+              style={{ fontFamily: 'var(--font-display)', fontSize: '22px', fontWeight: 600, letterSpacing: '-0.03em' }}
+            >
+              SaveSlate
+            </span>
           </Link>
         )}
         {isCollapsed && isMobile && (
           <Link
             to="/"
-            className="text-lg font-semibold text-accent hover:text-accent transition-colors"
-            style={{ fontFamily: 'var(--font-display)', letterSpacing: '-0.03em', textDecoration: 'none' }}
+            className="w-8 h-8 rounded-(--radius-md) border border-accent/40 bg-accent/12 text-accent flex items-center justify-center hover:border-accent transition-colors"
+            style={{ textDecoration: 'none' }}
           >
-            M
+            <PiggyBank size={16} />
           </Link>
         )}
         {!isMobile && (
@@ -99,16 +107,13 @@ export function Sidebar({ collapsed, onToggleCollapse }: SidebarProps) {
               'rounded-(--radius-sm) bg-transparent border border-border',
               'text-text-muted hover:text-text hover:border-text-muted',
               'flex items-center justify-center transition-all duration-150',
-              isCollapsed ? 'h-8 min-w-11 px-1.5 gap-1.5' : 'w-7 h-7',
+              isCollapsed ? 'h-8 min-w-12 px-1.5 gap-1.5' : 'w-7 h-7',
             )}
           >
             {isCollapsed ? (
               <>
-                <span
-                  className="text-accent text-lg font-semibold leading-none"
-                  style={{ fontFamily: 'var(--font-display)', letterSpacing: '-0.03em' }}
-                >
-                  M
+                <span className="w-6 h-6 rounded-(--radius-sm) border border-accent/40 bg-accent/12 text-accent flex items-center justify-center">
+                  <PiggyBank size={12} />
                 </span>
                 <ChevronLeft size={14} className="rotate-180" />
               </>
