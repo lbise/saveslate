@@ -21,6 +21,10 @@ import {
 import { useNavigate, useSearchParams } from "react-router-dom";
 import { PageHeader, PageHeaderActions } from "../components/layout";
 import {
+  TransactionFormModal,
+  type TransactionFormSubmitPayload,
+} from "../components/transactions";
+import {
   Badge,
   CategoryPicker,
   DeleteConfirmationModal,
@@ -294,6 +298,8 @@ export function Transactions() {
 
   // Tags state
   const [tags, setTags] = useState<TransactionTag[]>(() => loadTags());
+  const [isTransactionFormOpen, setIsTransactionFormOpen] = useState(false);
+  const [editingTransactionId, setEditingTransactionId] = useState<string | null>(null);
 
   // Popover state — at most one open at a time
   const [openActionId, setOpenActionId] = useState<string | null>(null);
@@ -307,6 +313,26 @@ export function Transactions() {
   const [sourceToDelete, setSourceToDelete] = useState<SourceOption | null>(null);
   const [sourceToRename, setSourceToRename] = useState<SourceOption | null>(null);
   const [sourceRenameValue, setSourceRenameValue] = useState("");
+
+  const editingTransaction = useMemo(() => {
+    if (!editingTransactionId) {
+      return null;
+    }
+
+    return transactions.find((transaction) => transaction.id === editingTransactionId) ?? null;
+  }, [editingTransactionId, transactions]);
+
+  const availableAccounts = useMemo(
+    () => getAccounts(),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [transactions],
+  );
+
+  const availableGoals = useMemo(
+    () => getGoals(),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [transactions],
+  );
 
   // Reset to first page when filters change
   useEffect(() => {
@@ -334,6 +360,23 @@ export function Transactions() {
     setEditingGoalId(null);
     setEditingTagsId(null);
     setIsSourceMenuOpen(false);
+  };
+
+  const closeTransactionForm = () => {
+    setIsTransactionFormOpen(false);
+    setEditingTransactionId(null);
+  };
+
+  const openCreateTransactionForm = () => {
+    closePopovers();
+    setEditingTransactionId(null);
+    setIsTransactionFormOpen(true);
+  };
+
+  const openEditTransactionForm = (txId: string) => {
+    closePopovers();
+    setEditingTransactionId(txId);
+    setIsTransactionFormOpen(true);
   };
 
   const toggleAction = (txId: string) => {
@@ -375,7 +418,14 @@ export function Transactions() {
         setTransactionToDelete(targetTransaction);
       }
       return;
-    } else if (action === "duplicate") {
+    }
+
+    if (action === "edit") {
+      openEditTransactionForm(txId);
+      return;
+    }
+
+    if (action === "duplicate") {
       setTransactions((prev) => {
         const tx = prev.find((t) => t.id === txId);
         if (!tx) return prev;
@@ -386,7 +436,6 @@ export function Transactions() {
         return persistTransactions(next);
       });
     }
-    // edit: no-op for mockup
   };
 
   const handleConfirmDeleteTransaction = () => {
@@ -399,6 +448,43 @@ export function Transactions() {
       return persistTransactions(nextTransactions);
     });
     setTransactionToDelete(null);
+  };
+
+  const handleSubmitTransactionForm = (payload: TransactionFormSubmitPayload) => {
+    const storedTransactions = loadTransactions();
+
+    if (editingTransactionId) {
+      const targetIndex = storedTransactions.findIndex(
+        (transaction) => transaction.id === editingTransactionId,
+      );
+
+      if (targetIndex === -1) {
+        closeTransactionForm();
+        setTransactions(loadTransactionsWithDetails());
+        return;
+      }
+
+      const currentTransaction = storedTransactions[targetIndex];
+      storedTransactions[targetIndex] = {
+        ...currentTransaction,
+        ...payload,
+        transactionId: payload.transactionId,
+        time: payload.time,
+        goalId: payload.goalId,
+        split: payload.split,
+        tagIds: payload.tagIds,
+      };
+    } else {
+      storedTransactions.push({
+        id: `txn-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
+        ...payload,
+      });
+    }
+
+    saveTransactions(storedTransactions);
+    setTransactions(loadTransactionsWithDetails());
+    setTags(loadTags());
+    closeTransactionForm();
   };
 
   const handleCategoryChange = (txId: string, categoryId: string) => {
@@ -1074,12 +1160,25 @@ export function Transactions() {
         </Modal>
       )}
 
+      {isTransactionFormOpen && (
+        <TransactionFormModal
+          mode={editingTransaction ? "edit" : "create"}
+          transaction={editingTransaction}
+          accounts={availableAccounts}
+          categories={CATEGORIES}
+          goals={availableGoals}
+          tags={tags}
+          onCancel={closeTransactionForm}
+          onSubmit={handleSubmitTransactionForm}
+        />
+      )}
+
       {/* Header */}
       <PageHeader title="Transactions">
         <PageHeaderActions
           onImport={() => navigate("/import")}
           onExport={handleExportJson}
-          onCreate={() => undefined}
+          onCreate={openCreateTransactionForm}
           exportDisabled={filteredTransactions.length === 0}
         />
       </PageHeader>
