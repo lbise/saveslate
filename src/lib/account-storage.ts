@@ -1,9 +1,7 @@
 import type { Account, AccountType } from '../types';
-import { readStorageWithLegacy } from './storage-migration';
 import { loadTransactions } from './transaction-storage';
 
 const ACCOUNTS_KEY = 'saveslate:accounts';
-const LEGACY_ACCOUNTS_KEY = 'melomoney:accounts';
 
 function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === 'object' && value !== null;
@@ -73,7 +71,7 @@ export function saveAccounts(accounts: Account[]): void {
 
 export function loadAccounts(): Account[] {
   try {
-    const raw = readStorageWithLegacy(ACCOUNTS_KEY, LEGACY_ACCOUNTS_KEY);
+    const raw = localStorage.getItem(ACCOUNTS_KEY);
     if (!raw) {
       return [];
     }

@@ -1,9 +1,7 @@
 import type { Tag } from '../types';
-import { readStorageWithLegacy } from './storage-migration';
 import { loadTransactions, saveTransactions } from './transaction-storage';
 
 const TAGS_KEY = 'saveslate:tags';
-const LEGACY_TAGS_KEY = 'melomoney:tags';
 const HEX_COLOR_PATTERN = /^#(?:[0-9a-fA-F]{3}|[0-9a-fA-F]{6})$/;
 
 export const DEFAULT_TAG_COLOR = '#55AEC8';
@@ -92,7 +90,7 @@ export function saveTags(tags: Tag[]): void {
 
 export function loadTags(): Tag[] {
   try {
-    const raw = readStorageWithLegacy(TAGS_KEY, LEGACY_TAGS_KEY);
+    const raw = localStorage.getItem(TAGS_KEY);
     if (!raw) {
       return [];
     }

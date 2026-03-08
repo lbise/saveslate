@@ -1,5 +1,3 @@
-import { readStorageWithLegacy } from './storage-migration';
-
 export type DataProfile = 'local' | 'demo-balanced' | 'demo-tight';
 
 export interface DataProfileOption {
@@ -9,7 +7,6 @@ export interface DataProfileOption {
 }
 
 const DATA_PROFILE_STORAGE_KEY = 'saveslate:settings:data-profile';
-const LEGACY_DATA_PROFILE_STORAGE_KEY = 'melomoney:settings:data-profile';
 
 export const DATA_PROFILE_OPTIONS: DataProfileOption[] = [
   {
@@ -35,7 +32,7 @@ export function isDataProfile(value: string): value is DataProfile {
 
 export function loadActiveDataProfile(): DataProfile {
   try {
-    const raw = readStorageWithLegacy(DATA_PROFILE_STORAGE_KEY, LEGACY_DATA_PROFILE_STORAGE_KEY);
+    const raw = localStorage.getItem(DATA_PROFILE_STORAGE_KEY);
     if (!raw) {
       return 'local';
     }

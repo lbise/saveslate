@@ -1,10 +1,7 @@
-import { readStorageWithLegacy } from './storage-migration';
 import type { Transaction, ImportBatch } from '../types';
 
 const TRANSACTIONS_KEY = 'saveslate:transactions';
-const LEGACY_TRANSACTIONS_KEY = 'melomoney:transactions';
 const BATCHES_KEY = 'saveslate:import-batches';
-const LEGACY_BATCHES_KEY = 'melomoney:import-batches';
 const LEGACY_MOCK_ID_PATTERN = /^t\d+$/;
 
 function normalizeTagIds(tagIds: unknown): string[] | undefined {
@@ -173,7 +170,7 @@ function isLegacyMockTransaction(transaction: Transaction): boolean {
  */
 export function loadTransactions(): Transaction[] {
   try {
-    const raw = readStorageWithLegacy(TRANSACTIONS_KEY, LEGACY_TRANSACTIONS_KEY);
+    const raw = localStorage.getItem(TRANSACTIONS_KEY);
     if (!raw) return [];
 
     const parsed = JSON.parse(raw) as unknown;
@@ -220,7 +217,7 @@ export function addTransactions(newTransactions: Transaction[]): Transaction[] {
  */
 export function loadImportBatches(): ImportBatch[] {
   try {
-    const raw = readStorageWithLegacy(BATCHES_KEY, LEGACY_BATCHES_KEY);
+    const raw = localStorage.getItem(BATCHES_KEY);
     if (!raw) return [];
     return JSON.parse(raw) as ImportBatch[];
   } catch {

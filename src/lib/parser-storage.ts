@@ -1,8 +1,6 @@
 import type { CsvParser } from '../types';
-import { readStorageWithLegacy } from './storage-migration';
 
 const STORAGE_KEY = 'saveslate:csv-parsers';
-const LEGACY_STORAGE_KEY = 'melomoney:csv-parsers';
 const PARSER_EXPORT_SCHEMA_VERSION = 1;
 const DELIMITERS: CsvParser['delimiter'][] = [',', ';', '\t', '|'];
 const AMOUNT_FORMATS: CsvParser['amountFormat'][] = ['single', 'debit-credit', 'amount-type'];
@@ -267,7 +265,7 @@ function getUniqueParserName(baseName: string): string {
  */
 export function loadParsers(): CsvParser[] {
   try {
-    const raw = readStorageWithLegacy(STORAGE_KEY, LEGACY_STORAGE_KEY);
+    const raw = localStorage.getItem(STORAGE_KEY);
     if (!raw) return [];
     const parsers = JSON.parse(raw) as CsvParser[];
 

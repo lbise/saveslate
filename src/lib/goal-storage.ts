@@ -1,8 +1,6 @@
 import type { Goal } from '../types';
-import { readStorageWithLegacy } from './storage-migration';
 
 const GOALS_KEY = 'saveslate:goals';
-const LEGACY_GOALS_KEY = 'melomoney:goals';
 
 function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === 'object' && value !== null;
@@ -92,7 +90,7 @@ export function saveGoals(goals: Goal[]): void {
 
 export function loadGoals(): Goal[] {
   try {
-    const raw = readStorageWithLegacy(GOALS_KEY, LEGACY_GOALS_KEY);
+    const raw = localStorage.getItem(GOALS_KEY);
     if (!raw) {
       const emptyGoals: Goal[] = [];
       saveGoals(emptyGoals);

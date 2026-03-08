@@ -1,5 +1,4 @@
 import { inferTransactionType, UNCATEGORIZED_CATEGORY_ID } from './transaction-type';
-import { readStorageWithLegacy } from './storage-migration';
 import type {
   AutomationAction,
   AutomationCondition,
@@ -11,7 +10,6 @@ import type {
 } from '../types';
 
 const AUTOMATION_RULES_KEY = 'saveslate:automation-rules';
-const LEGACY_AUTOMATION_RULES_KEY = 'melomoney:automation-rules';
 
 export const AUTOMATION_RULES_EXPORT_SCHEMA_VERSION = 1;
 
@@ -287,7 +285,7 @@ export function saveAutomationRules(rules: AutomationRule[]): void {
 
 export function loadAutomationRules(): AutomationRule[] {
   try {
-    const raw = readStorageWithLegacy(AUTOMATION_RULES_KEY, LEGACY_AUTOMATION_RULES_KEY);
+    const raw = localStorage.getItem(AUTOMATION_RULES_KEY);
     if (!raw) {
       return [];
     }
