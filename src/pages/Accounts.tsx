@@ -26,7 +26,8 @@ import {
   updateAccount,
 } from '../lib/account-storage';
 import { loadTransactions } from '../lib/transaction-storage';
-import { formatCurrency, formatRelativeDate, formatSignedCurrency, cn } from '../lib/utils';
+import { formatRelativeDate, cn } from '../lib/utils';
+import { useFormatCurrency } from '../hooks';
 import { getTransactionsByAccount } from '../lib/data-service';
 import { inferTransactionType } from '../lib/transaction-type';
 import type { Account, AccountType } from '../types';
@@ -146,6 +147,7 @@ function parseImportedAccounts(rawContent: string): Account[] {
 }
 
 export function Accounts() {
+  const { formatCurrency } = useFormatCurrency();
   const [accounts, setAccounts] = useState<Account[]>(() => loadAccounts());
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
   const [editingAccountId, setEditingAccountId] = useState<string | null>(null);
@@ -412,6 +414,7 @@ interface AccountRowProps {
 }
 
 function AccountRow({ account, computedBalance, onEdit, onDelete }: AccountRowProps) {
+  const { formatCurrency, formatSignedCurrency } = useFormatCurrency();
   const accountTransactions = getTransactionsByAccount(account.id);
   const recentTransactions = accountTransactions.slice(0, 3);
   const isNegative = computedBalance < 0;

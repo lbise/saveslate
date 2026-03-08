@@ -15,7 +15,8 @@ import {
 } from "../accounts";
 import { addAccount, loadAccounts } from "../../lib/account-storage";
 import { loadTransactions } from "../../lib/transaction-storage";
-import { cn, formatCurrency, formatDate, formatSignedCurrency } from "../../lib/utils";
+import { cn, formatDate } from "../../lib/utils";
+import { useFormatCurrency } from "../../hooks";
 import { PaginationButtons } from "../ui";
 import type { ParsedRow } from "../../types";
 
@@ -90,6 +91,7 @@ export function TransactionPreview({
   detectedIdentifier,
   fileName,
 }: TransactionPreviewProps) {
+  const { formatCurrency, formatSignedCurrency } = useFormatCurrency();
   const [accounts, setAccounts] = useState(() => loadAccounts());
   const [isCreateAccountModalOpen, setIsCreateAccountModalOpen] =
     useState(false);

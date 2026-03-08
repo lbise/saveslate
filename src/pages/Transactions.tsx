@@ -62,12 +62,11 @@ import {
   UNCATEGORIZED_CATEGORY_ID,
 } from "../lib/transaction-type";
 import {
-  formatCurrency,
   formatDate,
-  formatSignedCurrency,
   resolveTransferFlowAccounts,
   cn,
 } from "../lib/utils";
+import { useFormatCurrency } from "../hooks";
 import type {
   ImportBatch,
   AutomationRulePrefillDraft,
@@ -258,6 +257,7 @@ function persistTransactions(transactions: TxDetails[]): TxDetails[] {
 }
 
 export function Transactions() {
+  const { formatCurrency, formatSignedCurrency } = useFormatCurrency();
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
 
@@ -1770,6 +1770,7 @@ function TransactionRow({
   onCreateRule,
   onAction,
 }: TransactionRowProps) {
+  const { formatSignedCurrency } = useFormatCurrency();
   const type = transaction.type;
   const iconStyle =
     transaction.categoryId === UNCATEGORIZED_CATEGORY_ID

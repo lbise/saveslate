@@ -25,11 +25,10 @@ import {
 } from '../lib/automation-rules';
 import {
   cn,
-  formatCurrency,
   formatDate,
   formatRelativeDate,
-  formatSignedCurrency,
 } from '../lib/utils';
+import { useFormatCurrency } from '../hooks';
 import type {
   EntityCardDetailItem,
   EntityCardDetailTone,
@@ -568,6 +567,7 @@ function MockSection({ section }: MockSectionProps) {
 }
 
 export function TestMockup() {
+  const { formatCurrency, formatSignedCurrency } = useFormatCurrency();
   const liveAccounts = useMemo(() => getAccounts(), []);
   const liveGoalProgress = useMemo(() => getGoalProgress(), []);
   const liveRules = useMemo(() => loadAutomationRules(), []);
@@ -695,7 +695,7 @@ export function TestMockup() {
           : undefined,
       };
     });
-  }, [accounts, accountBalancesById, transactionsByAccountId]);
+  }, [accounts, accountBalancesById, transactionsByAccountId, formatCurrency, formatSignedCurrency]);
 
   const goalCards = useMemo<MockCard[]>(() => {
     return goals.slice(0, MAX_CARDS_PER_SECTION).map((goalProgress) => {
@@ -774,7 +774,7 @@ export function TestMockup() {
           : undefined,
       };
     });
-  }, [goals, transactionsByGoalId]);
+  }, [goals, transactionsByGoalId, formatCurrency, formatSignedCurrency]);
 
   const categoryCards = useMemo<MockCard[]>(() => {
     const usageSortedIds = Array.from(transactionCountByCategoryId.entries())

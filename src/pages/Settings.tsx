@@ -8,38 +8,13 @@ import {
 import { Globe, DollarSign, Bell, Shield, Download, Trash2, Database } from 'lucide-react';
 import { PageHeader } from '../components/layout/PageHeader';
 import { getCurrencyOptionsWithFallback } from '../lib/currencies';
-import { readStorageWithLegacy } from '../lib/storage-migration';
+import { useSettings } from '../hooks';
 import {
   DATA_PROFILE_OPTIONS,
   isDataProfile,
   loadActiveDataProfile,
   saveActiveDataProfile,
 } from '../lib/data-profile';
-
-const DEFAULT_CURRENCY_STORAGE_KEY = 'saveslate:settings:default-currency';
-const LEGACY_DEFAULT_CURRENCY_STORAGE_KEY = 'melomoney:settings:default-currency';
-const FALLBACK_CURRENCY = 'CHF';
-
-function loadDefaultCurrencySetting(): string {
-  try {
-    const rawCurrency = readStorageWithLegacy(
-      DEFAULT_CURRENCY_STORAGE_KEY,
-      LEGACY_DEFAULT_CURRENCY_STORAGE_KEY,
-    );
-    if (!rawCurrency) {
-      return FALLBACK_CURRENCY;
-    }
-
-    const normalizedCurrency = rawCurrency.trim().toUpperCase();
-    return normalizedCurrency || FALLBACK_CURRENCY;
-  } catch {
-    return FALLBACK_CURRENCY;
-  }
-}
-
-function saveDefaultCurrencySetting(currencyCode: string): void {
-  localStorage.setItem(DEFAULT_CURRENCY_STORAGE_KEY, currencyCode);
-}
 
 interface SettingRowProps {
   icon: ComponentType<{ size?: number; className?: string }>;
@@ -66,7 +41,7 @@ function SettingRow({ icon: IconComp, label, description, children }: SettingRow
 }
 
 export function Settings() {
-  const [defaultCurrency, setDefaultCurrency] = useState(loadDefaultCurrencySetting);
+  const { defaultCurrency, setDefaultCurrency } = useSettings();
   const [dataProfile, setDataProfile] = useState(loadActiveDataProfile);
   const currencyOptions = useMemo(
     () => getCurrencyOptionsWithFallback(defaultCurrency),
@@ -74,9 +49,7 @@ export function Settings() {
   );
 
   function handleDefaultCurrencyChange(event: ChangeEvent<HTMLSelectElement>) {
-    const nextCurrency = event.target.value;
-    setDefaultCurrency(nextCurrency);
-    saveDefaultCurrencySetting(nextCurrency);
+    setDefaultCurrency(event.target.value);
   }
 
   function handleDataProfileChange(event: ChangeEvent<HTMLSelectElement>) {

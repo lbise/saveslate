@@ -1,5 +1,20 @@
 // Core domain types for SaveSlate
 
+// ── User ──────────────────────────────────────────────────────────────
+
+export interface User {
+  id: string;
+  name: string;
+  email: string;
+  avatarUrl?: string;
+}
+
+export interface UserSettings {
+  defaultCurrency: string; // ISO 4217 code, e.g. 'CHF', 'EUR'
+}
+
+// ── Transactions ──────────────────────────────────────────────────────
+
 export type TransactionType = 'income' | 'expense' | 'transfer';
 
 export type AccountType = 'checking' | 'savings' | 'credit' | 'cash' | 'investment' | 'retirement';

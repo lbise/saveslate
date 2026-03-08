@@ -8,9 +8,10 @@ import {
   getGoalProgress,
   getNetWorth,
 } from '../lib/data-service';
-import { formatCurrency } from '../lib/utils';
+import { useFormatCurrency } from '../hooks';
 
 export function Dashboard() {
+  const { formatCurrency } = useFormatCurrency();
   const navigate = useNavigate();
   const transactions = getTransactionsWithDetails().slice(0, 6);
   const stats = getMonthlyStats();

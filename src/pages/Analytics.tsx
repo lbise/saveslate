@@ -6,7 +6,8 @@ import { BarChart3 } from 'lucide-react';
 import { PageHeader } from '../components/layout/PageHeader';
 import { StatCard } from '../components/ui';
 import { getGoalProgress, getTransactionsWithDetails } from '../lib/data-service';
-import { cn, formatCurrency } from '../lib/utils';
+import { cn } from '../lib/utils';
+import { useFormatCurrency } from '../hooks';
 import { getDataProfileLabel, loadActiveDataProfile } from '../lib/data-profile';
 import {
   ANALYTICS_COLORS,
@@ -157,41 +158,44 @@ function buildYAxisTicks(series: MonthlyIncomeExpensePoint[]): number[] {
   return ticks;
 }
 
-function GoalSavedValueLabels({ bars, innerWidth }: BarCustomLayerProps<GoalSavedPoint>) {
-  return (
-    <g pointerEvents="none">
-      {bars.map((bar) => {
-        const value = Number(bar.data.value ?? 0);
-        const label = formatCurrency(value);
-        const estimatedLabelWidth = label.length * 7;
-        const outsideX = bar.x + bar.width + 8;
-        const hasRoomOutside = outsideX + estimatedLabelWidth <= innerWidth;
+function makeGoalSavedValueLabels(formatCurrency: (amount: number) => string) {
+  return function GoalSavedValueLabels({ bars, innerWidth }: BarCustomLayerProps<GoalSavedPoint>) {
+    return (
+      <g pointerEvents="none">
+        {bars.map((bar) => {
+          const value = Number(bar.data.value ?? 0);
+          const label = formatCurrency(value);
+          const estimatedLabelWidth = label.length * 7;
+          const outsideX = bar.x + bar.width + 8;
+          const hasRoomOutside = outsideX + estimatedLabelWidth <= innerWidth;
 
-        return (
-          <text
-            key={`${bar.key}-${bar.index}`}
-            x={hasRoomOutside ? outsideX : Math.max(bar.x + 8, bar.x + bar.width - 8)}
-            y={bar.y + bar.height / 2}
-            textAnchor={hasRoomOutside ? 'start' : 'end'}
-            dominantBaseline="central"
-            style={{
-              fill: hasRoomOutside ? ANALYTICS_COLORS.text : '#10243B',
-              fontSize: 12,
-              fontFamily: ANALYTICS_FONT_FAMILY,
-              fontWeight: 600,
-            }}
-          >
-            {label}
-          </text>
-        );
-      })}
-    </g>
-  );
+          return (
+            <text
+              key={`${bar.key}-${bar.index}`}
+              x={hasRoomOutside ? outsideX : Math.max(bar.x + 8, bar.x + bar.width - 8)}
+              y={bar.y + bar.height / 2}
+              textAnchor={hasRoomOutside ? 'start' : 'end'}
+              dominantBaseline="central"
+              style={{
+                fill: hasRoomOutside ? ANALYTICS_COLORS.text : '#10243B',
+                fontSize: 12,
+                fontFamily: ANALYTICS_FONT_FAMILY,
+                fontWeight: 600,
+              }}
+            >
+              {label}
+            </text>
+          );
+        })}
+      </g>
+    );
+  };
 }
 
 // ── Component ─────────────────────────────────────────────────
 
 export function Analytics() {
+  const { formatCurrency } = useFormatCurrency();
   const [period, setPeriod] = useState<DateRangePeriod>('this-month');
   const [activeProfileLabel] = useState(() => getDataProfileLabel(loadActiveDataProfile()));
   const [viewportWidth, setViewportWidth] = useState(() => window.innerWidth);
@@ -250,6 +254,11 @@ export function Analytics() {
     }
     return monthlyYAxisTicks.slice(0, -1);
   }, [monthlyYAxisTicks]);
+
+  const GoalSavedValueLabels = useMemo(
+    () => makeGoalSavedValueLabels(formatCurrency),
+    [formatCurrency],
+  );
 
   const hasData = nodes.length > 0 && links.length > 0;
   const hasMonthlyData = monthlySeries.some((point) => point.income > 0 || point.expenses > 0);
@@ -430,12 +439,14 @@ export function Analytics() {
             emptyLabel="No income categories in this period"
             data={incomePieSeries}
             hasData={hasIncomePieData}
+            formatCurrency={formatCurrency}
           />
           <PieCard
             title="Expense Breakdown"
             emptyLabel="No expense categories in this period"
             data={expensePieSeries}
             hasData={hasExpensePieData}
+            formatCurrency={formatCurrency}
           />
         </div>
       </section>
@@ -510,9 +521,10 @@ interface PieCardProps {
   emptyLabel: string;
   data: AnalyticsPieDatum[];
   hasData: boolean;
+  formatCurrency: (amount: number) => string;
 }
 
-function PieCard({ title, emptyLabel, data, hasData }: PieCardProps) {
+function PieCard({ title, emptyLabel, data, hasData, formatCurrency }: PieCardProps) {
   const total = data.reduce((sum, entry) => sum + entry.value, 0);
 
   return (

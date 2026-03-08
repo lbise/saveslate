@@ -16,6 +16,8 @@ import {
   type LucideIcon,
 } from 'lucide-react';
 import { cn } from '../../lib/utils';
+import { getInitials } from '../../context';
+import { useUser } from '../../hooks';
 
 interface NavItem {
   label: string;
@@ -44,6 +46,7 @@ interface SidebarProps {
 }
 
 export function Sidebar({ collapsed, onToggleCollapse }: SidebarProps) {
+  const { user, logout } = useUser();
   const [isMobile, setIsMobile] = useState(false);
 
   useEffect(() => {
@@ -178,15 +181,15 @@ export function Sidebar({ collapsed, onToggleCollapse }: SidebarProps) {
           className="w-9 h-9 rounded-(--radius-md) bg-border flex items-center justify-center shrink-0"
           style={{ fontFamily: 'var(--font-display)', fontSize: '14px', fontWeight: 500 }}
         >
-          JD
+          {getInitials(user.name)}
         </div>
         {!isCollapsed && (
           <>
             <div className="flex-1 min-w-0">
-              <div className="text-body font-medium truncate">John Doe</div>
-              <div className="text-ui text-text-muted truncate">john@example.com</div>
+              <div className="text-body font-medium truncate">{user.name}</div>
             </div>
             <button
+              onClick={logout}
               className={cn(
                 'w-8 h-8 rounded-(--radius-sm) bg-transparent border-none',
                 'text-text-muted hover:text-expense hover:bg-expense/10',

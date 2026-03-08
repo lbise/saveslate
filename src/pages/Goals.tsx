@@ -20,7 +20,8 @@ import {
 } from '../lib/data-service';
 import { addGoal, deleteGoal, mergeGoals, updateGoal } from '../lib/goal-storage';
 import { loadTransactions, saveTransactions } from '../lib/transaction-storage';
-import { formatCurrency, formatDate } from '../lib/utils';
+import { formatDate } from '../lib/utils';
+import { useFormatCurrency } from '../hooks';
 import type { ContributionFrequency, Goal, GoalProgress } from '../types';
 
 type TargetMethod = 'fixed' | 'contribution';
@@ -293,6 +294,7 @@ function formatContributionPeriods(
 }
 
 export function Goals() {
+  const { formatCurrency } = useFormatCurrency();
   const [goals, setGoals] = useState<GoalProgress[]>(() => getGoalProgress());
   const [isCreateMenuOpen, setIsCreateMenuOpen] = useState(false);
   const [editingGoalId, setEditingGoalId] = useState<string | null>(null);

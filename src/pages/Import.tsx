@@ -20,10 +20,11 @@ import {
 import { getAccountById } from '../lib/account-storage';
 import { applyAutomationRules, loadAutomationRules } from '../lib/automation-rules';
 import { loadTransactions, saveImportBatch, saveTransactions } from '../lib/transaction-storage';
-import { formatCurrency } from '../lib/utils';
+import { useFormatCurrency } from '../hooks';
 import type { CsvParser, ImportStep, ParsedRow, Transaction } from '../types';
 
 export function Import() {
+  const { formatCurrency } = useFormatCurrency();
   const navigate = useNavigate();
 
   // ─── Wizard state ──────────────────────────────────────────

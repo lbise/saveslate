@@ -1,5 +1,6 @@
 import { ArrowUpRight, ArrowDownLeft, ArrowLeftRight } from 'lucide-react';
-import { cn, formatSignedCurrency, resolveTransferFlowAccounts } from '../../lib/utils';
+import { cn, resolveTransferFlowAccounts } from '../../lib/utils';
+import { useFormatCurrency } from '../../hooks';
 import type { TransactionType } from '../../types';
 
 interface TransactionItemProps {
@@ -50,7 +51,7 @@ export function TransactionItem({
   description,
   type,
   amount,
-  currency = 'CHF',
+  currency,
   categoryName,
   accountName,
   destinationAccountName,
@@ -58,6 +59,7 @@ export function TransactionItem({
   goalName,
   isSplit,
 }: TransactionItemProps) {
+  const { formatSignedCurrency } = useFormatCurrency();
   const TxIcon = typeIcons[type];
 
   const transferFlow = type === 'transfer' && accountName && destinationAccountName

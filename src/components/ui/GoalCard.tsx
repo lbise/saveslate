@@ -1,4 +1,4 @@
-import { formatCurrency } from '../../lib/utils';
+import { useFormatCurrency } from '../../hooks';
 
 interface GoalCardProps {
   name: string;
@@ -8,6 +8,7 @@ interface GoalCardProps {
 }
 
 export function GoalCard({ name, percentage, currentAmount, targetAmount }: GoalCardProps) {
+  const { formatCurrency } = useFormatCurrency();
   const progressWidth = Math.max(0, Math.min(percentage, 100));
 
   return (

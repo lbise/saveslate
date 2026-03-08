@@ -12,7 +12,8 @@ import {
   Filter,
   CircleHelp,
 } from "lucide-react";
-import { cn, formatDate, formatSignedCurrency } from "../../lib/utils";
+import { cn, formatDate } from "../../lib/utils";
+import { useFormatCurrency } from "../../hooks";
 import {
   detectDelimiter,
   parseRawCsv,
@@ -1369,6 +1370,7 @@ interface ParsedTransactionPreviewProps {
 const PARSED_PAGE_SIZES = [5, 10, 25] as const;
 
 function ParsedTransactionPreview({ rows }: ParsedTransactionPreviewProps) {
+  const { formatSignedCurrency } = useFormatCurrency();
   const [page, setPage] = useState(0);
   const [pageSize, setPageSize] = useState<number>(PARSED_PAGE_SIZES[0]);
   const [showWarningsOnly, setShowWarningsOnly] = useState(false);
