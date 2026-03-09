@@ -128,7 +128,7 @@ export function Sidebar({ collapsed, onToggleCollapse }: SidebarProps) {
       </div>
 
       {/* Main Nav */}
-      <nav className="flex-1 flex flex-col gap-1 px-3 py-4">
+      <nav aria-label="Main navigation" className="flex-1 flex flex-col gap-1 px-3 py-4">
         {mainNavItems.map((item) => (
           <NavLink
             key={item.path}
@@ -189,7 +189,7 @@ export function Sidebar({ collapsed, onToggleCollapse }: SidebarProps) {
               <div className="text-body font-medium truncate">{user.name}</div>
             </div>
             <button
-              onClick={logout}
+              onClick={logout} aria-label="Log out"
               className={cn(
                 'w-8 h-8 rounded-(--radius-sm) bg-transparent border-none',
                 'text-text-muted hover:text-expense hover:bg-expense/10',

@@ -271,6 +271,7 @@ function ParserDropdown({ parsers, excludeId, onSelect, onCreateNew, onClose }: 
             <button
               onClick={() => exportParser(parser)}
               className="btn-icon w-7 h-7 shrink-0 text-text-muted hover:text-text"
+              aria-label={`Export parser ${parser.name}`}
               title={`Export parser ${parser.name}`}
             >
               <Download size={12} />

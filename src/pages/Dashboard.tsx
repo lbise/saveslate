@@ -1,28 +1,45 @@
-import { Upload, Target, Users, ArrowUpRight, Plus } from 'lucide-react';
+import { Upload, Target, Wallet, ArrowUpRight } from 'lucide-react';
 import { Link, useNavigate } from 'react-router-dom';
 import { PageHeader } from '../components/layout/PageHeader';
-import { StatCard, TransactionItem, GoalCard, ActionCard } from '../components/ui';
+import { StatCard, TransactionItem, GoalCard, ActionCard, Icon } from '../components/ui';
 import {
   getTransactionsWithDetails,
   getMonthlyStats,
   getGoalProgress,
   getNetWorth,
+  getAccounts,
+  getComputedBalances,
+  getCategorySpending,
 } from '../lib/data-service';
 import { useFormatCurrency } from '../hooks';
+import type { Account } from '../types';
+
+const MAX_GOALS = 3;
+const MAX_SPENDING_CATEGORIES = 5;
+const MAX_RECENT_TRANSACTIONS = 6;
 
 export function Dashboard() {
   const { formatCurrency } = useFormatCurrency();
   const navigate = useNavigate();
-  const transactions = getTransactionsWithDetails().slice(0, 6);
+
+  const transactions = getTransactionsWithDetails().slice(0, MAX_RECENT_TRANSACTIONS);
   const stats = getMonthlyStats();
-  const goals = getGoalProgress();
+  const allGoals = getGoalProgress();
   const netWorth = getNetWorth();
+  const accounts = getAccounts();
+  const computedBalances = getComputedBalances();
+  const categorySpending = getCategorySpending().slice(0, MAX_SPENDING_CATEGORIES);
+
+  // Top 3 goals sorted by progress (closest to completion first)
+  const topGoals = [...allGoals]
+    .sort((a, b) => b.percentage - a.percentage)
+    .slice(0, MAX_GOALS);
 
   return (
     <div className="page-container">
       {/* Header */}
       <PageHeader title="Dashboard">
-        <button className="btn-ghost">
+        <button className="btn-ghost" onClick={() => navigate('/goals')}>
           <Target size={16} />
           New Goal
         </button>
@@ -56,43 +73,99 @@ export function Dashboard() {
 
       {/* Main grid */}
       <div className="grid grid-cols-1 xl:grid-cols-[1fr_320px] gap-10">
-        {/* Transactions */}
-        <div>
-          <div className="section-header">
-            <h2 className="section-title">Recent Activity</h2>
-            <Link to="/transactions" className="section-action">
-              View all <ArrowUpRight size={12} />
-            </Link>
-          </div>
-          <div className="flex flex-col">
-            {transactions.map((tx) => (
-              <TransactionItem
-                key={tx.id}
-                description={tx.description}
-                type={tx.type}
-                amount={tx.amount}
-                currency={tx.currency}
-                categoryName={tx.category.name}
-                accountName={tx.account.name}
-                destinationAccountName={tx.destinationAccount?.name}
-                transferPairRole={tx.transferPairRole}
-                goalName={tx.goal?.name}
-                isSplit={!!tx.split}
-              />
-            ))}
-          </div>
+        {/* Left column */}
+        <div className="flex flex-col gap-10">
+          {/* Accounts */}
+          {accounts.length > 0 && (
+            <section>
+              <div className="section-header">
+                <h2 className="section-title">Accounts</h2>
+                <Link to="/accounts" className="section-action">
+                  View all <ArrowUpRight size={12} />
+                </Link>
+              </div>
+              <div className="flex flex-col gap-1">
+                {accounts.map((account) => (
+                  <AccountRow
+                    key={account.id}
+                    account={account}
+                    balance={computedBalances.get(account.id) ?? account.balance}
+                    formatCurrency={formatCurrency}
+                  />
+                ))}
+              </div>
+            </section>
+          )}
+
+          {/* Top Spending */}
+          {categorySpending.length > 0 && (
+            <section>
+              <div className="section-header">
+                <h2 className="section-title">Top Spending</h2>
+                <Link to="/analytics" className="section-action">
+                  View all <ArrowUpRight size={12} />
+                </Link>
+              </div>
+              <div className="flex flex-col gap-1">
+                {categorySpending.map((cs) => (
+                  <SpendingRow
+                    key={cs.category.id}
+                    categoryName={cs.category.name}
+                    categoryIcon={cs.category.icon}
+                    amount={cs.amount}
+                    percentage={cs.percentage}
+                    formatCurrency={formatCurrency}
+                  />
+                ))}
+              </div>
+            </section>
+          )}
+
+          {/* Recent Activity */}
+          <section>
+            <div className="section-header">
+              <h2 className="section-title">Recent Activity</h2>
+              <Link to="/transactions" className="section-action">
+                View all <ArrowUpRight size={12} />
+              </Link>
+            </div>
+            <div className="flex flex-col">
+              {transactions.map((tx) => (
+                <TransactionItem
+                  key={tx.id}
+                  description={tx.description}
+                  type={tx.type}
+                  amount={tx.amount}
+                  currency={tx.currency}
+                  categoryName={tx.category.name}
+                  accountName={tx.account.name}
+                  destinationAccountName={tx.destinationAccount?.name}
+                  transferPairRole={tx.transferPairRole}
+                  goalName={tx.goal?.name}
+                  isSplit={!!tx.split}
+                />
+              ))}
+            </div>
+          </section>
         </div>
 
-        {/* Right column: Goals + Actions */}
+        {/* Right column: Goals + Quick Actions */}
         <div>
+          {/* Goals */}
           <div className="section-header">
             <h2 className="section-title">Goals</h2>
-            <button className="section-action">
-              <Plus size={12} /> Add
-            </button>
+            {allGoals.length > MAX_GOALS ? (
+              <Link to="/goals" className="section-action">
+                View all {allGoals.length} goals <ArrowUpRight size={12} />
+              </Link>
+            ) : (
+              <Link to="/goals" className="section-action">
+                View all <ArrowUpRight size={12} />
+              </Link>
+            )}
           </div>
           <div className="flex flex-col gap-3">
-            {goals.map((g) => (
+            {topGoals.map((g) => (
               <GoalCard
                 key={g.goal.id}
                 name={g.goal.name}
@@ -101,16 +174,86 @@ export function Dashboard() {
                 targetAmount={g.goal.targetAmount}
               />
             ))}
+            {topGoals.length === 0 && (
+              <div className="text-muted py-8 text-center">
+                No goals yet
+              </div>
+            )}
           </div>
 
           {/* Quick Actions */}
-          <div className="flex flex-col gap-2 mt-5">
+          <div className="flex flex-col gap-2 mt-8">
+            <h2 className="section-title mb-3">Quick Actions</h2>
             <ActionCard icon={Upload} label="Import transactions from CSV" onClick={() => navigate('/import')} />
-            <ActionCard icon={Target} label="Create a new savings goal" />
-            <ActionCard icon={Users} label="Split an expense with others" />
+            <ActionCard icon={Target} label="Create a new savings goal" onClick={() => navigate('/goals')} />
+            <ActionCard icon={Wallet} label="Add a new account" onClick={() => navigate('/accounts')} />
           </div>
         </div>
       </div>
+    </div>
+  );
+}
+
+// ── Sub-components (co-located, not exported) ──────────────────────────
+
+interface AccountRowProps {
+  account: Account;
+  balance: number;
+  formatCurrency: (amount: number, currency?: string) => string;
+}
+
+function AccountRow({ account, balance, formatCurrency: fmt }: AccountRowProps) {
+  return (
+    <div className="flex items-center gap-3 p-3 rounded-(--radius-md) transition-colors duration-150 hover:bg-surface">
+      <div className="w-8 h-8 bg-surface rounded-(--radius-sm) flex items-center justify-center shrink-0">
+        <Icon name={account.icon} size={16} className="text-text-secondary" />
+      </div>
+      <div className="flex flex-col flex-1 min-w-0">
+        <span className="text-body font-medium text-text truncate">{account.name}</span>
+        <span className="text-ui text-text-muted capitalize">{account.type}</span>
+      </div>
+      <span
+        className={`text-body font-medium ${balance < 0 ? 'text-expense' : 'text-text'}`}
+        style={{ fontFamily: 'var(--font-display)' }}
+      >
+        {fmt(balance, account.currency)}
+      </span>
+    </div>
+  );
+}
+
+interface SpendingRowProps {
+  categoryName: string;
+  categoryIcon: string;
+  amount: number;
+  percentage: number;
+  formatCurrency: (amount: number) => string;
+}
+
+function SpendingRow({ categoryName, categoryIcon, amount, percentage, formatCurrency: fmt }: SpendingRowProps) {
+  return (
+    <div className="flex items-center gap-3 p-3 rounded-(--radius-md) transition-colors duration-150 hover:bg-surface">
+      <div className="w-8 h-8 bg-surface rounded-(--radius-sm) flex items-center justify-center shrink-0">
+        <Icon name={categoryIcon} size={16} className="text-text-secondary" />
+      </div>
+      <div className="flex flex-col flex-1 min-w-0">
+        <span className="text-body font-medium text-text truncate">{categoryName}</span>
+        <div className="flex items-center gap-2 mt-1">
+          <div className="h-1 flex-1 bg-border rounded-full overflow-hidden">
+            <div
+              className="h-full bg-expense rounded-full"
+              style={{ width: `${Math.min(percentage, 100)}%` }}
+            />
+          </div>
+          <span className="text-ui text-text-muted shrink-0">{percentage.toFixed(0)}%</span>
+        </div>
+      </div>
+      <span
+        className="text-body font-medium text-text shrink-0"
+        style={{ fontFamily: 'var(--font-display)' }}
+      >
+        {fmt(amount)}
+      </span>
     </div>
   );
 }

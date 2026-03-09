@@ -8,6 +8,7 @@ import {
   mergeAccounts,
   updateAccount,
 } from '../data/mock/accounts';
+import { getComputedBalances } from './account-storage';
 import { CATEGORIES, getCategoryById, getDefaultCategories } from '../data/mock/categories';
 import {
   CATEGORY_GROUPS,
@@ -54,6 +55,7 @@ export interface DataService {
   updateAccount(id: string, updates: Partial<Omit<Account, 'id'>>): Account | null;
   deleteAccount(id: string): boolean;
   mergeAccounts(accounts: Account[]): Account[];
+  getComputedBalances(): Map<string, number>;
 
   getCategories(): Category[];
   getCategoryById(id: string): Category | undefined;
@@ -115,6 +117,10 @@ class LocalDataService implements DataService {
 
   public mergeAccounts(accounts: Account[]): Account[] {
     return mergeAccounts(accounts);
+  }
+
+  public getComputedBalances(): Map<string, number> {
+    return getComputedBalances();
   }
 
   public getCategories(): Category[] {
@@ -240,6 +246,7 @@ export const updateAccountData = (
 ): Account | null => getDataService().updateAccount(id, updates);
 export const deleteAccountData = (id: string): boolean => getDataService().deleteAccount(id);
 export const mergeAccountsData = (accounts: Account[]): Account[] => getDataService().mergeAccounts(accounts);
+export const getComputedBalancesData = (): Map<string, number> => getDataService().getComputedBalances();
 
 export const getCategories = (): Category[] => getDataService().getCategories();
 export const getCategoryGroups = (): CategoryGroup[] => getDataService().getCategoryGroups();
@@ -286,6 +293,7 @@ export {
   updateAccountData as updateAccount,
   deleteAccountData as deleteAccount,
   mergeAccountsData as mergeAccounts,
+  getComputedBalancesData as getComputedBalances,
   getTransactionsSortedData as getTransactionsSorted,
   getRecentTransactionsData as getRecentTransactions,
   getTransactionsByDateRangeData as getTransactionsByDateRange,

@@ -91,7 +91,7 @@ export function FileUpload({ onFileLoaded }: FileUploadProps) {
           <button
             onClick={handleClear}
             className="btn-icon"
-            title="Remove file"
+            aria-label="Remove file" title="Remove file"
           >
             <X size={16} />
           </button>

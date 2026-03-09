@@ -410,10 +410,10 @@ export function Categories() {
         <Modal onClose={closeModal} panelClassName="max-w-xl p-5">
           <section>
               <div className="section-header mb-4">
-                <h2 className="heading-3 text-text">
+                <h2 id="modal-title" className="heading-3 text-text">
                   {editingCategoryId ? 'Edit Category' : 'Create Category'}
                 </h2>
-                <button
+                <button aria-label="Close modal"
                   type="button"
                   className="btn-icon"
                   onClick={closeModal}

@@ -1,15 +1,12 @@
-import { useState, useMemo, useEffect } from "react";
+import { useState, useMemo, useEffect, useCallback } from "react";
 import {
   Search,
   AlertTriangle,
   Filter,
   ArrowUpDown,
   Target,
-  MoreHorizontal,
   Pencil,
-  Copy,
   Trash2,
-  Users,
   ChevronDown,
   X,
   SlidersHorizontal,
@@ -22,21 +19,16 @@ import { useNavigate, useSearchParams } from "react-router-dom";
 import { PageHeader, PageHeaderActions } from "../components/layout";
 import {
   TransactionFormModal,
+  TransactionRow,
   type TransactionFormSubmitPayload,
 } from "../components/transactions";
 import {
-  Badge,
-  CategoryPicker,
   DeleteConfirmationModal,
-  GoalPicker,
-  Icon,
   Modal,
   MultiSelectDropdown,
   PaginationButtons,
-  TagPicker,
 } from "../components/ui";
 import {
-  getAccountById,
   getAccounts,
   getCategoryById,
   getGoalById,
@@ -62,16 +54,19 @@ import {
   UNCATEGORIZED_CATEGORY_ID,
 } from "../lib/transaction-type";
 import {
-  formatDate,
-  resolveTransferFlowAccounts,
-  cn,
-} from "../lib/utils";
+  loadTransactionsWithDetails,
+  parseFilterIdsFromQuery,
+  parseTypeFilterFromQuery,
+  persistTransactions,
+} from "../lib/transaction-utils";
+import { cn } from "../lib/utils";
 import { useFormatCurrency, useTransactionFilters, usePagination } from "../hooks";
 import type {
+  Account,
+  Goal,
   ImportBatch,
   AutomationRulePrefillDraft,
   Tag as TransactionTag,
-  Transaction,
   TransactionType,
   TransactionWithDetails as TxDetails,
 } from "../types";
@@ -83,33 +78,6 @@ const TYPE_LABELS: { value: TransactionType | "all"; label: string }[] = [
   { value: "transfer", label: "Transfer" },
 ];
 
-const amountColors: Record<TransactionType, string> = {
-  income: "text-income",
-  expense: "text-expense",
-  transfer: "text-text",
-};
-
-function getAmountColorClass(type: TransactionType, amount: number): string {
-  if (type !== "transfer") {
-    return amountColors[type];
-  }
-  if (amount > 0) {
-    return "text-income";
-  }
-  if (amount < 0) {
-    return "text-expense";
-  }
-  return "text-text";
-}
-
-const iconBoxStyles: Record<TransactionType, string> = {
-  income: "bg-income/10 text-income",
-  expense: "bg-expense/10 text-expense",
-  transfer: "bg-transfer/10 text-transfer",
-};
-
-const UNCATEGORIZED_ICON_STYLE = "bg-warning/10 text-warning";
-
 const activeTypePillStyles: Record<TransactionType, string> = {
   income: "bg-income/10 text-income border-income/20",
   expense: "bg-expense/10 text-expense border-expense/20",
@@ -118,137 +86,11 @@ const activeTypePillStyles: Record<TransactionType, string> = {
 
 const MANUAL_SOURCE_ID = "manual";
 
-function parseFilterIdsFromQuery(searchParams: URLSearchParams, key: string): string[] {
-  const values = searchParams
-    .getAll(key)
-    .flatMap((rawValue) => rawValue.split(","))
-    .map((value) => value.trim())
-    .filter((value) => value.length > 0);
-
-  return Array.from(new Set(values));
-}
-
-function parseTypeFilterFromQuery(searchParams: URLSearchParams): TransactionType | "all" {
-  const rawType = searchParams.get("type");
-  if (rawType === "income" || rawType === "expense" || rawType === "transfer") {
-    return rawType;
-  }
-
-  return "all";
-}
-
 interface SourceOption {
   id: string;
   label: string;
   count: number;
   deletable: boolean;
-}
-
-function createTransferCounterpartyMap(transactions: Transaction[]): Map<string, string> {
-  const transactionsByPairId = new Map<string, Transaction[]>();
-
-  transactions.forEach((transaction) => {
-    if (!transaction.transferPairId) {
-      return;
-    }
-
-    const pairTransactions = transactionsByPairId.get(transaction.transferPairId) ?? [];
-    pairTransactions.push(transaction);
-    transactionsByPairId.set(transaction.transferPairId, pairTransactions);
-  });
-
-  const counterpartyByTransactionId = new Map<string, string>();
-  for (const [, pairTransactions] of transactionsByPairId) {
-    if (pairTransactions.length !== 2) {
-      continue;
-    }
-
-    const [left, right] = pairTransactions;
-    counterpartyByTransactionId.set(left.id, right.accountId);
-    counterpartyByTransactionId.set(right.id, left.accountId);
-  }
-
-  return counterpartyByTransactionId;
-}
-
-function toTransactionWithDetails(
-  transaction: Transaction,
-  counterpartyByTransactionId: Map<string, string>,
-): TxDetails {
-  const category = getCategoryById(transaction.categoryId) ?? {
-    id: transaction.categoryId,
-    name:
-      transaction.categoryId === UNCATEGORIZED_CATEGORY_ID
-        ? "Uncategorized"
-        : "Unknown Category",
-    icon: "CircleHelp",
-  };
-
-  const account = getAccountById(transaction.accountId) ?? {
-    id: transaction.accountId,
-    name: "Unknown Account",
-    type: "checking",
-    balance: 0,
-    currency: transaction.currency || "CHF",
-    icon: "Wallet",
-  };
-
-  const goal = transaction.goalId ? getGoalById(transaction.goalId) : undefined;
-
-  const counterpartyAccountId = counterpartyByTransactionId.get(transaction.id);
-
-  const destinationAccount = counterpartyAccountId
-    ? (getAccountById(counterpartyAccountId) ?? {
-        id: counterpartyAccountId,
-        name: "Unknown Account",
-        type: "checking" as const,
-        balance: 0,
-        currency: transaction.currency || "CHF",
-        icon: "Wallet",
-      })
-    : undefined;
-
-  return {
-    ...transaction,
-    type: inferTransactionType(transaction),
-    category,
-    account,
-    destinationAccount,
-    goal,
-  };
-}
-
-function loadTransactionsWithDetails(): TxDetails[] {
-  const transactions = loadTransactions();
-  const counterpartyByTransactionId = createTransferCounterpartyMap(transactions);
-  return transactions.map((transaction) => toTransactionWithDetails(transaction, counterpartyByTransactionId));
-}
-
-function toStoredTransaction(transaction: TxDetails): Transaction {
-  return {
-    id: transaction.id,
-    amount: transaction.amount,
-    currency: transaction.currency,
-    categoryId: transaction.categoryId,
-    description: transaction.description,
-    date: transaction.date,
-    accountId: transaction.accountId,
-    ...(transaction.transactionId !== undefined && { transactionId: transaction.transactionId }),
-    ...(transaction.time !== undefined && { time: transaction.time }),
-    ...(transaction.transferPairId !== undefined && { transferPairId: transaction.transferPairId }),
-    ...(transaction.transferPairRole !== undefined && { transferPairRole: transaction.transferPairRole }),
-    ...(transaction.goalId !== undefined && { goalId: transaction.goalId }),
-    ...(transaction.importBatchId !== undefined && { importBatchId: transaction.importBatchId }),
-    ...(transaction.split !== undefined && { split: transaction.split }),
-    ...(transaction.tagIds !== undefined && { tagIds: transaction.tagIds }),
-    ...(transaction.metadata !== undefined && { metadata: transaction.metadata }),
-    ...(transaction.rawData !== undefined && { rawData: transaction.rawData }),
-  };
-}
-
-function persistTransactions(transactions: TxDetails[]): TxDetails[] {
-  saveTransactions(transactions.map((transaction) => toStoredTransaction(transaction)));
-  return loadTransactionsWithDetails();
 }
 
 export function Transactions() {
@@ -264,9 +106,20 @@ export function Transactions() {
   const initialTagFilterIds = parseFilterIdsFromQuery(searchParams, "tag");
 
   // Mutable local state so inline actions (delete, duplicate) work
-  const [transactions, setTransactions] = useState(() =>
+  const [transactions, setTransactionsRaw] = useState(() =>
     loadTransactionsWithDetails(),
   );
+
+  // Accounts and goals as state — refreshed whenever transactions change
+  const [accounts, setAccounts] = useState<Account[]>(() => getAccounts());
+  const [goals, setGoals] = useState<Goal[]>(() => getGoals());
+
+  // Wrapped setter that also refreshes related data
+  const setTransactions: typeof setTransactionsRaw = useCallback((action) => {
+    setTransactionsRaw(action);
+    setAccounts(getAccounts());
+    setGoals(getGoals());
+  }, []);
 
   // Filters (extracted to hook)
   const filters = useTransactionFilters({
@@ -322,17 +175,9 @@ export function Transactions() {
     return transactions.find((transaction) => transaction.id === editingTransactionId) ?? null;
   }, [editingTransactionId, transactions]);
 
-  const availableAccounts = useMemo(
-    () => getAccounts(),
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-    [transactions],
-  );
+  const availableAccounts = accounts;
 
-  const availableGoals = useMemo(
-    () => getGoals(),
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-    [transactions],
-  );
+  const availableGoals = goals;
 
   const closePopovers = () => {
     setOpenActionId(null);
@@ -631,15 +476,13 @@ export function Transactions() {
   }, [transactions]);
 
   const goalOptions = useMemo(
-    () => getGoals().map((g) => ({ id: g.id, label: g.name })),
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-    [transactions],
+    () => goals.map((g) => ({ id: g.id, label: g.name })),
+    [goals],
   );
 
   const accountOptions = useMemo(
-    () => getAccounts().map((a) => ({ id: a.id, label: a.name })),
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-    [transactions],
+    () => accounts.map((a) => ({ id: a.id, label: a.name })),
+    [accounts],
   );
 
   // Import batches for source filtering
@@ -1683,472 +1526,3 @@ export function Transactions() {
   );
 }
 
-/* ------------------------------------------------------------------ */
-/*  TransactionRow                                                     */
-/* ------------------------------------------------------------------ */
-
-interface TransactionRowProps {
-  transaction: TxDetails;
-  openCategoryUpward: boolean;
-  isActionOpen: boolean;
-  isEditingCategory: boolean;
-  isEditingGoal: boolean;
-  isEditingTags: boolean;
-  availableTags: TransactionTag[];
-  availableTagsById: Map<string, TransactionTag>;
-  tagUsageCountById: Map<string, number>;
-  onToggleAction: () => void;
-  onToggleEditCategory: () => void;
-  onToggleEditGoal: () => void;
-  onToggleEditTags: () => void;
-  onCategoryChange: (categoryId: string) => void;
-  onGoalChange: (goalId: string | null) => void;
-  onTagsChange: (tagIds: string[]) => void;
-  onCreateTag: (draft: { name: string; color: string }) => TransactionTag;
-  onUpdateTag: (tagId: string, updates: { name: string; color: string }) => TransactionTag;
-  onDeleteTag: (tagId: string) => boolean;
-  onCreateRule: () => void;
-  onAction: (action: "edit" | "duplicate" | "delete") => void;
-}
-
-function TransactionRow({
-  transaction,
-  openCategoryUpward,
-  isActionOpen,
-  isEditingCategory,
-  isEditingGoal,
-  isEditingTags,
-  availableTags,
-  availableTagsById,
-  tagUsageCountById,
-  onToggleAction,
-  onToggleEditCategory,
-  onToggleEditGoal,
-  onToggleEditTags,
-  onCategoryChange,
-  onGoalChange,
-  onTagsChange,
-  onCreateTag,
-  onUpdateTag,
-  onDeleteTag,
-  onCreateRule,
-  onAction,
-}: TransactionRowProps) {
-  const { formatSignedCurrency } = useFormatCurrency();
-  const type = transaction.type;
-  const iconStyle =
-    transaction.categoryId === UNCATEGORIZED_CATEGORY_ID
-      ? UNCATEGORIZED_ICON_STYLE
-      : iconBoxStyles[type];
-  const transferFlow = type === "transfer" && transaction.destinationAccount
-    ? resolveTransferFlowAccounts({
-        amount: transaction.amount,
-        accountName: transaction.account.name,
-        counterpartyAccountName: transaction.destinationAccount.name,
-        transferPairRole: transaction.transferPairRole,
-      })
-    : null;
-  const resolvedTags = (transaction.tagIds ?? [])
-    .map((tagId) => availableTagsById.get(tagId))
-    .filter((tag): tag is TransactionTag => tag !== undefined);
-  const visibleTags = resolvedTags.slice(0, 2);
-  const hiddenTagCount = resolvedTags.length - visibleTags.length;
-
-  return (
-    <div className="group flex items-center gap-3 py-3 border-b border-border last:border-b-0 transition-colors duration-150 hover:bg-surface-hover/30 relative">
-      {/* Icon — category shape, type-tinted (desktop), clickable to edit category */}
-      <button
-        onClick={(e) => {
-          e.stopPropagation();
-          onToggleEditCategory();
-        }}
-        className={cn(
-          "w-[34px] h-[34px] rounded-(--radius-md) flex items-center justify-center shrink-0 hidden lg:flex cursor-pointer border-none transition-opacity hover:opacity-80",
-          iconStyle,
-        )}
-      >
-        <Icon name={transaction.category.icon} size={16} />
-      </button>
-
-      {/* -------- Mobile layout -------- */}
-      <div className="flex items-start gap-3 lg:hidden flex-1 min-w-0">
-        {/* Icon — clickable to edit category */}
-        <button
-          onClick={(e) => {
-            e.stopPropagation();
-            onToggleEditCategory();
-          }}
-          className={cn(
-            "w-[34px] h-[34px] rounded-(--radius-md) flex items-center justify-center shrink-0 cursor-pointer border-none transition-opacity hover:opacity-80",
-            iconStyle,
-          )}
-        >
-          <Icon name={transaction.category.icon} size={16} />
-        </button>
-
-        <div className="flex-1 min-w-0">
-          <div className="flex items-center gap-2">
-            <span
-              className="text-ui text-text font-medium line-clamp-2"
-              title={transaction.description}
-            >
-              {transaction.description}
-            </span>
-          </div>
-          <div className="flex items-center gap-2 mt-1 flex-wrap">
-            <div className="relative">
-              <button
-                onClick={(e) => {
-                  e.stopPropagation();
-                  onToggleEditCategory();
-                }}
-                className="cursor-pointer bg-transparent border-none p-0 transition-opacity hover:opacity-80"
-              >
-                <Badge variant={type}>{transaction.category.name}</Badge>
-              </button>
-              {isEditingCategory && (
-                <CategoryPicker
-                  currentCategoryId={transaction.categoryId}
-                  onSelect={onCategoryChange}
-                  onClose={onToggleEditCategory}
-                  openUpward={openCategoryUpward}
-                />
-              )}
-            </div>
-            {transaction.goal && (
-              <span className="inline-flex items-center gap-1 text-ui text-goal max-w-36">
-                <Icon name={transaction.goal.icon} size={10} className="shrink-0" />
-                <span className="truncate">{transaction.goal.name}</span>
-              </span>
-            )}
-            {resolvedTags.length > 0 && (
-              <span className="inline-flex items-center gap-2 flex-wrap max-w-full">
-                {visibleTags.map((tag) => (
-                  <span key={tag.id} className="inline-flex items-center gap-1 text-ui max-w-36" style={{ color: tag.color }}>
-                    <Tag size={10} className="shrink-0" />
-                    <span className="truncate">{tag.name}</span>
-                  </span>
-                ))}
-                {hiddenTagCount > 0 && (
-                  <span className="text-ui text-text-muted">+{hiddenTagCount}</span>
-                )}
-              </span>
-            )}
-            {transferFlow && (
-              <span className="text-ui text-text-muted truncate max-w-48">
-                {transferFlow.fromAccountName} &rarr; {transferFlow.toAccountName}
-              </span>
-            )}
-            {transaction.split && (
-              <span className="inline-flex items-center gap-1 text-ui text-text-muted">
-                <Users size={9} />
-                {transaction.split.withPerson}
-                {transaction.split.status === "pending" && (
-                  <span className="text-split">&middot; pending</span>
-                )}
-                {transaction.split.status === "reimbursed" && (
-                  <span className="text-income">&middot; settled</span>
-                )}
-              </span>
-            )}
-            <span className="text-ui text-text-muted">
-              {formatDate(transaction.date)}
-            </span>
-          </div>
-        </div>
-
-        <div className="flex items-center gap-1 shrink-0">
-          <span
-            className={cn("text-ui font-medium", getAmountColorClass(type, transaction.amount))}
-            style={{ fontFamily: "var(--font-display)" }}
-          >
-            {formatSignedCurrency(transaction.amount, transaction.currency)}
-          </span>
-
-          {/* Action button — mobile */}
-          <div className="relative">
-            <button
-              onClick={(e) => {
-                e.stopPropagation();
-                onToggleAction();
-              }}
-              className={cn(
-                "w-7 h-7 flex items-center justify-center rounded bg-transparent border-none cursor-pointer text-text-muted hover:text-text transition-opacity",
-                isActionOpen ? "opacity-100" : "opacity-60",
-              )}
-            >
-              <MoreHorizontal size={14} />
-            </button>
-            {isActionOpen && (
-              <ActionMenu
-                onAction={onAction}
-                onEditGoal={onToggleEditGoal}
-                onEditTags={onToggleEditTags}
-                onRemoveGoal={() => onGoalChange(null)}
-                onCreateRule={onCreateRule}
-                hasGoal={Boolean(transaction.goalId)}
-                hasTags={resolvedTags.length > 0}
-                className="right-0"
-              />
-            )}
-            {isEditingGoal && (
-              <GoalPicker
-                currentGoalId={transaction.goalId}
-                onSelect={onGoalChange}
-                onClose={onToggleEditGoal}
-                className="top-full right-0 mt-1"
-              />
-            )}
-            {isEditingTags && (
-              <TagPicker
-                tags={availableTags}
-                selectedTagIds={transaction.tagIds ?? []}
-                onChange={onTagsChange}
-                onCreateTag={onCreateTag}
-                onUpdateTag={onUpdateTag}
-                onDeleteTag={onDeleteTag}
-                tagUsageCountById={tagUsageCountById}
-                onClose={onToggleEditTags}
-                className="top-full right-0 mt-1"
-              />
-            )}
-          </div>
-        </div>
-      </div>
-
-      {/* -------- Desktop layout -------- */}
-      <div className="hidden lg:flex lg:items-center lg:gap-4 lg:flex-1 min-w-0">
-        {/* Description + meta */}
-        <div className="flex-1 min-w-0">
-          <div className="flex items-center gap-2">
-            <span
-              className="text-ui text-text font-medium line-clamp-2"
-              title={transaction.description}
-            >
-              {transaction.description}
-            </span>
-            {transaction.split && (
-              <span className="inline-flex items-center gap-1 text-ui text-text-muted shrink-0">
-                <Users size={9} />
-                {transaction.split.withPerson}
-                {transaction.split.status === "pending" && (
-                  <span className="text-split">&middot; pending</span>
-                )}
-                {transaction.split.status === "reimbursed" && (
-                  <span className="text-income">&middot; settled</span>
-                )}
-              </span>
-            )}
-          </div>
-          <div className="flex items-center gap-1 text-ui text-text-muted relative flex-wrap">
-            <span>
-              {transferFlow
-                ? `${transferFlow.fromAccountName} \u2192 ${transferFlow.toAccountName}`
-                : transaction.account.name}
-            </span>
-            <span>&middot;</span>
-            <button
-              onClick={(e) => {
-                e.stopPropagation();
-                onToggleEditCategory();
-              }}
-              className="cursor-pointer bg-transparent border-none p-0 text-ui text-text-muted hover:text-text hover:underline transition-colors"
-            >
-              {transaction.category.name}
-            </button>
-            {isEditingCategory && (
-              <CategoryPicker
-                currentCategoryId={transaction.categoryId}
-                onSelect={onCategoryChange}
-                onClose={onToggleEditCategory}
-                openUpward={openCategoryUpward}
-              />
-            )}
-            {resolvedTags.length > 0 && (
-              <>
-                <span>&middot;</span>
-                <span className="inline-flex items-center gap-2 flex-wrap max-w-[360px]">
-                  {visibleTags.map((tag) => (
-                    <span key={tag.id} className="inline-flex items-center gap-1 text-ui max-w-40" style={{ color: tag.color }}>
-                      <Tag size={10} className="shrink-0" />
-                      <span className="truncate">{tag.name}</span>
-                    </span>
-                  ))}
-                  {hiddenTagCount > 0 && (
-                    <span className="text-ui text-text-muted">+{hiddenTagCount}</span>
-                  )}
-                </span>
-              </>
-            )}
-            {transaction.goal && (
-              <>
-                <span>&middot;</span>
-                <span className="inline-flex items-center gap-1 text-goal max-w-40">
-                  <Icon name={transaction.goal.icon} size={10} className="shrink-0" />
-                  <span className="truncate">{transaction.goal.name}</span>
-                </span>
-              </>
-            )}
-          </div>
-        </div>
-
-        {/* Date */}
-        <div className="w-24 text-ui">{formatDate(transaction.date)}</div>
-
-        {/* Amount */}
-        <span
-          className={cn(
-            "w-28 text-right text-ui font-medium",
-            getAmountColorClass(type, transaction.amount),
-          )}
-          style={{ fontFamily: "var(--font-display)" }}
-        >
-          {formatSignedCurrency(transaction.amount, transaction.currency)}
-        </span>
-
-        {/* Action menu trigger */}
-        <div className="relative w-8 flex items-center justify-center shrink-0">
-          <button
-            onClick={(e) => {
-              e.stopPropagation();
-              onToggleAction();
-            }}
-            className={cn(
-              "w-7 h-7 flex items-center justify-center rounded bg-transparent border-none cursor-pointer text-text-muted hover:text-text transition-opacity",
-              isActionOpen
-                ? "opacity-100"
-                : "opacity-0 group-hover:opacity-100",
-            )}
-          >
-            <MoreHorizontal size={14} />
-          </button>
-          {isActionOpen && (
-              <ActionMenu
-                onAction={onAction}
-                onEditGoal={onToggleEditGoal}
-                onEditTags={onToggleEditTags}
-                onRemoveGoal={() => onGoalChange(null)}
-                onCreateRule={onCreateRule}
-                hasGoal={Boolean(transaction.goalId)}
-                hasTags={resolvedTags.length > 0}
-                className="right-0"
-              />
-          )}
-          {isEditingGoal && (
-            <GoalPicker
-              currentGoalId={transaction.goalId}
-              onSelect={onGoalChange}
-              onClose={onToggleEditGoal}
-              className="top-full right-0 mt-1"
-            />
-          )}
-          {isEditingTags && (
-            <TagPicker
-              tags={availableTags}
-              selectedTagIds={transaction.tagIds ?? []}
-              onChange={onTagsChange}
-              onCreateTag={onCreateTag}
-              onUpdateTag={onUpdateTag}
-              onDeleteTag={onDeleteTag}
-              tagUsageCountById={tagUsageCountById}
-              onClose={onToggleEditTags}
-              className="top-full right-0 mt-1"
-            />
-          )}
-        </div>
-      </div>
-    </div>
-  );
-}
-
-/* ------------------------------------------------------------------ */
-/*  Action Menu                                                        */
-/* ------------------------------------------------------------------ */
-
-interface ActionMenuProps {
-  onAction: (action: "edit" | "duplicate" | "delete") => void;
-  onEditGoal: () => void;
-  onEditTags: () => void;
-  onRemoveGoal: () => void;
-  onCreateRule: () => void;
-  hasGoal: boolean;
-  hasTags: boolean;
-  className?: string;
-}
-
-function ActionMenu({
-  onAction,
-  onEditGoal,
-  onEditTags,
-  onRemoveGoal,
-  onCreateRule,
-  hasGoal,
-  hasTags,
-  className,
-}: ActionMenuProps) {
-  const itemClass = "menu-item";
-
-  return (
-    <div
-      className={cn(
-        "menu-popover w-44",
-        className,
-      )}
-      onClick={(e) => e.stopPropagation()}
-    >
-      <button
-        onClick={onEditGoal}
-        className={itemClass}
-      >
-        <Target size={12} />
-        {hasGoal ? "Change goal" : "Set goal"}
-      </button>
-      {hasGoal && (
-        <button
-          onClick={onRemoveGoal}
-          className={itemClass}
-        >
-          <Target size={12} />
-          Unlink goal
-        </button>
-      )}
-      <button
-        onClick={onEditTags}
-        className={itemClass}
-      >
-        <Tags size={12} />
-        {hasTags ? "Edit tags" : "Set tags"}
-      </button>
-      <button
-        onClick={onCreateRule}
-        className={itemClass}
-      >
-        <Filter size={12} />
-        Create rule
-      </button>
-      <div className="menu-divider" />
-      <button
-        onClick={() => onAction("edit")}
-        className={itemClass}
-      >
-        <Pencil size={12} />
-        Edit
-      </button>
-      <button
-        onClick={() => onAction("duplicate")}
-        className={itemClass}
-      >
-        <Copy size={12} />
-        Duplicate
-      </button>
-      <div className="menu-divider" />
-      <button
-        onClick={() => onAction("delete")}
-        className="menu-item-danger"
-      >
-        <Trash2 size={12} />
-        Delete
-      </button>
-    </div>
-  );
-}

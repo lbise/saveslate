@@ -170,10 +170,10 @@ export function TransactionFormModal({
     <Modal onClose={onCancel} panelClassName="max-w-3xl p-5">
       <section>
         <div className="section-header mb-4">
-          <h2 className="heading-3 text-text">
+          <h2 id="modal-title" className="heading-3 text-text">
             {isEditing ? 'Edit Transaction' : 'Create Transaction'}
           </h2>
-          <button type="button" className="btn-icon" onClick={onCancel}>
+          <button type="button" className="btn-icon" onClick={onCancel} aria-label="Close modal">
             <X size={16} />
           </button>
         </div>
