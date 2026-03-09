@@ -1,5 +1,4 @@
-import { useMemo, useRef, useState, type ChangeEvent, type FormEvent } from 'react';
-import * as LucideIcons from 'lucide-react';
+import { useMemo, useState, type FormEvent } from 'react';
 import { ChevronDown, Pencil, Search, Trash2, X } from 'lucide-react';
 import { PageHeader, PageHeaderActions } from '../components/layout';
 import {
@@ -15,6 +14,7 @@ import {
   CATEGORY_GROUPS as DEFAULT_CATEGORY_GROUPS,
 } from '../lib/data-service';
 import { cn } from '../lib/utils';
+import { useImportExport, useIconPicker } from '../hooks';
 import type { Category, CategoryGroup } from '../types';
 
 const LOCKED_CATEGORY_IDS = new Set(['transfer']);
@@ -157,27 +157,63 @@ export function Categories() {
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
   const [editingCategoryId, setEditingCategoryId] = useState<string | null>(null);
   const [categoryToDelete, setCategoryToDelete] = useState<Category | null>(null);
-  const [isIconPickerOpen, setIsIconPickerOpen] = useState(false);
-  const [iconSearchQuery, setIconSearchQuery] = useState('');
-  const [importError, setImportError] = useState<string | null>(null);
-  const [isImporting, setIsImporting] = useState(false);
   const [form, setForm] = useState<{ name: string; icon: string; groupId: string }>({
     name: '',
     icon: 'CircleDot',
     groupId: DEFAULT_CATEGORY_GROUPS[0]?.id ?? UNGROUPED_CATEGORY_GROUP_ID,
   });
-  const importInputRef = useRef<HTMLInputElement>(null);
 
-  const allIconNames = useMemo(
-    () => Object.keys(LucideIcons.icons).sort((a, b) => a.localeCompare(b)),
-    [],
-  );
+  const iconPicker = useIconPicker();
+  const { importError, isImporting, importInputRef, openFilePicker, handleFileChange, exportJsonFile } = useImportExport<{ categories: Category[]; categoryGroups: CategoryGroup[] }>({
+    parseFile: parseImportedCategories,
+    onImportSuccess: (imported) => {
+      setCategories((previousCategories) => {
+        const existingCategoryIds = new Set(previousCategories.map((category) => category.id));
 
-  const filteredIconNames = useMemo(() => {
-    const query = iconSearchQuery.trim().toLowerCase();
-    if (!query) return allIconNames;
-    return allIconNames.filter((iconName) => iconName.toLowerCase().includes(query));
-  }, [allIconNames, iconSearchQuery]);
+        return [
+          ...previousCategories,
+          ...imported.categories.map((category) => {
+            const nextId = category.id && !existingCategoryIds.has(category.id)
+              ? category.id
+              : createUniqueCategoryId(existingCategoryIds);
+
+            existingCategoryIds.add(nextId);
+
+            if (nextId === category.id) {
+              return category;
+            }
+
+            return {
+              ...category,
+              id: nextId,
+            };
+          }),
+        ];
+      });
+
+      if (imported.categoryGroups.length > 0) {
+        setCategoryGroups((previousGroups) => {
+          const existingGroupIds = new Set(previousGroups.map((group) => group.id));
+          const nextGroups = [...previousGroups];
+
+          imported.categoryGroups.forEach((group) => {
+            const nextId = group.id && !existingGroupIds.has(group.id)
+              ? group.id
+              : `group-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
+
+            existingGroupIds.add(nextId);
+            nextGroups.push({
+              ...group,
+              id: nextId,
+              order: nextGroups.length + 1,
+            });
+          });
+
+          return nextGroups;
+        });
+      }
+    },
+  });
 
   const orderedGroups = useMemo(
     () => [...categoryGroups].sort((a, b) => a.order - b.order || a.name.localeCompare(b.name)),
@@ -224,8 +260,8 @@ export function Categories() {
       groupId: orderedGroups[0]?.id ?? UNGROUPED_CATEGORY_GROUP_ID,
     });
     setEditingCategoryId(null);
-    setIconSearchQuery('');
-    setIsIconPickerOpen(false);
+    iconPicker.setIconSearchQuery('');
+    iconPicker.setIsIconPickerOpen(false);
     setIsCreateModalOpen(true);
   };
 
@@ -240,15 +276,15 @@ export function Categories() {
       groupId: category.groupId ?? orderedGroups[0]?.id ?? UNGROUPED_CATEGORY_GROUP_ID,
     });
     setEditingCategoryId(category.id);
-    setIconSearchQuery('');
-    setIsIconPickerOpen(false);
+    iconPicker.setIconSearchQuery('');
+    iconPicker.setIsIconPickerOpen(false);
     setIsCreateModalOpen(true);
   };
 
   const closeModal = () => {
     setIsCreateModalOpen(false);
     setEditingCategoryId(null);
-    setIsIconPickerOpen(false);
+    iconPicker.setIsIconPickerOpen(false);
   };
 
   const handleDelete = (categoryId: string) => {
@@ -311,11 +347,6 @@ export function Categories() {
     closeModal();
   };
 
-  const handleOpenImportPicker = () => {
-    setImportError(null);
-    importInputRef.current?.click();
-  };
-
   const handleExportCategories = () => {
     if (categories.length === 0) {
       return;
@@ -331,93 +362,14 @@ export function Categories() {
     };
 
     const fileDate = new Date().toISOString().split('T')[0];
-    const fileName = `saveslate-categories-${fileDate}.json`;
-    const blob = new Blob([JSON.stringify(exportPayload, null, 2)], {
-      type: 'application/json',
-    });
-    const downloadUrl = URL.createObjectURL(blob);
-    const anchor = document.createElement('a');
-    anchor.href = downloadUrl;
-    anchor.download = fileName;
-    document.body.appendChild(anchor);
-    anchor.click();
-    anchor.remove();
-    URL.revokeObjectURL(downloadUrl);
-  };
-
-  const handleImportCategoriesFile = async (event: ChangeEvent<HTMLInputElement>) => {
-    const file = event.target.files?.[0];
-    event.target.value = '';
-    if (!file) {
-      return;
-    }
-
-    setIsImporting(true);
-    setImportError(null);
-
-    try {
-      const fileContent = await file.text();
-      const imported = parseImportedCategories(fileContent);
-      const importedCategories = imported.categories;
-
-      setCategories((previousCategories) => {
-        const existingCategoryIds = new Set(previousCategories.map((category) => category.id));
-
-        return [
-          ...previousCategories,
-          ...importedCategories.map((category) => {
-            const nextId = category.id && !existingCategoryIds.has(category.id)
-              ? category.id
-              : createUniqueCategoryId(existingCategoryIds);
-
-            existingCategoryIds.add(nextId);
-
-            if (nextId === category.id) {
-              return category;
-            }
-
-            return {
-              ...category,
-              id: nextId,
-            };
-          }),
-        ];
-      });
-
-      if (imported.categoryGroups.length > 0) {
-        setCategoryGroups((previousGroups) => {
-          const existingGroupIds = new Set(previousGroups.map((group) => group.id));
-          const nextGroups = [...previousGroups];
-
-          imported.categoryGroups.forEach((group) => {
-            const nextId = group.id && !existingGroupIds.has(group.id)
-              ? group.id
-              : `group-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
-
-            existingGroupIds.add(nextId);
-            nextGroups.push({
-              ...group,
-              id: nextId,
-              order: nextGroups.length + 1,
-            });
-          });
-
-          return nextGroups;
-        });
-      }
-      setImportError(null);
-    } catch (error) {
-      setImportError(error instanceof Error ? error.message : 'Failed to import categories file.');
-    } finally {
-      setIsImporting(false);
-    }
+    exportJsonFile(`saveslate-categories-${fileDate}.json`, exportPayload);
   };
 
   return (
     <div className="page-container">
       <PageHeader title="Categories">
         <PageHeaderActions
-          onImport={handleOpenImportPicker}
+          onImport={openFilePicker}
           onExport={handleExportCategories}
           onCreate={openCreateModal}
           importDisabled={isImporting}
@@ -431,7 +383,7 @@ export function Categories() {
         type="file"
         accept="application/json,.json"
         onChange={(event) => {
-          void handleImportCategoriesFile(event);
+          void handleFileChange(event);
         }}
         className="hidden"
       />
@@ -504,8 +456,8 @@ export function Categories() {
                   <button
                     type="button"
                     className="input flex items-center justify-between"
-                    onClick={() => setIsIconPickerOpen((current) => !current)}
-                    aria-expanded={isIconPickerOpen}
+                    onClick={() => iconPicker.setIsIconPickerOpen((current) => !current)}
+                    aria-expanded={iconPicker.isIconPickerOpen}
                     aria-controls="category-icon-picker"
                   >
                     <span className="flex items-center gap-2 min-w-0">
@@ -515,7 +467,7 @@ export function Categories() {
                     <ChevronDown size={16} className="text-text-muted" />
                   </button>
 
-                  {isIconPickerOpen && (
+                  {iconPicker.isIconPickerOpen && (
                     <div id="category-icon-picker" className="card absolute z-20 mt-2 w-full p-3">
                       <div className="relative mb-3">
                         <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-text-muted" />
@@ -523,13 +475,13 @@ export function Categories() {
                           id="category-icon-search"
                           className="input pl-9"
                           placeholder="Search icon"
-                          value={iconSearchQuery}
-                          onChange={(event) => setIconSearchQuery(event.target.value)}
+                          value={iconPicker.iconSearchQuery}
+                          onChange={(event) => iconPicker.setIconSearchQuery(event.target.value)}
                         />
                       </div>
 
                       <div className="max-h-64 overflow-y-auto rounded-(--radius-md) border border-border">
-                        {filteredIconNames.map((iconName) => {
+                        {iconPicker.filteredIconNames.map((iconName) => {
                           const isSelected = form.icon === iconName;
                           return (
                             <button
@@ -537,7 +489,7 @@ export function Categories() {
                               type="button"
                               onClick={() => {
                                 setForm((current) => ({ ...current, icon: iconName }));
-                                setIsIconPickerOpen(false);
+                                iconPicker.setIsIconPickerOpen(false);
                               }}
                               className={cn(
                                 'w-full flex items-center gap-2 px-3 py-2 text-left border-none bg-transparent',
@@ -553,7 +505,7 @@ export function Categories() {
                           );
                         })}
 
-                        {filteredIconNames.length === 0 && (
+                        {iconPicker.filteredIconNames.length === 0 && (
                           <div className="px-3 py-4 text-ui text-text-muted">No icons found.</div>
                         )}
                       </div>

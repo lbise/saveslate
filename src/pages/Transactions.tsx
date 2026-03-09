@@ -66,7 +66,7 @@ import {
   resolveTransferFlowAccounts,
   cn,
 } from "../lib/utils";
-import { useFormatCurrency } from "../hooks";
+import { useFormatCurrency, useTransactionFilters, usePagination } from "../hooks";
 import type {
   ImportBatch,
   AutomationRulePrefillDraft,
@@ -75,11 +75,6 @@ import type {
   TransactionType,
   TransactionWithDetails as TxDetails,
 } from "../types";
-
-type SortField = "date" | "amount";
-type SortDirection = "asc" | "desc";
-
-const PAGE_SIZES = [20, 50, 100] as const;
 
 const TYPE_LABELS: { value: TransactionType | "all"; label: string }[] = [
   { value: "all", label: "All" },
@@ -273,28 +268,33 @@ export function Transactions() {
     loadTransactionsWithDetails(),
   );
 
-  // Filters
-  const [searchQuery, setSearchQuery] = useState("");
-  const [typeFilter, setTypeFilter] = useState<TransactionType | "all">(initialTypeFilter);
-  const [categoryFilterIds, setCategoryFilterIds] = useState<string[]>(initialCategoryFilterIds);
-  const [tagFilterIds, setTagFilterIds] = useState<string[]>(initialTagFilterIds);
-  const [sourceFilterIds, setSourceFilterIds] = useState<string[]>(initialSourceFilterIds);
-  const [showUncategorizedOnly, setShowUncategorizedOnly] = useState(false);
-  const [sortField, setSortField] = useState<SortField>("date");
-  const [sortDirection, setSortDirection] = useState<SortDirection>("desc");
+  // Filters (extracted to hook)
+  const filters = useTransactionFilters({
+    initialTypeFilter,
+    initialCategoryFilterIds,
+    initialTagFilterIds,
+    initialSourceFilterIds,
+    initialGoalFilterIds,
+    initialAccountFilterIds,
+  });
 
-  // Advanced filters
-  const [showAdvancedFilters, setShowAdvancedFilters] = useState(false);
-  const [goalFilterIds, setGoalFilterIds] = useState<string[]>(initialGoalFilterIds);
-  const [accountFilterIds, setAccountFilterIds] = useState<string[]>(initialAccountFilterIds);
-  const [dateFrom, setDateFrom] = useState("");
-  const [dateTo, setDateTo] = useState("");
-  const [amountMin, setAmountMin] = useState("");
-  const [amountMax, setAmountMax] = useState("");
-
-  // Pagination state
-  const [page, setPage] = useState(0);
-  const [pageSize, setPageSize] = useState<number>(PAGE_SIZES[0]);
+  const {
+    searchQuery, setSearchQuery,
+    typeFilter, setTypeFilter,
+    categoryFilterIds, setCategoryFilterIds,
+    tagFilterIds, setTagFilterIds,
+    sourceFilterIds, setSourceFilterIds,
+    showUncategorizedOnly, setShowUncategorizedOnly,
+    sortField, sortDirection,
+    showAdvancedFilters, setShowAdvancedFilters,
+    goalFilterIds, setGoalFilterIds,
+    accountFilterIds, setAccountFilterIds,
+    dateFrom, setDateFrom,
+    dateTo, setDateTo,
+    amountMin, setAmountMin,
+    amountMax, setAmountMax,
+    advancedFilterCount, hasAnyFilter, clearAllFilters, toggleSort,
+  } = filters;
 
   // Tags state
   const [tags, setTags] = useState<TransactionTag[]>(() => loadTags());
@@ -333,26 +333,6 @@ export function Transactions() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
     [transactions],
   );
-
-  // Reset to first page when filters change
-  useEffect(() => {
-    setPage(0);
-  }, [
-    searchQuery,
-    typeFilter,
-    categoryFilterIds,
-    tagFilterIds,
-    sourceFilterIds,
-    goalFilterIds,
-    accountFilterIds,
-    dateFrom,
-    dateTo,
-    amountMin,
-    amountMax,
-    showUncategorizedOnly,
-    sortField,
-    sortDirection,
-  ]);
 
   const closePopovers = () => {
     setOpenActionId(null);
@@ -948,45 +928,30 @@ export function Transactions() {
     return result;
   }, [scopedTransactions, showUncategorizedOnly, sortField, sortDirection]);
 
-  const toggleSort = (field: SortField) => {
-    if (sortField === field) {
-      setSortDirection((prev) => (prev === "asc" ? "desc" : "asc"));
-    } else {
-      setSortField(field);
-      setSortDirection("desc");
-    }
-  };
+  // Pagination (extracted to hook)
+  const { page, setPage, pageSize, setPageSize, totalPages, pageSizes } =
+    usePagination({ totalItems: filteredTransactions.length });
 
-  const advancedFilterCount =
-    (dateFrom ? 1 : 0) +
-    (dateTo ? 1 : 0) +
-    (amountMin ? 1 : 0) +
-    (amountMax ? 1 : 0);
-
-  const hasAnyFilter =
-    categoryFilterIds.length > 0 ||
-    tagFilterIds.length > 0 ||
-    activeSourceFilterIds.length > 0 ||
-    goalFilterIds.length > 0 ||
-    accountFilterIds.length > 0 ||
-    typeFilter !== "all" ||
-    searchQuery !== "" ||
-    advancedFilterCount > 0;
-
-  const clearAllFilters = () => {
-    setSearchQuery("");
-    setTypeFilter("all");
-    setCategoryFilterIds([]);
-    setTagFilterIds([]);
-    setSourceFilterIds([]);
-    setGoalFilterIds([]);
-    setAccountFilterIds([]);
-    setDateFrom("");
-    setDateTo("");
-    setAmountMin("");
-    setAmountMax("");
-    setShowUncategorizedOnly(false);
-  };
+  // Reset to first page when filters change
+  useEffect(() => {
+    setPage(0);
+  }, [
+    searchQuery,
+    typeFilter,
+    categoryFilterIds,
+    tagFilterIds,
+    sourceFilterIds,
+    goalFilterIds,
+    accountFilterIds,
+    dateFrom,
+    dateTo,
+    amountMin,
+    amountMax,
+    showUncategorizedOnly,
+    sortField,
+    sortDirection,
+    setPage,
+  ]);
 
   const totalIncome = filteredTransactions
     .filter((t) => t.type === "income")
@@ -1001,7 +966,6 @@ export function Transactions() {
     .reduce((sum, t) => sum + Math.abs(t.amount), 0);
 
   // Paginate the filtered results
-  const totalPages = Math.max(1, Math.ceil(filteredTransactions.length / pageSize));
   const paginatedTransactions = useMemo(() => {
     const start = page * pageSize;
     const end = start + pageSize;
@@ -1695,7 +1659,7 @@ export function Transactions() {
       </div>
 
       {/* Pagination */}
-      {filteredTransactions.length > PAGE_SIZES[0] && (
+      {filteredTransactions.length > pageSizes[0] && (
         <div className="flex items-center justify-between px-1 py-3 text-ui text-text-muted border-t border-border mt-2">
           <div className="flex items-center gap-1.5">
             <span>Rows</span>
@@ -1704,7 +1668,7 @@ export function Transactions() {
               onChange={(e) => { setPageSize(Number(e.target.value)); setPage(0); }}
               className="text-sm bg-transparent border border-border rounded px-1 py-0.5 text-text-secondary cursor-pointer"
             >
-              {PAGE_SIZES.map((size) => (
+              {pageSizes.map((size) => (
                 <option key={size} value={size}>{size}</option>
               ))}
             </select>

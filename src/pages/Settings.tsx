@@ -7,8 +7,10 @@ import {
 } from 'react';
 import { Globe, DollarSign, Bell, Shield, Download, Trash2, Database } from 'lucide-react';
 import { PageHeader } from '../components/layout/PageHeader';
+import { DeleteConfirmationModal } from '../components/ui';
 import { getCurrencyOptionsWithFallback } from '../lib/currencies';
 import { useSettings } from '../hooks';
+import { clearAllUserData } from '../lib/data-service';
 import {
   DATA_PROFILE_OPTIONS,
   isDataProfile,
@@ -43,6 +45,9 @@ function SettingRow({ icon: IconComp, label, description, children }: SettingRow
 export function Settings() {
   const { defaultCurrency, setDefaultCurrency } = useSettings();
   const [dataProfile, setDataProfile] = useState(loadActiveDataProfile);
+  const [isClearDataModalOpen, setIsClearDataModalOpen] = useState(false);
+  const [isClearingData, setIsClearingData] = useState(false);
+  const [clearDataError, setClearDataError] = useState<string | null>(null);
   const currencyOptions = useMemo(
     () => getCurrencyOptionsWithFallback(defaultCurrency),
     [defaultCurrency],
@@ -62,9 +67,43 @@ export function Settings() {
     saveActiveDataProfile(nextProfile);
   }
 
+  async function handleConfirmClearAllData() {
+    try {
+      setIsClearingData(true);
+      setClearDataError(null);
+      await clearAllUserData();
+      window.location.reload();
+    } catch {
+      setIsClearingData(false);
+      setClearDataError('Failed to clear your saved data. Please try again.');
+    }
+  }
+
   return (
     <div className="page-container">
       <PageHeader title="Settings" />
+
+      {isClearDataModalOpen && (
+        <DeleteConfirmationModal
+          title="Clear all data?"
+          description="This will permanently delete all saved financial data on this device."
+          details={(
+            <p className="text-ui text-text-muted">
+              This includes transactions, import batches, accounts, goals, tags, automation rules, and parser presets.
+            </p>
+          )}
+          note="Your preferences like default currency and data profile will be kept. This action cannot be undone."
+          confirmLabel={isClearingData ? 'Clearing...' : 'Clear all data'}
+          onConfirm={() => {
+            void handleConfirmClearAllData();
+          }}
+          onClose={() => {
+            if (!isClearingData) {
+              setIsClearDataModalOpen(false);
+            }
+          }}
+        />
+      )}
 
       {/* General */}
       <section>
@@ -151,6 +190,9 @@ export function Settings() {
           <h2 className="section-title">Data</h2>
         </div>
         <div className="flex flex-col gap-2.5">
+          {clearDataError && (
+            <p className="text-ui text-expense">{clearDataError}</p>
+          )}
           <button className="flex items-center gap-3 w-full p-3.5 bg-surface rounded-(--radius-md) text-left transition-colors duration-150 hover:bg-surface-hover cursor-pointer border-none">
             <div className="w-9 h-9 bg-bg rounded-(--radius-sm) flex items-center justify-center shrink-0">
               <Download size={16} className="text-text-secondary" />
@@ -160,13 +202,21 @@ export function Settings() {
                <div className="text-ui text-text-muted">Download all transactions as CSV</div>
             </div>
           </button>
-          <button className="flex items-center gap-3 w-full p-3.5 bg-surface rounded-(--radius-md) text-left transition-colors duration-150 hover:bg-surface-hover cursor-pointer border-none">
+          <button
+            className="flex items-center gap-3 w-full p-3.5 bg-surface rounded-(--radius-md) text-left transition-colors duration-150 hover:bg-surface-hover cursor-pointer border-none"
+            onClick={() => {
+              setClearDataError(null);
+              setIsClearDataModalOpen(true);
+            }}
+          >
             <div className="w-9 h-9 bg-bg rounded-(--radius-sm) flex items-center justify-center shrink-0">
               <Trash2 size={16} className="text-expense" />
             </div>
             <div>
               <div className="text-body text-expense">Clear All Data</div>
-               <div className="text-ui text-text-muted">Permanently delete all transactions and goals</div>
+              <div className="text-ui text-text-muted">
+                Permanently delete all saved transactions, accounts, goals, rules, tags, and parser presets
+              </div>
             </div>
           </button>
         </div>

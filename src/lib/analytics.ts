@@ -241,19 +241,21 @@ export const ANALYTICS_COLORS = {
 } as const;
 
 const INCOME_PIE_COLORS = [
+  '#1f6f4b',
+  '#2f9666',
   ANALYTICS_COLORS.income,
-  ANALYTICS_COLORS.accent,
-  ANALYTICS_COLORS.goal,
-  ANALYTICS_COLORS.transfer,
-  ANALYTICS_COLORS.split,
+  '#69d99b',
+  '#88e3b0',
+  '#a8ecc6',
 ] as const;
 
 const EXPENSE_PIE_COLORS = [
+  '#a33c3c',
+  '#c45252',
   ANALYTICS_COLORS.expense,
-  ANALYTICS_COLORS.warning,
-  ANALYTICS_COLORS.transfer,
-  ANALYTICS_COLORS.accent,
-  ANALYTICS_COLORS.split,
+  '#f18585',
+  '#f59d9d',
+  '#f8b6b6',
 ] as const;
 
 const NODE_COLORS = {

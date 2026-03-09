@@ -1,5 +1,4 @@
-import { useMemo, useRef, useState, type ChangeEvent, type FormEvent, type ReactNode } from 'react';
-import * as LucideIcons from 'lucide-react';
+import { useMemo, useState, type FormEvent, type ReactNode } from 'react';
 import { ArrowUpRight, ChevronDown, Pencil, Search, Target, Trash2, X } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { PageHeader, PageHeaderActions } from '../components/layout';
@@ -21,7 +20,7 @@ import {
 import { addGoal, deleteGoal, mergeGoals, updateGoal } from '../lib/goal-storage';
 import { loadTransactions, saveTransactions } from '../lib/transaction-storage';
 import { formatDate } from '../lib/utils';
-import { useFormatCurrency } from '../hooks';
+import { useFormatCurrency, useIconPicker, useImportExport } from '../hooks';
 import type { ContributionFrequency, Goal, GoalProgress } from '../types';
 
 type TargetMethod = 'fixed' | 'contribution';
@@ -299,26 +298,21 @@ export function Goals() {
   const [isCreateMenuOpen, setIsCreateMenuOpen] = useState(false);
   const [editingGoalId, setEditingGoalId] = useState<string | null>(null);
   const [goalToDelete, setGoalToDelete] = useState<Goal | null>(null);
-  const [isIconPickerOpen, setIsIconPickerOpen] = useState(false);
-  const [iconSearchQuery, setIconSearchQuery] = useState('');
-  const [importError, setImportError] = useState<string | null>(null);
-  const [isImporting, setIsImporting] = useState(false);
   const [form, setForm] = useState<GoalFormState>(DEFAULT_FORM_STATE);
-  const importInputRef = useRef<HTMLInputElement>(null);
+
+  const iconPicker = useIconPicker();
+  const { importError, isImporting, importInputRef, openFilePicker, handleFileChange, exportJsonFile } = useImportExport<GoalProgress[]>({
+    parseFile: parseImportedGoals,
+    onImportSuccess: (importedGoals) => {
+      mergeGoals(importedGoals.map((goalProgress) => ({
+        ...goalProgress.goal,
+        startingAmount: goalProgress.currentAmount,
+      })));
+      setGoals(getGoalProgress());
+    },
+  });
 
   const allTransactions = getTransactionsWithDetails();
-  const allIconNames = useMemo(
-    () => Object.keys(LucideIcons.icons).sort((a, b) => a.localeCompare(b)),
-    [],
-  );
-  const filteredIconNames = useMemo(() => {
-    const query = iconSearchQuery.trim().toLowerCase();
-    if (!query) {
-      return allIconNames;
-    }
-
-    return allIconNames.filter((iconName) => iconName.toLowerCase().includes(query));
-  }, [allIconNames, iconSearchQuery]);
 
   const startingAmount = useMemo(() => parseAmount(form.startingAmount), [form.startingAmount]);
   const explicitTargetAmount = useMemo(() => parseAmount(form.targetAmount), [form.targetAmount]);
@@ -365,8 +359,8 @@ export function Goals() {
   const resetForm = () => {
     setForm(DEFAULT_FORM_STATE);
     setEditingGoalId(null);
-    setIconSearchQuery('');
-    setIsIconPickerOpen(false);
+    iconPicker.setIconSearchQuery('');
+    iconPicker.setIsIconPickerOpen(false);
   };
 
   const openCreateGoalForm = () => {
@@ -389,8 +383,8 @@ export function Goals() {
       expectedContributionFrequency: goal.expectedContribution?.frequency ?? 'monthly',
     });
     setEditingGoalId(goal.id);
-    setIconSearchQuery('');
-    setIsIconPickerOpen(false);
+    iconPicker.setIconSearchQuery('');
+    iconPicker.setIsIconPickerOpen(false);
     setIsCreateMenuOpen(true);
   };
 
@@ -437,11 +431,6 @@ export function Goals() {
     closeDeleteGoalModal();
   };
 
-  const handleOpenImportPicker = () => {
-    setImportError(null);
-    importInputRef.current?.click();
-  };
-
   const handleExportGoals = () => {
     if (goals.length === 0) {
       return;
@@ -459,45 +448,7 @@ export function Goals() {
     };
 
     const fileDate = new Date().toISOString().split('T')[0];
-    const fileName = `saveslate-goals-${fileDate}.json`;
-    const blob = new Blob([JSON.stringify(exportPayload, null, 2)], {
-      type: 'application/json',
-    });
-    const downloadUrl = URL.createObjectURL(blob);
-    const anchor = document.createElement('a');
-    anchor.href = downloadUrl;
-    anchor.download = fileName;
-    document.body.appendChild(anchor);
-    anchor.click();
-    anchor.remove();
-    URL.revokeObjectURL(downloadUrl);
-  };
-
-  const handleImportGoalsFile = async (event: ChangeEvent<HTMLInputElement>) => {
-    const file = event.target.files?.[0];
-    event.target.value = '';
-    if (!file) {
-      return;
-    }
-
-    setIsImporting(true);
-    setImportError(null);
-
-    try {
-      const fileContent = await file.text();
-      const importedGoals = parseImportedGoals(fileContent).map((goalProgress) => ({
-        ...goalProgress.goal,
-        startingAmount: goalProgress.currentAmount,
-      }));
-
-      mergeGoals(importedGoals);
-      setGoals(getGoalProgress());
-      setImportError(null);
-    } catch (error) {
-      setImportError(error instanceof Error ? error.message : 'Failed to import goals file.');
-    } finally {
-      setIsImporting(false);
-    }
+    exportJsonFile(`saveslate-goals-${fileDate}.json`, exportPayload);
   };
 
   const handleCreateGoal = (event: FormEvent<HTMLFormElement>) => {
@@ -551,7 +502,7 @@ export function Goals() {
     <div className="page-container">
       <PageHeader title="Goals">
         <PageHeaderActions
-          onImport={handleOpenImportPicker}
+          onImport={openFilePicker}
           onExport={handleExportGoals}
           onCreate={openCreateGoalForm}
           importDisabled={isImporting}
@@ -565,7 +516,7 @@ export function Goals() {
         type="file"
         accept="application/json,.json"
         onChange={(event) => {
-          void handleImportGoalsFile(event);
+          void handleFileChange(event);
         }}
         className="hidden"
       />
@@ -605,8 +556,8 @@ export function Goals() {
                 <button
                   type="button"
                   className="input flex items-center justify-between"
-                  onClick={() => setIsIconPickerOpen((current) => !current)}
-                  aria-expanded={isIconPickerOpen}
+                  onClick={() => iconPicker.setIsIconPickerOpen((current) => !current)}
+                  aria-expanded={iconPicker.isIconPickerOpen}
                   aria-controls="goal-icon-picker"
                 >
                   <span className="flex items-center gap-2 min-w-0">
@@ -616,7 +567,7 @@ export function Goals() {
                   <ChevronDown size={16} className="text-text-muted" />
                 </button>
 
-                {isIconPickerOpen && (
+                {iconPicker.isIconPickerOpen && (
                   <div
                     id="goal-icon-picker"
                     className="card absolute z-20 mt-2 w-full p-3"
@@ -627,13 +578,13 @@ export function Goals() {
                         id="goal-icon-search"
                         className="input pl-9"
                         placeholder="Search icon"
-                        value={iconSearchQuery}
-                        onChange={(event) => setIconSearchQuery(event.target.value)}
+                        value={iconPicker.iconSearchQuery}
+                        onChange={(event) => iconPicker.setIconSearchQuery(event.target.value)}
                       />
                     </div>
 
                     <div className="max-h-64 overflow-y-auto rounded-(--radius-md) border border-border">
-                      {filteredIconNames.map((iconName) => {
+                      {iconPicker.filteredIconNames.map((iconName) => {
                         const isSelected = form.icon === iconName;
                         return (
                           <button
@@ -641,7 +592,7 @@ export function Goals() {
                             type="button"
                             onClick={() => {
                               setForm((current) => ({ ...current, icon: iconName }));
-                              setIsIconPickerOpen(false);
+                              iconPicker.setIsIconPickerOpen(false);
                             }}
                             className={[
                               'w-full flex items-center gap-2 px-3 py-2 text-left border-none bg-transparent',
@@ -657,7 +608,7 @@ export function Goals() {
                         );
                       })}
 
-                      {filteredIconNames.length === 0 && (
+                      {iconPicker.filteredIconNames.length === 0 && (
                         <div className="px-3 py-4 text-ui text-text-muted">No icons found.</div>
                       )}
                     </div>

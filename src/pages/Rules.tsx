@@ -1,9 +1,7 @@
 import {
   useEffect,
   useMemo,
-  useRef,
   useState,
-  type ChangeEvent,
   type FormEvent,
 } from "react";
 import { Pencil, Play, Power, Trash2, X } from "lucide-react";
@@ -46,6 +44,7 @@ import {
 } from "../lib/transaction-storage";
 import { UNCATEGORIZED_CATEGORY_ID } from "../lib/transaction-type";
 import { cn } from "../lib/utils";
+import { useImportExport } from "../hooks";
 import type {
   AutomationCondition,
   AutomationConditionOperator,
@@ -310,11 +309,16 @@ export function Rules() {
     createDefaultRuleFormState(defaultCategoryId),
   );
   const [formError, setFormError] = useState<string | null>(null);
-  const [importError, setImportError] = useState<string | null>(null);
-  const [isImporting, setIsImporting] = useState(false);
   const [manualRunSummary, setManualRunSummary] =
     useState<ManualRunSummary | null>(null);
-  const importInputRef = useRef<HTMLInputElement>(null);
+
+  const { importError, isImporting, importInputRef, openFilePicker, handleFileChange, exportJsonFile } = useImportExport<AutomationRule[]>({
+    parseFile: parseAutomationRulesFile,
+    onImportSuccess: (parsedRules) => {
+      const mergedRules = mergeAutomationRules(parsedRules);
+      setRules(mergedRules);
+    },
+  });
 
   const conditionFieldOptions = useMemo<RuleFieldOption[]>(() => {
     const metadataFieldOptions = new Set<string>();
@@ -599,11 +603,6 @@ export function Rules() {
     });
   };
 
-  const handleOpenImportPicker = () => {
-    setImportError(null);
-    importInputRef.current?.click();
-  };
-
   const handleExportRules = () => {
     if (rules.length === 0) {
       return;
@@ -617,45 +616,7 @@ export function Rules() {
     };
 
     const fileDate = new Date().toISOString().split("T")[0];
-    const fileName = `saveslate-rules-${fileDate}.json`;
-    const blob = new Blob([JSON.stringify(exportPayload, null, 2)], {
-      type: "application/json",
-    });
-    const downloadUrl = URL.createObjectURL(blob);
-    const anchor = document.createElement("a");
-    anchor.href = downloadUrl;
-    anchor.download = fileName;
-    document.body.appendChild(anchor);
-    anchor.click();
-    anchor.remove();
-    URL.revokeObjectURL(downloadUrl);
-  };
-
-  const handleImportRulesFile = async (
-    event: ChangeEvent<HTMLInputElement>,
-  ) => {
-    const file = event.target.files?.[0];
-    event.target.value = "";
-    if (!file) {
-      return;
-    }
-
-    setIsImporting(true);
-    setImportError(null);
-
-    try {
-      const fileContent = await file.text();
-      const parsedRules = parseAutomationRulesFile(fileContent);
-      const mergedRules = mergeAutomationRules(parsedRules);
-      setRules(mergedRules);
-      setImportError(null);
-    } catch (error) {
-      setImportError(
-        error instanceof Error ? error.message : "Failed to import rules file.",
-      );
-    } finally {
-      setIsImporting(false);
-    }
+    exportJsonFile(`saveslate-rules-${fileDate}.json`, exportPayload);
   };
 
   const handleConditionChange = (
@@ -847,7 +808,7 @@ export function Rules() {
     <div className="page-container">
       <PageHeader title="Rules">
         <PageHeaderActions
-          onImport={handleOpenImportPicker}
+          onImport={openFilePicker}
           onExport={handleExportRules}
           onCreate={openCreateModal}
           importDisabled={isImporting}
@@ -862,7 +823,7 @@ export function Rules() {
         type="file"
         accept="application/json,.json"
         onChange={(event) => {
-          void handleImportRulesFile(event);
+          void handleFileChange(event);
         }}
         className="hidden"
       />

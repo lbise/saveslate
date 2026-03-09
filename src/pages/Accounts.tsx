@@ -1,4 +1,4 @@
-import { useMemo, useRef, useState, type ChangeEvent } from 'react';
+import { useMemo, useState } from 'react';
 import { ArrowUpRight, Pencil, Trash2 } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import {
@@ -27,7 +27,7 @@ import {
 } from '../lib/account-storage';
 import { loadTransactions } from '../lib/transaction-storage';
 import { formatRelativeDate, cn } from '../lib/utils';
-import { useFormatCurrency } from '../hooks';
+import { useFormatCurrency, useImportExport } from '../hooks';
 import { getTransactionsByAccount } from '../lib/data-service';
 import { inferTransactionType } from '../lib/transaction-type';
 import type { Account, AccountType } from '../types';
@@ -152,9 +152,14 @@ export function Accounts() {
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
   const [editingAccountId, setEditingAccountId] = useState<string | null>(null);
   const [accountToDelete, setAccountToDelete] = useState<Account | null>(null);
-  const [importError, setImportError] = useState<string | null>(null);
-  const [isImporting, setIsImporting] = useState(false);
-  const importInputRef = useRef<HTMLInputElement>(null);
+
+  const { importError, isImporting, importInputRef, openFilePicker, handleFileChange, exportJsonFile } = useImportExport<Account[]>({
+    parseFile: parseImportedAccounts,
+    onImportSuccess: (importedAccounts) => {
+      const mergedAccounts = mergeAccounts(importedAccounts);
+      setAccounts(mergedAccounts);
+    },
+  });
 
   const computedBalances = useMemo(
     () => {
@@ -223,11 +228,6 @@ export function Accounts() {
     setIsCreateModalOpen(true);
   };
 
-  const handleOpenImportPicker = () => {
-    setImportError(null);
-    importInputRef.current?.click();
-  };
-
   const handleExportAccounts = () => {
     if (accounts.length === 0) {
       return;
@@ -241,42 +241,7 @@ export function Accounts() {
     };
 
     const fileDate = new Date().toISOString().split('T')[0];
-    const fileName = `saveslate-accounts-${fileDate}.json`;
-    const blob = new Blob([JSON.stringify(exportPayload, null, 2)], {
-      type: 'application/json',
-    });
-    const downloadUrl = URL.createObjectURL(blob);
-    const anchor = document.createElement('a');
-    anchor.href = downloadUrl;
-    anchor.download = fileName;
-    document.body.appendChild(anchor);
-    anchor.click();
-    anchor.remove();
-    URL.revokeObjectURL(downloadUrl);
-  };
-
-  const handleImportAccountsFile = async (event: ChangeEvent<HTMLInputElement>) => {
-    const file = event.target.files?.[0];
-    event.target.value = '';
-    if (!file) {
-      return;
-    }
-
-    setIsImporting(true);
-    setImportError(null);
-
-    try {
-      const fileContent = await file.text();
-      const importedAccounts = parseImportedAccounts(fileContent);
-
-      const mergedAccounts = mergeAccounts(importedAccounts);
-      setAccounts(mergedAccounts);
-      setImportError(null);
-    } catch (error) {
-      setImportError(error instanceof Error ? error.message : 'Failed to import accounts file.');
-    } finally {
-      setIsImporting(false);
-    }
+    exportJsonFile(`saveslate-accounts-${fileDate}.json`, exportPayload);
   };
 
   const handleSaveAccount = (accountPayload: AccountFormSubmitPayload) => {
@@ -310,7 +275,7 @@ export function Accounts() {
     <div className="page-container">
       <PageHeader title="Accounts">
         <PageHeaderActions
-          onImport={handleOpenImportPicker}
+          onImport={openFilePicker}
           onExport={handleExportAccounts}
           onCreate={openCreateModal}
           importDisabled={isImporting}
@@ -325,7 +290,7 @@ export function Accounts() {
         type="file"
         accept="application/json,.json"
         onChange={(event) => {
-          void handleImportAccountsFile(event);
+          void handleFileChange(event);
         }}
         className="hidden"
       />

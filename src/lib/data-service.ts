@@ -32,6 +32,7 @@ import {
   getPendingSplitTotal,
   getTransactionsWithDetails,
 } from '../data/mock';
+import { clearAllStoredUserData } from './user-data';
 import type {
   Account,
   Category,
@@ -80,6 +81,7 @@ export interface DataService {
   getCategorySpending(): CategorySpending[];
   getGoalProgress(): GoalProgress[];
   getPendingSplitTotal(): number;
+  clearAllUserData(): Promise<void>;
 }
 
 class LocalDataService implements DataService {
@@ -206,6 +208,10 @@ class LocalDataService implements DataService {
   public getPendingSplitTotal(): number {
     return getPendingSplitTotal();
   }
+
+  public async clearAllUserData(): Promise<void> {
+    clearAllStoredUserData();
+  }
 }
 
 let activeDataService: DataService = new LocalDataService();
@@ -258,6 +264,7 @@ export const getMonthlyStatsData = (): MonthlyStats => getDataService().getMonth
 export const getCategorySpendingData = (): CategorySpending[] => getDataService().getCategorySpending();
 export const getGoalProgressData = (): GoalProgress[] => getDataService().getGoalProgress();
 export const getPendingSplitTotalData = (): number => getDataService().getPendingSplitTotal();
+export const clearAllUserDataData = (): Promise<void> => getDataService().clearAllUserData();
 
 export {
   CATEGORIES,
@@ -292,4 +299,5 @@ export {
   getCategorySpendingData as getCategorySpending,
   getGoalProgressData as getGoalProgress,
   getPendingSplitTotalData as getPendingSplitTotal,
+  clearAllUserDataData as clearAllUserData,
 };

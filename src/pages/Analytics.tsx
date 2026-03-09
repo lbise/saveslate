@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
 import { ResponsiveBar, type BarCustomLayerProps } from '@nivo/bar';
-import { ResponsivePie } from '@nivo/pie';
+import { ResponsivePie, type PieCustomLayerProps } from '@nivo/pie';
 import { ResponsiveSankey } from '@nivo/sankey';
 import { BarChart3 } from 'lucide-react';
 import { PageHeader } from '../components/layout/PageHeader';
@@ -30,6 +30,7 @@ import type { DefaultLink } from '@nivo/sankey';
 // ── Nivo theme (matches dark palette from index.css) ──────────
 
 const ANALYTICS_FONT_FAMILY = 'Satoshi, ui-sans-serif, system-ui, sans-serif';
+const ANALYTICS_DISPLAY_FONT_FAMILY = 'Poppins, ui-sans-serif, system-ui, sans-serif';
 
 const nivoTheme = {
   text: {
@@ -38,6 +39,12 @@ const nivoTheme = {
     fontFamily: ANALYTICS_FONT_FAMILY,
   },
   labels: {
+    text: {
+      fontFamily: ANALYTICS_FONT_FAMILY,
+      fontSize: 13,
+    },
+  },
+  legends: {
     text: {
       fontFamily: ANALYTICS_FONT_FAMILY,
       fontSize: 13,
@@ -187,6 +194,50 @@ function makeGoalSavedValueLabels(formatCurrency: (amount: number) => string) {
             </text>
           );
         })}
+      </g>
+    );
+  };
+}
+
+interface PieCenterMetricLayerProps {
+  total: number;
+  activeSliceId: string | number | null;
+}
+
+function makePieCenterMetricLayer({ total, activeSliceId }: PieCenterMetricLayerProps) {
+  return function PieCenterMetricLayer({ dataWithArc, centerX, centerY }: PieCustomLayerProps<AnalyticsPieDatum>) {
+    const activeDatum = activeSliceId === null
+      ? null
+      : dataWithArc.find((datum) => datum.id === activeSliceId) ?? null;
+    const share = activeDatum && total > 0 ? (activeDatum.value / total) * 100 : null;
+
+    return (
+      <g pointerEvents="none" transform={`translate(${centerX}, ${centerY})`}>
+        <text
+          textAnchor="middle"
+          dominantBaseline="central"
+          style={{
+            fill: ANALYTICS_COLORS.text,
+            fontFamily: ANALYTICS_DISPLAY_FONT_FAMILY,
+            fontSize: 24,
+            fontWeight: 500,
+          }}
+        >
+          {share === null ? '100%' : `${share.toFixed(1)}%`}
+        </text>
+        <text
+          y={22}
+          textAnchor="middle"
+          dominantBaseline="central"
+          style={{
+            fill: ANALYTICS_COLORS.textSecondary,
+            fontFamily: ANALYTICS_FONT_FAMILY,
+            fontSize: 12,
+            fontWeight: 500,
+          }}
+        >
+          {activeDatum === null ? 'Total share' : String(activeDatum.label)}
+        </text>
       </g>
     );
   };
@@ -433,7 +484,7 @@ export function Analytics() {
           <h2 className="section-title">Category Split</h2>
         </div>
 
-        <div className="grid grid-cols-1 xl:grid-cols-2 gap-4">
+        <div className="grid grid-cols-1 gap-4">
           <PieCard
             title="Income Pie"
             emptyLabel="No income categories in this period"
@@ -526,6 +577,16 @@ interface PieCardProps {
 
 function PieCard({ title, emptyLabel, data, hasData, formatCurrency }: PieCardProps) {
   const total = data.reduce((sum, entry) => sum + entry.value, 0);
+  const [activeSliceId, setActiveSliceId] = useState<string | number | null>(null);
+
+  useEffect(() => {
+    setActiveSliceId(null);
+  }, [data]);
+
+  const PieCenterMetricLayer = useMemo(
+    () => makePieCenterMetricLayer({ total, activeSliceId }),
+    [activeSliceId, total],
+  );
 
   return (
     <div className="card" style={{ padding: '16px 20px 16px' }}>
@@ -535,64 +596,66 @@ function PieCard({ title, emptyLabel, data, hasData, formatCurrency }: PieCardPr
       </div>
 
       {hasData ? (
-        <div className="grid grid-cols-1 lg:grid-cols-[minmax(0,280px)_minmax(0,1fr)] gap-3 items-start">
-          <div style={{ height: 260 }}>
+        <div style={{ height: 400 }}>
             <ResponsivePie<AnalyticsPieDatum>
               data={data}
-              margin={{ top: 12, right: 12, bottom: 12, left: 12 }}
-              innerRadius={0.58}
+              margin={{ top: 20, right: 72, bottom: 104, left: 72 }}
+              innerRadius={0.62}
               padAngle={1.1}
               cornerRadius={3}
               activeOuterRadiusOffset={6}
               colors={(datum) => datum.data.color}
               borderWidth={0}
               enableArcLabels={false}
-              enableArcLinkLabels={false}
+              enableArcLinkLabels
+              arcLinkLabel={(datum) => String(datum.label)}
+              arcLinkLabelsSkipAngle={8}
+              arcLinkLabelsOffset={6}
+              arcLinkLabelsDiagonalLength={18}
+              arcLinkLabelsStraightLength={20}
+              arcLinkLabelsThickness={1}
+              arcLinkLabelsTextOffset={4}
+              arcLinkLabelsTextColor={ANALYTICS_COLORS.textSecondary}
+              arcLinkLabelsColor={{ from: 'color' }}
               sortByValue
               theme={nivoTheme}
+              legends={[
+                {
+                  anchor: 'bottom',
+                  direction: 'row',
+                  justify: false,
+                  translateY: 56,
+                  itemWidth: 110,
+                  itemHeight: 18,
+                  itemsSpacing: 12,
+                  itemTextColor: ANALYTICS_COLORS.textSecondary,
+                  itemDirection: 'left-to-right',
+                  symbolSize: 12,
+                  symbolShape: 'circle',
+                },
+              ]}
+              activeId={activeSliceId}
               valueFormat={(value) => formatCurrency(Number(value))}
               tooltip={(item: import('@nivo/pie').PieTooltipProps<AnalyticsPieDatum>) => {
                 const share = total > 0 ? (item.datum.value / total) * 100 : 0;
                 return (
                   <div style={pieTooltipStyle}>
-                    <div className="text-ui text-text mb-1">{item.datum.label}</div>
-                    <div className="text-ui text-text-secondary">{formatCurrency(item.datum.value)}</div>
-                    <div className="text-ui text-text-muted">{share.toFixed(1)}%</div>
-                  </div>
-                );
-              }}
-              animate
-              motionConfig="gentle"
-            />
-          </div>
-
-          <div className="flex flex-col gap-2 mt-2 min-w-0 overflow-hidden">
-            {data.map((entry) => {
-              const share = total > 0 ? (entry.value / total) * 100 : 0;
-              return (
-                <div key={entry.id} className="rounded-(--radius-sm) border border-border/60 bg-surface-hover/35 px-2.5 py-2 min-w-0">
-                  <div className="flex items-start gap-2 min-w-0">
-                    <span
-                      className="block w-2.5 h-2.5 rounded-(--radius-full) mt-1 shrink-0"
-                      style={{ backgroundColor: entry.color }}
-                      aria-hidden
-                    />
-                    <span className="text-ui text-text-secondary leading-5 break-words min-w-0">
-                      {entry.label}
-                    </span>
-                  </div>
-                  <div className="mt-1.5 flex items-center justify-between gap-3 min-w-0">
-                    <span className="text-ui text-text tabular-nums min-w-0">
-                      {formatCurrency(entry.value)}
-                    </span>
-                    <span className="text-ui text-text-muted tabular-nums shrink-0">
-                      {share.toFixed(1)}%
-                    </span>
-                  </div>
-                </div>
-              );
-            })}
-          </div>
+                      <div className="text-ui text-text mb-1">{item.datum.label}</div>
+                      <div className="text-ui text-text-secondary">{formatCurrency(item.datum.value)}</div>
+                      <div className="text-ui text-text-muted">{share.toFixed(1)}%</div>
+                    </div>
+                  );
+                }}
+                onMouseEnter={(datum) => {
+                  setActiveSliceId(datum.id);
+                }}
+                onMouseLeave={() => {
+                  setActiveSliceId(null);
+                }}
+                layers={['arcLinkLabels', 'arcs', PieCenterMetricLayer, 'legends']}
+                animate
+                motionConfig="gentle"
+              />
         </div>
       ) : (
         <div className="flex items-center justify-center py-14">
