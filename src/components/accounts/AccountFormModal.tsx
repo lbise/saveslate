@@ -1,8 +1,26 @@
 import { useMemo, useState, type FormEvent } from 'react';
 import * as LucideIcons from 'lucide-react';
-import { ChevronDown, Search, X } from 'lucide-react';
+import { ChevronDown, Search } from 'lucide-react';
 import { getCurrencyOptionsWithFallback } from '../../lib/currencies';
-import { Icon, Modal } from '../ui';
+import { Icon } from '../ui';
+import { Button } from '@/components/ui/button';
+import { Card } from '@/components/ui/Card';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogFooter,
+} from '@/components/ui/dialog';
 import {
   ACCOUNT_TYPE_DEFAULT_ICONS,
   ACCOUNT_TYPE_LABELS,
@@ -61,26 +79,22 @@ export function AccountFormModal({
   };
 
   return (
-    <Modal onClose={onCancel} panelClassName="max-w-xl p-5">
-      <section>
-          <div className="section-header mb-4">
-            <h2 id="modal-title" className="heading-3 text-foreground">
-              {isEditing ? 'Edit Account' : 'Create Account'}
-            </h2>
-            <button type="button" className="btn-icon" onClick={onCancel} aria-label="Close modal">
-              <X size={16} />
-            </button>
-          </div>
+    <Dialog open onOpenChange={(open) => { if (!open) onCancel(); }}>
+      <DialogContent className="max-w-xl" showCloseButton={false}>
+        <DialogHeader>
+          <DialogTitle>
+            {isEditing ? 'Edit Account' : 'Create Account'}
+          </DialogTitle>
+        </DialogHeader>
 
           <form className="space-y-4" onSubmit={handleSubmit}>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div>
-                <label className="label mb-1.5 block" htmlFor="account-name">
+                <Label className="mb-1.5 block" htmlFor="account-name">
                   Name
-                </label>
-                <input
+                </Label>
+                <Input
                   id="account-name"
-                  className="input"
                   placeholder="Daily account"
                   value={form.name}
                   onChange={(event) =>
@@ -91,15 +105,13 @@ export function AccountFormModal({
               </div>
 
               <div>
-                <label className="label mb-1.5 block" htmlFor="account-type">
+                <Label className="mb-1.5 block" htmlFor="account-type">
                   Type
-                </label>
-                <select
-                  id="account-type"
-                  className="select"
+                </Label>
+                <Select
                   value={form.type}
-                  onChange={(event) => {
-                    const nextType = event.target.value as AccountType;
+                  onValueChange={(value) => {
+                    const nextType = value as AccountType;
                     setForm((current) => {
                       const nextIcon =
                         current.icon === ACCOUNT_TYPE_DEFAULT_ICONS[current.type]
@@ -114,23 +126,27 @@ export function AccountFormModal({
                     });
                   }}
                 >
-                  {Object.entries(ACCOUNT_TYPE_LABELS).map(([value, label]) => (
-                    <option key={value} value={value}>
-                      {label}
-                    </option>
-                  ))}
-                </select>
+                  <SelectTrigger id="account-type">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {Object.entries(ACCOUNT_TYPE_LABELS).map(([value, label]) => (
+                      <SelectItem key={value} value={value}>
+                        {label}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
               </div>
             </div>
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div>
-                <label className="label mb-1.5 block" htmlFor="account-starting-balance">
+                <Label className="mb-1.5 block" htmlFor="account-starting-balance">
                   Starting balance
-                </label>
-                <input
+                </Label>
+                <Input
                   id="account-starting-balance"
-                  className="input"
                   type="number"
                   step="0.01"
                   value={form.startingBalance}
@@ -145,34 +161,35 @@ export function AccountFormModal({
               </div>
 
               <div>
-                <label className="label mb-1.5 block" htmlFor="account-currency">
+                <Label className="mb-1.5 block" htmlFor="account-currency">
                   Currency
-                </label>
-                <select
-                  id="account-currency"
-                  className="select"
+                </Label>
+                <Select
                   value={form.currency}
-                  onChange={(event) =>
-                    setForm((current) => ({ ...current, currency: event.target.value }))
+                  onValueChange={(value) =>
+                    setForm((current) => ({ ...current, currency: value }))
                   }
-                  required
                 >
-                  {currencyOptions.map((currency) => (
-                    <option key={currency.code} value={currency.code}>
-                      {currency.label} ({currency.code})
-                    </option>
-                  ))}
-                </select>
+                  <SelectTrigger id="account-currency">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {currencyOptions.map((currency) => (
+                      <SelectItem key={currency.code} value={currency.code}>
+                        {currency.label} ({currency.code})
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
               </div>
             </div>
 
             <div>
-              <label className="label mb-1.5 block" htmlFor="account-identifier">
+              <Label className="mb-1.5 block" htmlFor="account-identifier">
                 Account number / IBAN (optional)
-              </label>
-              <input
+              </Label>
+              <Input
                 id="account-identifier"
-                className="input"
                 placeholder="CH97 0029 0290 IN11 3984 2"
                 value={form.accountIdentifier}
                 onChange={(event) =>
@@ -185,33 +202,33 @@ export function AccountFormModal({
             </div>
 
             <div className="relative">
-              <label className="label mb-1.5 block" htmlFor="account-icon-search">
+              <Label className="mb-1.5 block" htmlFor="account-icon-search">
                 Icon
-              </label>
+              </Label>
               <button
                 type="button"
-                className="input flex items-center justify-between"
+                className="flex items-center justify-between w-full h-10 rounded-md border border-border bg-card px-4 text-base text-foreground transition-all duration-150 cursor-pointer"
                 onClick={() => setIsIconPickerOpen((current) => !current)}
                 aria-expanded={isIconPickerOpen}
                 aria-controls="account-icon-picker"
               >
                 <span className="flex items-center gap-2 min-w-0">
                   <Icon name={form.icon} size={16} className="text-foreground" />
-                  <span className="text-body text-foreground truncate">{form.icon}</span>
+                  <span className="text-base text-foreground truncate">{form.icon}</span>
                 </span>
                 <ChevronDown size={16} className="text-dimmed" />
               </button>
 
               {isIconPickerOpen && (
-                <div id="account-icon-picker" className="card absolute z-20 mt-2 w-full p-3">
+                <Card id="account-icon-picker" className="absolute z-20 mt-2 w-full p-3">
                   <div className="relative mb-3">
                     <Search
                       size={14}
                       className="absolute left-3 top-1/2 -translate-y-1/2 text-dimmed"
                     />
-                    <input
+                    <Input
                       id="account-icon-search"
-                      className="input pl-9"
+                      className="pl-9"
                       placeholder="Search icon"
                       value={iconSearchQuery}
                       onChange={(event) => setIconSearchQuery(event.target.value)}
@@ -238,31 +255,31 @@ export function AccountFormModal({
                           ].join(' ')}
                         >
                           <Icon name={iconName} size={16} />
-                          <span className="text-ui">{iconName}</span>
+                          <span className="text-sm text-muted-foreground">{iconName}</span>
                         </button>
                       );
                     })}
 
                     {filteredIconNames.length === 0 && (
-                      <div className="px-3 py-4 text-ui text-dimmed">
+                      <div className="px-3 py-4 text-sm text-dimmed">
                         No icons found.
                       </div>
                     )}
                   </div>
-                </div>
+                </Card>
               )}
             </div>
 
-            <div className="flex items-center justify-end gap-2 pt-1">
-              <button type="button" className="btn-secondary" onClick={onCancel}>
+            <DialogFooter>
+              <Button type="button" variant="outline" onClick={onCancel}>
                 Cancel
-              </button>
-              <button type="submit" className="btn-primary">
+              </Button>
+              <Button type="submit">
                 {isEditing ? 'Save Changes' : 'Create Account'}
-              </button>
-            </div>
+              </Button>
+            </DialogFooter>
           </form>
-      </section>
-    </Modal>
+      </DialogContent>
+    </Dialog>
   );
 }

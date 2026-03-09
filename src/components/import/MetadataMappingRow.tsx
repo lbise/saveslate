@@ -1,6 +1,8 @@
 import { useState, useRef, useEffect } from "react";
 import { ChevronDown, X } from "lucide-react";
 import { cn } from "../../lib/utils";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
 import type { MetadataMapping } from "../../types";
 
 export interface MetadataMappingRowProps {
@@ -54,21 +56,23 @@ export function MetadataMappingRow({
       )}
     >
       <div className="flex items-center gap-2 mb-2">
-        <input
+        <Input
           type="text"
           value={mapping.key}
           onChange={(event) => onKeyChange(event.target.value)}
           placeholder="Metadata field name (e.g. Merchant)"
-          className="input text-sm flex-1"
+          className="text-sm flex-1"
         />
-        <button
+        <Button
+          variant="ghost"
+          size="icon"
           type="button"
           onClick={onRemove}
-          className="btn-icon w-7 h-7 text-dimmed hover:text-expense"
+          className="size-7 text-dimmed hover:text-expense"
           aria-label="Remove metadata field" title="Remove metadata field"
         >
           <X size={12} />
-        </button>
+        </Button>
       </div>
 
       <div className="relative" ref={containerRef}>
@@ -85,14 +89,14 @@ export function MetadataMappingRow({
           )}
         >
           {!hasColumns && (
-            <span className="text-ui text-dimmed">
+            <span className="text-sm text-dimmed">
               Select one or more columns...
             </span>
           )}
           {mapping.columnIndices.map((columnIndex) => (
             <span
               key={columnIndex}
-              className="inline-flex items-center gap-1 px-2 py-0.5 rounded-(--radius-sm) bg-foreground/10 text-ui text-foreground"
+              className="inline-flex items-center gap-1 px-2 py-0.5 rounded-(--radius-sm) bg-foreground/10 text-sm text-foreground"
             >
               <span className="truncate max-w-[140px]">
                 {headers[columnIndex] ?? `Col ${columnIndex + 1}`}
@@ -146,23 +150,23 @@ export function MetadataMappingRow({
                   <span className="flex items-center gap-2">
                     <span
                       className={cn(
-                        "text-ui",
+                        "text-sm",
                         isSelected ? "text-foreground font-medium" : "text-foreground",
                       )}
                     >
                       {header || `Column ${columnIndex + 1}`}
                     </span>
                     {isDisabled && (
-                      <span className="text-ui text-dimmed">
+                      <span className="text-sm text-dimmed">
                         Mapped field
                       </span>
                     )}
                     {isSelected && (
-                      <span className="text-ui text-income">selected</span>
+                      <span className="text-sm text-income">selected</span>
                     )}
                   </span>
                   {sampleValue && (
-                    <span className="text-ui text-dimmed truncate mt-0.5 max-w-full">
+                    <span className="text-sm text-dimmed truncate mt-0.5 max-w-full">
                       {sampleValue}
                     </span>
                   )}
@@ -174,7 +178,7 @@ export function MetadataMappingRow({
       </div>
 
       {(!hasKey || !hasColumns) && (
-        <p className="text-ui text-dimmed mt-2">
+        <p className="text-sm text-dimmed mt-2">
           Set a field name and choose at least one column.
         </p>
       )}

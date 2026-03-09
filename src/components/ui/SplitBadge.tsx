@@ -13,7 +13,7 @@ export function SplitBadge({ status, className }: SplitBadgeProps) {
   return (
     <div
       className={cn(
-        'inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-ui font-medium',
+        'inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-sm font-medium',
         isPending ? 'bg-split/20 text-split' : 'bg-income/20 text-income',
         className
       )}

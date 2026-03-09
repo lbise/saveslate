@@ -80,8 +80,8 @@ export function TransactionItem({
 
       {/* Info */}
       <div className="flex-1 min-w-0">
-        <div className="text-body text-foreground truncate" title={description}>{description}</div>
-        <div className="text-ui text-dimmed flex items-center gap-2">
+        <div className="text-base text-foreground truncate" title={description}>{description}</div>
+        <div className="text-sm text-dimmed flex items-center gap-2">
           <span>{categoryName}</span>
           {transferFlow && (
             <span className="text-muted-foreground">
@@ -95,7 +95,7 @@ export function TransactionItem({
 
       {/* Amount */}
       <div
-        className={cn('text-body font-medium shrink-0', getAmountColorClass(type, amount))}
+        className={cn('text-base font-medium shrink-0', getAmountColorClass(type, amount))}
         style={{ fontFamily: 'var(--font-display)' }}
       >
         {formatSignedCurrency(amount, currency)}

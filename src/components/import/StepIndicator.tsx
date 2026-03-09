@@ -27,7 +27,7 @@ export function StepIndicator({ currentStep }: StepIndicatorProps) {
           <div key={step.key} className="flex items-center shrink-0">
             <div
               className={cn(
-                'w-6 h-6 rounded-full flex items-center justify-center text-ui font-medium tabular-nums leading-none transition-colors duration-150 shrink-0',
+                'w-6 h-6 rounded-full flex items-center justify-center text-sm text-muted-foreground font-medium tabular-nums leading-none transition-colors duration-150 shrink-0',
                 isCompleted && 'bg-foreground text-background',
                 isCurrent && 'bg-foreground/15 text-foreground border border-foreground/30',
                 !isCompleted && !isCurrent && 'bg-card text-dimmed border border-border',
@@ -37,7 +37,7 @@ export function StepIndicator({ currentStep }: StepIndicatorProps) {
             </div>
             <span
               className={cn(
-                'ml-2 text-ui font-medium hidden sm:inline-flex sm:items-center leading-none',
+                'ml-2 text-sm text-muted-foreground font-medium hidden sm:inline-flex sm:items-center leading-none',
                 isCurrent ? 'text-foreground' : isCompleted ? 'text-muted-foreground' : 'text-dimmed',
               )}
             >

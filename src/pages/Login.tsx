@@ -1,23 +1,26 @@
 import { Link } from 'react-router-dom';
+import { Button } from '@/components/ui/button';
+import { Card } from '@/components/ui/Card';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
 
 export function Login() {
   return (
     <div className="min-h-screen bg-background px-4 py-10 sm:px-6">
       <div className="mx-auto w-full max-w-md">
-        <div className="card p-6 sm:p-7">
+        <Card className="p-6 sm:p-7">
           <div className="mb-5">
-            <h1 className="heading-1">Welcome back</h1>
-            <p className="text-body text-dimmed mt-1">Sign in to continue to SaveSlate.</p>
+            <h1 className="font-display text-2xl font-medium tracking-tight text-foreground">Welcome back</h1>
+            <p className="text-base text-dimmed mt-1">Sign in to continue to SaveSlate.</p>
           </div>
 
           <form className="space-y-4" onSubmit={(event) => event.preventDefault()}>
             <div>
-              <label htmlFor="login-email" className="label mb-1.5 block">Email</label>
-              <input
+              <Label htmlFor="login-email" className="mb-1.5 block">Email</Label>
+              <Input
                 id="login-email"
                 type="email"
                 autoComplete="email"
-                className="input"
                 placeholder="you@example.com"
                 required
               />
@@ -25,27 +28,26 @@ export function Login() {
 
             <div>
               <div className="mb-1.5 flex items-center justify-between gap-2">
-                <label htmlFor="login-password" className="label">Password</label>
-                <button type="button" className="btn-ghost px-2 py-1">Forgot?</button>
+                <Label htmlFor="login-password">Password</Label>
+                <Button variant="ghost" type="button" size="xs">Forgot?</Button>
               </div>
-              <input
+              <Input
                 id="login-password"
                 type="password"
                 autoComplete="current-password"
-                className="input"
                 placeholder="Enter password"
                 required
               />
             </div>
 
-            <button type="submit" className="btn-primary w-full">Sign in</button>
+            <Button type="submit" className="w-full">Sign in</Button>
           </form>
 
-          <p className="text-ui text-dimmed mt-5 text-center">
+          <p className="text-sm text-dimmed mt-5 text-center">
             New here?{' '}
-            <Link to="/register" className="text-link">Create an account</Link>
+            <Link to="/register" className="text-sm text-dimmed hover:text-foreground inline-flex items-center gap-1 transition-colors duration-150">Create an account</Link>
           </p>
-        </div>
+        </Card>
       </div>
     </div>
   );

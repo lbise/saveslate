@@ -1,4 +1,11 @@
-import { Target, Tags, Filter, Pencil, Copy, Trash2 } from "lucide-react";
+import { Target, Tags, Filter, Pencil, Copy, Trash2, MoreHorizontal } from "lucide-react";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "../ui/dropdown-menu";
 import { cn } from "../../lib/utils";
 
 export interface ActionMenuProps {
@@ -9,7 +16,9 @@ export interface ActionMenuProps {
   onCreateRule: () => void;
   hasGoal: boolean;
   hasTags: boolean;
-  className?: string;
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
+  triggerClassName?: string;
 }
 
 export function ActionMenu({
@@ -20,71 +29,56 @@ export function ActionMenu({
   onCreateRule,
   hasGoal,
   hasTags,
-  className,
+  open,
+  onOpenChange,
+  triggerClassName,
 }: ActionMenuProps) {
-  const itemClass = "menu-item";
-
   return (
-    <div
-      className={cn(
-        "menu-popover w-44",
-        className,
-      )}
-      onClick={(e) => e.stopPropagation()}
-    >
-      <button
-        onClick={onEditGoal}
-        className={itemClass}
-      >
-        <Target size={12} />
-        {hasGoal ? "Change goal" : "Set goal"}
-      </button>
-      {hasGoal && (
+    <DropdownMenu open={open} onOpenChange={onOpenChange}>
+      <DropdownMenuTrigger asChild>
         <button
-          onClick={onRemoveGoal}
-          className={itemClass}
+          className={cn(
+            "w-7 h-7 flex items-center justify-center rounded bg-transparent border-none cursor-pointer text-dimmed hover:text-foreground transition-opacity",
+            triggerClassName,
+          )}
         >
-          <Target size={12} />
-          Unlink goal
+          <MoreHorizontal size={14} />
         </button>
-      )}
-      <button
-        onClick={onEditTags}
-        className={itemClass}
-      >
-        <Tags size={12} />
-        {hasTags ? "Edit tags" : "Set tags"}
-      </button>
-      <button
-        onClick={onCreateRule}
-        className={itemClass}
-      >
-        <Filter size={12} />
-        Create rule
-      </button>
-      <div className="menu-divider" />
-      <button
-        onClick={() => onAction("edit")}
-        className={itemClass}
-      >
-        <Pencil size={12} />
-        Edit
-      </button>
-      <button
-        onClick={() => onAction("duplicate")}
-        className={itemClass}
-      >
-        <Copy size={12} />
-        Duplicate
-      </button>
-      <div className="menu-divider" />
-      <button
-        onClick={() => onAction("delete")}
-        className="menu-item-danger"
-      >
-        <Trash2 size={12} />
-        Delete
-      </button>
-    </div>
+      </DropdownMenuTrigger>
+      <DropdownMenuContent align="end" className="w-44">
+        <DropdownMenuItem onClick={onEditGoal}>
+          <Target size={12} />
+          {hasGoal ? "Change goal" : "Set goal"}
+        </DropdownMenuItem>
+        {hasGoal && (
+          <DropdownMenuItem onClick={onRemoveGoal}>
+            <Target size={12} />
+            Unlink goal
+          </DropdownMenuItem>
+        )}
+        <DropdownMenuItem onClick={onEditTags}>
+          <Tags size={12} />
+          {hasTags ? "Edit tags" : "Set tags"}
+        </DropdownMenuItem>
+        <DropdownMenuItem onClick={onCreateRule}>
+          <Filter size={12} />
+          Create rule
+        </DropdownMenuItem>
+        <DropdownMenuSeparator />
+        <DropdownMenuItem onClick={() => onAction("edit")}>
+          <Pencil size={12} />
+          Edit
+        </DropdownMenuItem>
+        <DropdownMenuItem onClick={() => onAction("duplicate")}>
+          <Copy size={12} />
+          Duplicate
+        </DropdownMenuItem>
+        <DropdownMenuSeparator />
+        <DropdownMenuItem variant="destructive" onClick={() => onAction("delete")}>
+          <Trash2 size={12} />
+          Delete
+        </DropdownMenuItem>
+      </DropdownMenuContent>
+    </DropdownMenu>
   );
 }

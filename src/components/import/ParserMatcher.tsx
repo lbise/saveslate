@@ -1,6 +1,8 @@
 import { useMemo, useRef, useState, type ChangeEvent } from 'react';
 import { Check, ChevronDown, Download, Edit, FileQuestion, Plus, Upload, Zap } from 'lucide-react';
 import { cn } from '../../lib/utils';
+import { Button } from '@/components/ui/button';
+import { Card } from '@/components/ui/Card';
 import { findBestParserFromRaw } from '../../lib/csv';
 import { exportParser, importParserFromFile, loadParsers } from '../../lib/parser-storage';
 import type { CsvParser } from '../../types';
@@ -75,16 +77,16 @@ export function ParserMatcher({ rawContent, onSelectParser, onEditParser, onCrea
         />
 
         {/* Match banner */}
-        <div className="card p-5">
+        <Card className="p-5">
           <div className="flex items-start gap-4">
             <div className="w-10 h-10 rounded-(--radius-md) bg-income/10 flex items-center justify-center shrink-0">
               <Zap size={18} className="text-income" />
             </div>
             <div className="flex-1 min-w-0">
-              <p className="text-body text-foreground font-medium">
+              <p className="text-base text-foreground font-medium">
                 Parser matched: {matchedParser.name}
               </p>
-              <p className="text-ui text-dimmed mt-1">
+              <p className="text-sm text-dimmed mt-1">
                 {matchScore}% header match
                 &middot; {matchedParser.columnMappings.filter((m) => m.field !== 'ignore').length} mapped columns
                 &middot; {matchedParser.amountFormat === 'single' ? 'Single amount' : 'Debit/Credit'} format
@@ -93,28 +95,27 @@ export function ParserMatcher({ rawContent, onSelectParser, onEditParser, onCrea
           </div>
 
           <div className="flex gap-2 mt-4 flex-wrap">
-            <button
+            <Button
               onClick={() => onSelectParser(matchedParser)}
-              className="btn-primary"
             >
               <Check size={14} />
               Use this parser
-            </button>
-            <button
+            </Button>
+            <Button
+              variant="outline"
               onClick={() => onEditParser(matchedParser)}
-              className="btn-secondary"
             >
               <Edit size={14} />
               Edit parser
-            </button>
+            </Button>
             <div className="relative">
-              <button
+              <Button
+                variant="outline"
                 onClick={() => setShowDropdown(!showDropdown)}
-                className="btn-secondary"
               >
                 Choose different
                 <ChevronDown size={14} />
-              </button>
+              </Button>
               {showDropdown && (
                 <ParserDropdown
                   parsers={parsers}
@@ -131,35 +132,35 @@ export function ParserMatcher({ rawContent, onSelectParser, onEditParser, onCrea
                 />
               )}
             </div>
-            <button
+            <Button
+              variant="outline"
               onClick={() => exportParser(matchedParser)}
-              className="btn-secondary"
             >
               <Download size={14} />
               Export parser
-            </button>
-            <button
+            </Button>
+            <Button
               type="button"
+              variant="outline"
               onClick={handleOpenImportPicker}
-              className="btn-secondary"
               disabled={isImporting}
             >
               <Upload size={14} />
               {isImporting ? 'Importing...' : 'Import parser'}
-            </button>
+            </Button>
           </div>
 
           {importError && (
-            <p className="text-ui text-expense mt-3">{importError}</p>
+            <p className="text-sm text-expense mt-3">{importError}</p>
           )}
-        </div>
+        </Card>
       </div>
     );
   }
 
   // No match found
   return (
-    <div className="card p-5">
+    <Card className="p-5">
       <input
         ref={parserFileInputRef}
         type="file"
@@ -175,31 +176,31 @@ export function ParserMatcher({ rawContent, onSelectParser, onEditParser, onCrea
           <FileQuestion size={18} className="text-expense" />
         </div>
         <div className="flex-1">
-          <p className="text-body text-foreground font-medium">
+          <p className="text-base text-foreground font-medium">
             {hasExistingParsers
               ? 'No parser matches this file format'
               : 'No parsers configured yet'}
           </p>
-          <p className="text-ui text-dimmed mt-1">
+          <p className="text-sm text-dimmed mt-1">
             {hasExistingParsers
               ? 'Create a new parser or select an existing one to map the columns.'
               : 'Create a parser to define how columns in this CSV map to transaction fields.'}
           </p>
 
           <div className="flex gap-2 mt-4 flex-wrap">
-            <button onClick={onCreateNew} className="btn-primary">
+            <Button onClick={onCreateNew}>
               <Plus size={14} />
               Create new parser
-            </button>
+            </Button>
             {hasExistingParsers && (
               <div className="relative">
-                <button
+                <Button
+                  variant="outline"
                   onClick={() => setShowDropdown(!showDropdown)}
-                  className="btn-secondary"
                 >
                   Select existing
                   <ChevronDown size={14} />
-                </button>
+                </Button>
                 {showDropdown && (
                   <ParserDropdown
                     parsers={parsers}
@@ -216,23 +217,23 @@ export function ParserMatcher({ rawContent, onSelectParser, onEditParser, onCrea
                 )}
               </div>
             )}
-            <button
+            <Button
               type="button"
+              variant="outline"
               onClick={handleOpenImportPicker}
-              className="btn-secondary"
               disabled={isImporting}
             >
               <Upload size={14} />
               {isImporting ? 'Importing...' : 'Import parser'}
-            </button>
+            </Button>
           </div>
 
           {importError && (
-            <p className="text-ui text-expense mt-3">{importError}</p>
+            <p className="text-sm text-expense mt-3">{importError}</p>
           )}
         </div>
       </div>
-    </div>
+    </Card>
   );
 }
 
@@ -262,26 +263,28 @@ function ParserDropdown({ parsers, excludeId, onSelect, onCreateNew, onClose }: 
                 'hover:bg-secondary transition-colors',
               )}
             >
-              <span className="text-ui text-foreground font-medium">{parser.name}</span>
-              <span className="text-ui text-dimmed mt-0.5">
+              <span className="text-sm text-foreground font-medium">{parser.name}</span>
+              <span className="text-sm text-dimmed mt-0.5">
                 {parser.columnMappings.filter((m) => m.field !== 'ignore').length} columns
                 &middot; delimiter: {parser.delimiter === '\t' ? 'tab' : `"${parser.delimiter}"`}
               </span>
             </button>
-            <button
+            <Button
+              variant="ghost"
+              size="icon"
               onClick={() => exportParser(parser)}
-              className="btn-icon w-7 h-7 shrink-0 text-dimmed hover:text-foreground"
+              className="size-7 shrink-0 text-dimmed hover:text-foreground"
               aria-label={`Export parser ${parser.name}`}
               title={`Export parser ${parser.name}`}
             >
               <Download size={12} />
-            </button>
+            </Button>
           </div>
         ))}
         {filtered.length > 0 && <div className="h-px bg-border mx-2 my-1" />}
         <button
           onClick={onCreateNew}
-          className="flex items-center gap-2 w-full px-3 py-2.5 text-left bg-transparent border-none cursor-pointer text-ui hover:text-foreground hover:bg-secondary transition-colors"
+          className="flex items-center gap-2 w-full px-3 py-2.5 text-left bg-transparent border-none cursor-pointer text-sm text-muted-foreground hover:text-foreground hover:bg-secondary transition-colors"
         >
           <Plus size={12} />
           Create new parser

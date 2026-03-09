@@ -40,9 +40,8 @@ export function ParsedTransactionPreview({ rows }: ParsedTransactionPreviewProps
   return (
     <div>
       <div className="flex items-center gap-3 mb-2">
-        <label className="label">Parsed preview</label>
-        <span className="text-ui text-dimmed">
-          {rows.length} row{rows.length !== 1 ? "s" : ""}
+        <label className="text-base font-medium text-muted-foreground">Parsed preview</label>
+        <span className="text-sm text-dimmed">
         </span>
         {errorCount > 0 && (
           <button
@@ -56,7 +55,7 @@ export function ParsedTransactionPreview({ rows }: ParsedTransactionPreviewProps
             )}
           >
             <AlertTriangle size={11} className="text-warning" />
-            <span className="text-ui text-warning hover:underline">
+            <span className="text-sm text-warning hover:underline">
               {errorCount} with warnings{showWarningsOnly ? " (filtered)" : ""}
             </span>
             <Filter size={10} className="text-warning" />
@@ -158,7 +157,7 @@ export function ParsedTransactionPreview({ rows }: ParsedTransactionPreviewProps
           </tbody>
         </table>
         {filteredRows.length > PARSED_PAGE_SIZES[0] && (
-          <div className="flex items-center justify-between px-3 py-2 text-ui text-dimmed bg-card border-t border-border">
+          <div className="flex items-center justify-between px-3 py-2 text-sm text-dimmed bg-card border-t border-border">
             <div className="flex items-center gap-1.5">
               <span>Rows</span>
               <select

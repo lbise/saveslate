@@ -1,4 +1,5 @@
 import { ChevronLeft, ChevronRight, ChevronsLeft, ChevronsRight } from 'lucide-react';
+import { Button } from './button';
 
 interface PaginationButtonsProps {
   page: number;
@@ -12,46 +13,50 @@ export function PaginationButtons({ page, totalPages, onPageChange }: Pagination
 
   return (
     <div className="flex items-center gap-1">
-      <button
-        type="button"
+      <Button
+        variant="ghost"
+        size="icon-sm"
         onClick={() => onPageChange(0)}
         disabled={isAtStart}
-        className="p-0.5 rounded hover:bg-secondary disabled:opacity-30 disabled:cursor-not-allowed transition-colors cursor-pointer bg-transparent border-none text-dimmed"
+        className="size-6 text-dimmed"
         title="First page"
         aria-label="Go to first page"
       >
         <ChevronsLeft size={16} />
-      </button>
-      <button
-        type="button"
+      </Button>
+      <Button
+        variant="ghost"
+        size="icon-sm"
         onClick={() => onPageChange(page - 1)}
         disabled={isAtStart}
-        className="p-0.5 rounded hover:bg-secondary disabled:opacity-30 disabled:cursor-not-allowed transition-colors cursor-pointer bg-transparent border-none text-dimmed"
+        className="size-6 text-dimmed"
         title="Previous page"
         aria-label="Go to previous page"
       >
         <ChevronLeft size={16} />
-      </button>
-      <button
-        type="button"
+      </Button>
+      <Button
+        variant="ghost"
+        size="icon-sm"
         onClick={() => onPageChange(page + 1)}
         disabled={isAtEnd}
-        className="p-0.5 rounded hover:bg-secondary disabled:opacity-30 disabled:cursor-not-allowed transition-colors cursor-pointer bg-transparent border-none text-dimmed"
+        className="size-6 text-dimmed"
         title="Next page"
         aria-label="Go to next page"
       >
         <ChevronRight size={16} />
-      </button>
-      <button
-        type="button"
+      </Button>
+      <Button
+        variant="ghost"
+        size="icon-sm"
         onClick={() => onPageChange(Math.max(totalPages - 1, 0))}
         disabled={isAtEnd}
-        className="p-0.5 rounded hover:bg-secondary disabled:opacity-30 disabled:cursor-not-allowed transition-colors cursor-pointer bg-transparent border-none text-dimmed"
+        className="size-6 text-dimmed"
         title="Last page"
         aria-label="Go to last page"
       >
         <ChevronsRight size={16} />
-      </button>
+      </Button>
     </div>
   );
 }

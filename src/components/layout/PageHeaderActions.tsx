@@ -1,4 +1,5 @@
 import { Download, Plus, Upload } from 'lucide-react';
+import { Button } from '@/components/ui/button';
 
 interface PageHeaderActionsProps {
   onImport: () => void;
@@ -25,33 +26,38 @@ export function PageHeaderActions({
 }: PageHeaderActionsProps) {
   return (
     <div className="flex items-center gap-2 self-start">
-      <button
+      <Button
         type="button"
-        className="btn-secondary h-9 px-3.5 py-0 whitespace-nowrap"
+        variant="outline"
+        size="sm"
+        className="whitespace-nowrap"
         onClick={onImport}
         disabled={importDisabled}
       >
         <Upload size={14} />
         {importLabel}
-      </button>
-      <button
+      </Button>
+      <Button
         type="button"
-        className="btn-secondary h-9 px-3.5 py-0 whitespace-nowrap"
+        variant="outline"
+        size="sm"
+        className="whitespace-nowrap"
         onClick={onExport}
         disabled={exportDisabled}
       >
         <Download size={14} />
         {exportLabel}
-      </button>
-      <button
+      </Button>
+      <Button
         type="button"
-        className="btn-primary h-9 px-4 py-0 whitespace-nowrap"
+        size="sm"
+        className="whitespace-nowrap"
         onClick={onCreate}
         disabled={createDisabled}
       >
         <Plus size={14} />
         {createLabel}
-      </button>
+      </Button>
     </div>
   );
 }

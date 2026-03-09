@@ -1,6 +1,23 @@
 import { useState, useMemo, type FormEvent } from "react";
 import { X } from "lucide-react";
-import { Modal } from "../ui";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Textarea } from "@/components/ui/textarea";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogFooter,
+} from "@/components/ui/dialog";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import {
   CATEGORIES,
   getAccounts,
@@ -345,30 +362,22 @@ export function RuleFormModal({
   // ─── Render ────────────────────────────────────────────────
 
   return (
-    <Modal onClose={onClose} panelClassName="max-w-3xl p-5">
-      <section>
-          <div className="section-header mb-4">
-            <h2 id="modal-title" className="heading-3 text-foreground">
-              {editingRuleId ? "Edit Rule" : "Create Rule"}
-            </h2>
-            <button aria-label="Close modal"
-              type="button"
-              className="btn-icon"
-              onClick={onClose}
-            >
-              <X size={16} />
-            </button>
-          </div>
+    <Dialog open onOpenChange={(open) => { if (!open) onClose(); }}>
+      <DialogContent className="max-w-3xl" showCloseButton={false}>
+        <DialogHeader>
+          <DialogTitle>
+            {editingRuleId ? "Edit Rule" : "Create Rule"}
+          </DialogTitle>
+        </DialogHeader>
 
           <form className="space-y-4" onSubmit={handleSaveRule}>
             <div>
               <div>
-                <label className="label mb-1.5 block" htmlFor="rule-name">
+                <Label className="mb-1.5 block" htmlFor="rule-name">
                   Rule name
-                </label>
-                <input
+                </Label>
+                <Input
                   id="rule-name"
-                  className="input"
                   placeholder="Categorize grocery merchants"
                   value={form.name}
                   onChange={(event) =>
@@ -384,14 +393,14 @@ export function RuleFormModal({
 
             <div className="space-y-2">
               <div className="flex items-center justify-between gap-2">
-                <p className="label">Actions</p>
-                <button
+                <p className="text-base font-medium text-muted-foreground">Actions</p>
+                <Button
+                  variant="ghost"
                   type="button"
-                  className="btn-ghost"
                   onClick={handleAddAction}
                 >
                   Add action
-                </button>
+                </Button>
               </div>
 
               <div className="space-y-2">
@@ -402,49 +411,59 @@ export function RuleFormModal({
                       className="rounded-(--radius-md) border border-border bg-card p-3 space-y-2"
                     >
                       <div className="grid grid-cols-1 md:grid-cols-[minmax(0,1fr)_auto] gap-2">
-                        <select
-                          className="select"
+                        <Select
                           value={action.type}
-                          onChange={(event) => {
-                            const nextType = event.target.value as RuleFormAction["type"];
+                          onValueChange={(value) => {
+                            const nextType = value as RuleFormAction["type"];
                             handleActionChange(action.id, {
                               type: nextType,
                               overwriteExisting: false,
                             });
                           }}
                         >
-                          <option value="set-category">Set category</option>
-                          <option value="set-goal">Set goal</option>
-                        </select>
+                          <SelectTrigger>
+                            <SelectValue />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="set-category">Set category</SelectItem>
+                            <SelectItem value="set-goal">Set goal</SelectItem>
+                          </SelectContent>
+                        </Select>
 
-                        <button
+                        <Button
+                          variant="ghost"
+                          size="icon"
                           type="button"
                           onClick={() => handleRemoveAction(action.id)}
-                          className="btn-icon justify-self-start md:justify-self-end"
+                          className="justify-self-start md:justify-self-end"
                           disabled={form.actions.length === 1}
                           aria-label="Remove action" title="Remove action"
                         >
                           <X size={14} />
-                        </button>
+                        </Button>
                       </div>
 
                       {action.type === "set-category" ? (
                         <>
-                          <select
-                            className="select"
+                          <Select
                             value={action.categoryId}
-                            onChange={(event) =>
+                            onValueChange={(value) =>
                               handleActionChange(action.id, {
-                                categoryId: event.target.value,
+                                categoryId: value,
                               })
                             }
                           >
-                            {CATEGORIES.map((category) => (
-                              <option key={category.id} value={category.id}>
-                                {category.name}
-                              </option>
-                            ))}
-                          </select>
+                            <SelectTrigger>
+                              <SelectValue />
+                            </SelectTrigger>
+                            <SelectContent>
+                              {CATEGORIES.map((category) => (
+                                <SelectItem key={category.id} value={category.id}>
+                                  {category.name}
+                                </SelectItem>
+                              ))}
+                            </SelectContent>
+                          </Select>
                           <label className="flex items-center gap-2">
                             <input
                               type="checkbox"
@@ -455,29 +474,33 @@ export function RuleFormModal({
                                 })
                               }
                             />
-                            <span className="text-ui">
+                            <span className="text-sm text-muted-foreground">
                               Allow recategorizing already categorized transactions
                             </span>
                           </label>
                         </>
                       ) : (
                         <>
-                          <select
-                            className="select"
-                            value={action.goalId}
-                            onChange={(event) =>
+                          <Select
+                            value={action.goalId || "__none__"}
+                            onValueChange={(value) =>
                               handleActionChange(action.id, {
-                                goalId: event.target.value,
+                                goalId: value === "__none__" ? "" : value,
                               })
                             }
                           >
-                            <option value="">Select goal</option>
-                            {availableGoals.map((goal) => (
-                              <option key={goal.id} value={goal.id}>
-                                {goal.name}
-                              </option>
-                            ))}
-                          </select>
+                            <SelectTrigger>
+                              <SelectValue />
+                            </SelectTrigger>
+                            <SelectContent>
+                              <SelectItem value="__none__">Select goal</SelectItem>
+                              {availableGoals.map((goal) => (
+                                <SelectItem key={goal.id} value={goal.id}>
+                                  {goal.name}
+                                </SelectItem>
+                              ))}
+                            </SelectContent>
+                          </Select>
                           <label className="flex items-center gap-2">
                             <input
                               type="checkbox"
@@ -488,7 +511,7 @@ export function RuleFormModal({
                                 })
                               }
                             />
-                            <span className="text-ui">
+                            <span className="text-sm text-muted-foreground">
                               Allow changing goal when transaction already has one
                             </span>
                           </label>
@@ -502,26 +525,29 @@ export function RuleFormModal({
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div>
-                <label
-                  className="label mb-1.5 block"
+                <Label
+                  className="mb-1.5 block"
                   htmlFor="rule-match-mode"
                 >
                   Match conditions
-                </label>
-                <select
-                  id="rule-match-mode"
-                  className="select"
+                </Label>
+                <Select
                   value={form.matchMode}
-                  onChange={(event) => {
+                  onValueChange={(value) => {
                     setForm((current) => ({
                       ...current,
-                      matchMode: event.target.value as AutomationMatchMode,
+                      matchMode: value as AutomationMatchMode,
                     }));
                   }}
                 >
-                  <option value="all">All conditions must match</option>
-                  <option value="any">Any condition can match</option>
-                </select>
+                  <SelectTrigger id="rule-match-mode">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">All conditions must match</SelectItem>
+                    <SelectItem value="any">Any condition can match</SelectItem>
+                  </SelectContent>
+                </Select>
               </div>
 
               <div className="flex items-center gap-3 rounded-(--radius-md) border border-border px-3 py-2.5 mt-7">
@@ -536,14 +562,14 @@ export function RuleFormModal({
                     }));
                   }}
                 />
-                <label className="text-ui" htmlFor="rule-enabled">
+                <label className="text-sm text-muted-foreground" htmlFor="rule-enabled">
                   Rule enabled
                 </label>
               </div>
             </div>
 
             <div className="space-y-2">
-              <p className="label">Triggers</p>
+              <p className="text-base font-medium text-muted-foreground">Triggers</p>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
                 {availableTriggerOptions.map((option) => {
                   const isActive = form.triggers.includes(option.value);
@@ -563,10 +589,10 @@ export function RuleFormModal({
                         onChange={() => toggleTrigger(option.value)}
                       />
                       <span className="flex flex-col gap-0.5">
-                        <span className="text-body text-foreground">
+                        <span className="text-base text-foreground">
                           {option.label}
                         </span>
-                        <span className="text-ui text-dimmed">
+                        <span className="text-sm text-dimmed">
                           {option.description}
                         </span>
                       </span>
@@ -578,14 +604,14 @@ export function RuleFormModal({
 
             <div className="space-y-2">
               <div className="flex items-center justify-between gap-2">
-                <p className="label">Conditions</p>
-                <button
+                <p className="text-base font-medium text-muted-foreground">Conditions</p>
+                <Button
+                  variant="ghost"
                   type="button"
-                  className="btn-ghost"
                   onClick={handleAddCondition}
                 >
                   Add condition
-                </button>
+                </Button>
               </div>
 
               <div className="space-y-2">
@@ -614,11 +640,10 @@ export function RuleFormModal({
                       className="rounded-(--radius-md) border border-border bg-card p-3 space-y-2"
                     >
                       <div className="grid grid-cols-1 md:grid-cols-[minmax(0,1fr)_minmax(0,1fr)_auto] gap-2">
-                        <select
-                          className="select"
+                        <Select
                           value={condition.field}
-                          onChange={(event) => {
-                            const nextField = event.target.value;
+                          onValueChange={(value) => {
+                            const nextField = value;
                             const nextIsLookupField =
                               LOOKUP_CONDITION_FIELDS.has(nextField);
                             const currentOperator = condition.operator;
@@ -634,79 +659,93 @@ export function RuleFormModal({
                             });
                           }}
                         >
-                          {conditionFieldOptions.map((fieldOption) => (
-                            <option
-                              key={fieldOption.value}
-                              value={fieldOption.value}
-                            >
-                              {fieldOption.label}
-                            </option>
-                          ))}
-                        </select>
+                          <SelectTrigger>
+                            <SelectValue />
+                          </SelectTrigger>
+                          <SelectContent>
+                            {conditionFieldOptions.map((fieldOption) => (
+                              <SelectItem
+                                key={fieldOption.value}
+                                value={fieldOption.value}
+                              >
+                                {fieldOption.label}
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
 
-                        <select
-                          className="select"
+                        <Select
                           value={condition.operator}
-                          onChange={(event) => {
+                          onValueChange={(value) => {
                             handleConditionChange(condition.id, {
-                              operator: event.target
-                                .value as AutomationConditionOperator,
+                              operator: value as AutomationConditionOperator,
                             });
                           }}
                         >
-                          {!hasExistingOperatorOption && (
-                            <option value={condition.operator}>
-                              {getOperatorLabel(condition.operator)} (legacy)
-                            </option>
-                          )}
-                          {operatorOptions.map((operator) => (
-                            <option
-                              key={operator.value}
-                              value={operator.value}
-                            >
-                              {operator.label}
-                            </option>
-                          ))}
-                        </select>
+                          <SelectTrigger>
+                            <SelectValue />
+                          </SelectTrigger>
+                          <SelectContent>
+                            {!hasExistingOperatorOption && (
+                              <SelectItem value={condition.operator}>
+                                {getOperatorLabel(condition.operator)} (legacy)
+                              </SelectItem>
+                            )}
+                            {operatorOptions.map((operator) => (
+                              <SelectItem
+                                key={operator.value}
+                                value={operator.value}
+                              >
+                                {operator.label}
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
 
-                        <button
+                        <Button
+                          variant="ghost"
+                          size="icon"
                           type="button"
                           onClick={() =>
                             handleRemoveCondition(condition.id)
                           }
-                          className="btn-icon justify-self-start md:justify-self-end"
+                          className="justify-self-start md:justify-self-end"
                           disabled={form.conditions.length === 1}
                           aria-label="Remove condition" title="Remove condition"
                         >
                           <X size={14} />
-                        </button>
+                        </Button>
                       </div>
 
                       {requiresValue ? isLookupField ? (
-                        <select
-                          className="select"
-                          value={condition.value}
-                          onChange={(event) => {
+                        <Select
+                          value={condition.value || "__none__"}
+                          onValueChange={(value) => {
                             handleConditionChange(condition.id, {
-                              value: event.target.value,
+                              value: value === "__none__" ? "" : value,
                             });
                           }}
                         >
-                          <option value="">Select value</option>
-                          {!hasExistingValueOption && condition.value && (
-                            <option value={condition.value}>
-                              Unknown ({condition.value})
-                            </option>
-                          )}
-                          {valueOptions.map((option) => (
-                            <option key={option.value} value={option.value}>
-                              {option.label}
-                            </option>
-                          ))}
-                        </select>
+                          <SelectTrigger>
+                            <SelectValue />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="__none__">Select value</SelectItem>
+                            {!hasExistingValueOption && condition.value && (
+                              <SelectItem value={condition.value}>
+                                Unknown ({condition.value})
+                              </SelectItem>
+                            )}
+                            {valueOptions.map((option) => (
+                              <SelectItem key={option.value} value={option.value}>
+                                {option.label}
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
                       ) : (
-                        <textarea
-                          className="input h-10 min-h-10 py-2 resize-y"
+                        <Textarea
+                          className="h-10 min-h-10 py-2"
                           placeholder="Value"
                           value={condition.value}
                           onChange={(event) => {
@@ -717,7 +756,7 @@ export function RuleFormModal({
                           rows={1}
                         />
                       ) : (
-                        <div className="input h-auto min-h-10 py-2 flex items-center text-ui text-dimmed">
+                        <div className="h-auto min-h-10 py-2 rounded-md border border-border bg-card px-4 flex items-center text-sm text-dimmed">
                           No value needed for this operator
                         </div>
                       )}
@@ -728,23 +767,23 @@ export function RuleFormModal({
             </div>
 
             {formError && (
-              <p className="text-ui text-expense">{formError}</p>
+              <p className="text-sm text-expense">{formError}</p>
             )}
 
-            <div className="flex items-center justify-end gap-2 pt-1">
-              <button
+            <DialogFooter>
+              <Button
                 type="button"
-                className="btn-secondary"
+                variant="outline"
                 onClick={onClose}
               >
                 Cancel
-              </button>
-              <button type="submit" className="btn-primary">
+              </Button>
+              <Button type="submit">
                 {editingRuleId ? "Save Changes" : "Create Rule"}
-              </button>
-            </div>
+              </Button>
+            </DialogFooter>
           </form>
-      </section>
-    </Modal>
+      </DialogContent>
+    </Dialog>
   );
 }

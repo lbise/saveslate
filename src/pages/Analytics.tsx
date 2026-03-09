@@ -4,6 +4,7 @@ import { ResponsivePie, type PieCustomLayerProps } from '@nivo/pie';
 import { ResponsiveSankey } from '@nivo/sankey';
 import { BarChart3 } from 'lucide-react';
 import { PageHeader } from '../components/layout/PageHeader';
+import { Card } from '@/components/ui/Card';
 import { StatCard } from '../components/ui';
 import { getGoalProgress, getTransactionsWithDetails } from '../lib/data-service';
 import { cn } from '../lib/utils';
@@ -330,13 +331,13 @@ export function Analytics() {
   const goalLabelMaxLength = isMobileViewport ? 12 : 22;
 
   return (
-    <div className="page-container">
+    <div className="space-y-6 max-w-[1000px] mx-auto px-[18px] pt-[30px] pb-9 lg:px-8 lg:py-11 xl:px-10 xl:py-12">
       <PageHeader title="Analytics">
         <PeriodSelector value={period} onChange={setPeriod} />
       </PageHeader>
 
       {/* Summary Stats */}
-      <section className="card px-5 py-4 sm:px-6">
+      <Card className="px-5 py-4 sm:px-6">
         <div className="flex items-center gap-8 overflow-x-auto whitespace-nowrap pb-1">
           <div className="shrink-0">
             <StatCard label="Income" value={formatCurrency(summary.totalIncome)} dotColor="income" />
@@ -355,16 +356,16 @@ export function Analytics() {
             />
           </div>
         </div>
-      </section>
+      </Card>
 
       {/* Sankey Chart */}
       <section>
-        <div className="section-header">
-          <h2 className="section-title">Money Flow</h2>
+        <div className="flex items-center justify-between mb-3">
+          <h2 className="font-display text-base font-medium text-muted-foreground">Money Flow</h2>
         </div>
 
         {hasData ? (
-          <div className="card" style={{ padding: '24px 0 16px' }}>
+          <Card style={{ padding: '24px 0 16px' }}>
             <div style={{ height: sankeyChartHeight }}>
               <ResponsiveSankey<SankeyNodeInput, DefaultLink>
                 data={{ nodes, links }}
@@ -407,25 +408,25 @@ export function Analytics() {
                     style={{ backgroundColor: item.color }}
                     aria-hidden
                   />
-                  <span className="text-ui text-muted-foreground">{item.label}</span>
+                  <span className="text-sm text-muted-foreground">{item.label}</span>
                 </div>
               ))}
             </div>
-          </div>
+          </Card>
         ) : (
           <EmptyState period={period} summary={summary} activeProfileLabel={activeProfileLabel} />
         )}
       </section>
 
       <section className="mt-10">
-        <div className="section-header">
-          <h2 className="section-title">Income vs Expenses</h2>
+        <div className="flex items-center justify-between mb-3">
+          <h2 className="font-display text-base font-medium text-muted-foreground">Income vs Expenses</h2>
         </div>
 
         {hasMonthlyData ? (
-          <div className="card" style={{ padding: '16px 20px 16px' }}>
+          <Card style={{ padding: '16px 20px 16px' }}>
             <div className="relative" style={{ height: 320 }}>
-              <span className="pointer-events-none absolute left-0 top-0 z-10 text-ui text-dimmed">
+              <span className="pointer-events-none absolute left-0 top-0 z-10 text-sm text-dimmed">
                 CHF
               </span>
 
@@ -459,10 +460,10 @@ export function Analytics() {
                   const net = data.income - data.expenses;
                   return (
                     <div style={barTooltipStyle}>
-                      <div className="text-ui text-dimmed mb-1">{String(bar.indexValue)}</div>
-                      <div className="text-ui text-income">Income: {formatCurrency(data.income)}</div>
-                      <div className="text-ui text-expense">Expenses: {formatCurrency(data.expenses)}</div>
-                      <div className="text-ui text-foreground mt-1">Net: {formatCurrency(net)}</div>
+                      <div className="text-sm text-dimmed mb-1">{String(bar.indexValue)}</div>
+                      <div className="text-sm text-income">Income: {formatCurrency(data.income)}</div>
+                      <div className="text-sm text-expense">Expenses: {formatCurrency(data.expenses)}</div>
+                      <div className="text-sm text-foreground mt-1">Net: {formatCurrency(net)}</div>
                     </div>
                   );
                 }}
@@ -470,18 +471,18 @@ export function Analytics() {
                 motionConfig="gentle"
               />
             </div>
-          </div>
+          </Card>
         ) : (
-          <div className="card flex flex-col items-center justify-center gap-2 py-12">
-            <p className="text-body text-foreground">No monthly income or expense data</p>
-            <p className="text-ui text-dimmed">Try a wider date range or switch the data profile in settings.</p>
-          </div>
+          <Card className="flex flex-col items-center justify-center gap-2 py-12">
+            <p className="text-base text-foreground">No monthly income or expense data</p>
+            <p className="text-sm text-dimmed">Try a wider date range or switch the data profile in settings.</p>
+          </Card>
         )}
       </section>
 
       <section className="mt-10">
-        <div className="section-header">
-          <h2 className="section-title">Category Split</h2>
+        <div className="flex items-center justify-between mb-3">
+          <h2 className="font-display text-base font-medium text-muted-foreground">Category Split</h2>
         </div>
 
         <div className="grid grid-cols-1 gap-4">
@@ -503,15 +504,15 @@ export function Analytics() {
       </section>
 
       <section className="mt-10">
-        <div className="section-header">
-          <h2 className="section-title">Goal Savings</h2>
-          <span className="text-ui text-dimmed">Total saved: {formatCurrency(totalGoalSaved)}</span>
+        <div className="flex items-center justify-between mb-3">
+          <h2 className="font-display text-base font-medium text-muted-foreground">Goal Savings</h2>
+          <span className="text-sm text-dimmed">Total saved: {formatCurrency(totalGoalSaved)}</span>
         </div>
 
         {hasGoalSavedData ? (
-          <div className="card" style={{ padding: '16px 20px 16px' }}>
+          <Card style={{ padding: '16px 20px 16px' }}>
             <div className="relative" style={{ height: Math.max(260, goalSavedSeries.length * 46) }}>
-              <span className="pointer-events-none absolute left-0 top-0 z-10 text-ui text-dimmed">
+              <span className="pointer-events-none absolute left-0 top-0 z-10 text-sm text-dimmed">
                 CHF
               </span>
 
@@ -545,8 +546,8 @@ export function Analytics() {
                   const data = bar.data as GoalSavedPoint;
                   return (
                     <div style={barTooltipStyle}>
-                      <div className="text-ui text-foreground mb-1">{data.goalLabel}</div>
-                      <div className="text-ui text-goal">Saved: {formatCurrency(data.saved)}</div>
+                      <div className="text-sm text-foreground mb-1">{data.goalLabel}</div>
+                      <div className="text-sm text-goal">Saved: {formatCurrency(data.saved)}</div>
                     </div>
                   );
                 }}
@@ -554,12 +555,12 @@ export function Analytics() {
                 motionConfig="gentle"
               />
             </div>
-          </div>
+          </Card>
         ) : (
-          <div className="card flex flex-col items-center justify-center gap-2 py-12">
-            <p className="text-body text-foreground">No saved amount on goals yet</p>
-            <p className="text-ui text-dimmed">Set a goal and link transactions to it to populate this chart.</p>
-          </div>
+          <Card className="flex flex-col items-center justify-center gap-2 py-12">
+            <p className="text-base text-foreground">No saved amount on goals yet</p>
+            <p className="text-sm text-dimmed">Set a goal and link transactions to it to populate this chart.</p>
+          </Card>
         )}
       </section>
 
@@ -589,10 +590,10 @@ function PieCard({ title, emptyLabel, data, hasData, formatCurrency }: PieCardPr
   );
 
   return (
-    <div className="card" style={{ padding: '16px 20px 16px' }}>
+    <Card style={{ padding: '16px 20px 16px' }}>
       <div className="mb-2 flex items-center justify-between">
-        <h3 className="heading-3 text-foreground">{title}</h3>
-        {hasData && <span className="text-ui text-dimmed">{formatCurrency(total)}</span>}
+        <h3 className="font-display text-base font-medium text-foreground">{title}</h3>
+        {hasData && <span className="text-sm text-dimmed">{formatCurrency(total)}</span>}
       </div>
 
       {hasData ? (
@@ -640,9 +641,9 @@ function PieCard({ title, emptyLabel, data, hasData, formatCurrency }: PieCardPr
                 const share = total > 0 ? (item.datum.value / total) * 100 : 0;
                 return (
                   <div style={pieTooltipStyle}>
-                      <div className="text-ui text-foreground mb-1">{item.datum.label}</div>
-                      <div className="text-ui text-muted-foreground">{formatCurrency(item.datum.value)}</div>
-                      <div className="text-ui text-dimmed">{share.toFixed(1)}%</div>
+                      <div className="text-sm text-foreground mb-1">{item.datum.label}</div>
+                      <div className="text-sm text-muted-foreground">{formatCurrency(item.datum.value)}</div>
+                      <div className="text-sm text-dimmed">{share.toFixed(1)}%</div>
                     </div>
                   );
                 }}
@@ -659,10 +660,10 @@ function PieCard({ title, emptyLabel, data, hasData, formatCurrency }: PieCardPr
         </div>
       ) : (
         <div className="flex items-center justify-center py-14">
-          <p className="text-ui text-dimmed">{emptyLabel}</p>
+          <p className="text-sm text-dimmed">{emptyLabel}</p>
         </div>
       )}
-    </div>
+    </Card>
   );
 }
 
@@ -681,7 +682,7 @@ function PeriodSelector({ value, onChange }: PeriodSelectorProps) {
           key={opt.value}
           onClick={() => onChange(opt.value)}
           className={cn(
-            'px-3 py-1.5 rounded-sm text-ui font-medium transition-all duration-150',
+            'px-3 py-1.5 rounded-sm text-sm font-medium transition-all duration-150',
             value === opt.value
               ? 'bg-primary text-foreground'
               : 'bg-transparent text-dimmed hover:text-muted-foreground',
@@ -721,28 +722,28 @@ function EmptyState({ period, summary, activeProfileLabel }: EmptyStateProps) {
   const diagnostics = buildEmptyDiagnostics(summary);
 
   return (
-    <div className="card flex flex-col items-center justify-center gap-4 py-20">
+    <Card className="flex flex-col items-center justify-center gap-4 py-20">
       <div className="w-12 h-12 rounded-full bg-secondary flex items-center justify-center">
         <BarChart3 size={24} className="text-dimmed" />
       </div>
       <div className="text-center">
-        <p className="text-body text-foreground mb-1">No data for {periodLabel}</p>
-        <p className="text-ui text-dimmed">
+        <p className="text-base text-foreground mb-1">No data for {periodLabel}</p>
+        <p className="text-sm text-dimmed">
           Import transactions to see your money flow visualized here.
         </p>
-        <p className="text-ui text-dimmed mt-2">
+        <p className="text-sm text-dimmed mt-2">
           Active profile: {activeProfileLabel}
         </p>
         {diagnostics.length > 0 && (
           <div className="mt-3 flex flex-col gap-1.5">
             {diagnostics.map((diagnostic) => (
-              <p key={diagnostic} className="text-ui text-muted-foreground">
+              <p key={diagnostic} className="text-sm text-muted-foreground">
                 {diagnostic}
               </p>
             ))}
           </div>
         )}
       </div>
-    </div>
+    </Card>
   );
 }

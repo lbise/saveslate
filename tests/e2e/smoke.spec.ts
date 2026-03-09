@@ -70,15 +70,17 @@ test('creates a new fixed target goal', async ({ page }) => {
 test('persists default currency setting in Settings page', async ({ page }) => {
   await page.goto('/settings');
 
-  const getCurrencySelect = () => page
-    .locator('select')
-    .filter({ has: page.locator('option[value="USD"]') })
-    .first();
-  const currencySelect = getCurrencySelect();
+  // The currency select is a Radix Select (not native <select>).
+  // Locate the trigger by finding the row containing "Currency" text.
+  const currencyRow = page.locator('div').filter({ hasText: /^Currency/ }).locator('[role=combobox]');
 
-  await currencySelect.selectOption('USD');
-  await expect(currencySelect).toHaveValue('USD');
+  // Open the select and pick USD
+  await currencyRow.click();
+  await page.getByRole('option', { name: /USD/ }).click();
+  await expect(currencyRow).toHaveText(/USD/);
 
+  // Verify it persists after reload
   await page.reload();
-  await expect(getCurrencySelect()).toHaveValue('USD');
+  const currencyRowAfter = page.locator('div').filter({ hasText: /^Currency/ }).locator('[role=combobox]');
+  await expect(currencyRowAfter).toHaveText(/USD/);
 });

@@ -2,6 +2,7 @@ import { Upload, Target, Wallet, ArrowUpRight } from 'lucide-react';
 import { Link, useNavigate } from 'react-router-dom';
 import { PageHeader } from '../components/layout/PageHeader';
 import { StatCard, TransactionItem, GoalCard, ActionCard, Icon } from '../components/ui';
+import { Button } from '@/components/ui/button';
 import {
   getTransactionsWithDetails,
   getMonthlyStats,
@@ -36,22 +37,22 @@ export function Dashboard() {
     .slice(0, MAX_GOALS);
 
   return (
-    <div className="page-container">
+    <div className="space-y-6 max-w-[1000px] mx-auto px-[18px] pt-[30px] pb-9 lg:px-8 lg:py-11 xl:px-10 xl:py-12">
       {/* Header */}
       <PageHeader title="Dashboard">
-        <button className="btn-ghost" onClick={() => navigate('/goals')}>
+        <Button variant="ghost" onClick={() => navigate('/goals')}>
           <Target size={16} />
           New Goal
-        </button>
-        <button className="btn-primary" onClick={() => navigate('/import')}>
+        </Button>
+        <Button onClick={() => navigate('/import')}>
           <Upload size={16} />
           Import
-        </button>
+        </Button>
       </PageHeader>
 
       {/* Balance */}
       <section className="mb-12">
-        <div className="text-muted mb-2">Total Balance</div>
+        <div className="text-base text-dimmed mb-2">Total Balance</div>
         <div
           className="text-foreground mb-7"
           style={{
@@ -78,9 +79,9 @@ export function Dashboard() {
           {/* Accounts */}
           {accounts.length > 0 && (
             <section>
-              <div className="section-header">
-                <h2 className="section-title">Accounts</h2>
-                <Link to="/accounts" className="section-action">
+              <div className="flex items-center justify-between mb-3">
+                <h2 className="font-display text-base font-medium text-muted-foreground">Accounts</h2>
+                <Link to="/accounts" className="text-sm text-dimmed hover:text-foreground inline-flex items-center gap-1 transition-colors duration-150">
                   View all <ArrowUpRight size={12} />
                 </Link>
               </div>
@@ -100,9 +101,9 @@ export function Dashboard() {
           {/* Top Spending */}
           {categorySpending.length > 0 && (
             <section>
-              <div className="section-header">
-                <h2 className="section-title">Top Spending</h2>
-                <Link to="/analytics" className="section-action">
+              <div className="flex items-center justify-between mb-3">
+                <h2 className="font-display text-base font-medium text-muted-foreground">Top Spending</h2>
+                <Link to="/analytics" className="text-sm text-dimmed hover:text-foreground inline-flex items-center gap-1 transition-colors duration-150">
                   View all <ArrowUpRight size={12} />
                 </Link>
               </div>
@@ -123,9 +124,9 @@ export function Dashboard() {
 
           {/* Recent Activity */}
           <section>
-            <div className="section-header">
-              <h2 className="section-title">Recent Activity</h2>
-              <Link to="/transactions" className="section-action">
+            <div className="flex items-center justify-between mb-3">
+              <h2 className="font-display text-base font-medium text-muted-foreground">Recent Activity</h2>
+              <Link to="/transactions" className="text-sm text-dimmed hover:text-foreground inline-flex items-center gap-1 transition-colors duration-150">
                 View all <ArrowUpRight size={12} />
               </Link>
             </div>
@@ -152,14 +153,14 @@ export function Dashboard() {
         {/* Right column: Goals + Quick Actions */}
         <div>
           {/* Goals */}
-          <div className="section-header">
-            <h2 className="section-title">Goals</h2>
+          <div className="flex items-center justify-between mb-3">
+            <h2 className="font-display text-base font-medium text-muted-foreground">Goals</h2>
             {allGoals.length > MAX_GOALS ? (
-              <Link to="/goals" className="section-action">
+              <Link to="/goals" className="text-sm text-dimmed hover:text-foreground inline-flex items-center gap-1 transition-colors duration-150">
                 View all {allGoals.length} goals <ArrowUpRight size={12} />
               </Link>
             ) : (
-              <Link to="/goals" className="section-action">
+              <Link to="/goals" className="text-sm text-dimmed hover:text-foreground inline-flex items-center gap-1 transition-colors duration-150">
                 View all <ArrowUpRight size={12} />
               </Link>
             )}
@@ -175,7 +176,7 @@ export function Dashboard() {
               />
             ))}
             {topGoals.length === 0 && (
-              <div className="text-muted py-8 text-center">
+              <div className="text-base text-dimmed py-8 text-center">
                 No goals yet
               </div>
             )}
@@ -183,7 +184,7 @@ export function Dashboard() {
 
           {/* Quick Actions */}
           <div className="flex flex-col gap-2 mt-8">
-            <h2 className="section-title mb-3">Quick Actions</h2>
+            <h2 className="font-display text-base font-medium text-muted-foreground mb-3">Quick Actions</h2>
             <ActionCard icon={Upload} label="Import transactions from CSV" onClick={() => navigate('/import')} />
             <ActionCard icon={Target} label="Create a new savings goal" onClick={() => navigate('/goals')} />
             <ActionCard icon={Wallet} label="Add a new account" onClick={() => navigate('/accounts')} />
@@ -209,11 +210,11 @@ function AccountRow({ account, balance, formatCurrency: fmt }: AccountRowProps) 
         <Icon name={account.icon} size={16} className="text-muted-foreground" />
       </div>
       <div className="flex flex-col flex-1 min-w-0">
-        <span className="text-body font-medium text-foreground truncate">{account.name}</span>
-        <span className="text-ui text-dimmed capitalize">{account.type}</span>
+        <span className="text-base font-medium text-foreground truncate">{account.name}</span>
+        <span className="text-sm text-dimmed capitalize">{account.type}</span>
       </div>
       <span
-        className={`text-body font-medium ${balance < 0 ? 'text-expense' : 'text-foreground'}`}
+        className={`text-base font-medium ${balance < 0 ? 'text-expense' : 'text-foreground'}`}
         style={{ fontFamily: 'var(--font-display)' }}
       >
         {fmt(balance, account.currency)}
@@ -237,7 +238,7 @@ function SpendingRow({ categoryName, categoryIcon, amount, percentage, formatCur
         <Icon name={categoryIcon} size={16} className="text-muted-foreground" />
       </div>
       <div className="flex flex-col flex-1 min-w-0">
-        <span className="text-body font-medium text-foreground truncate">{categoryName}</span>
+        <span className="text-base font-medium text-foreground truncate">{categoryName}</span>
         <div className="flex items-center gap-2 mt-1">
           <div className="h-1 flex-1 bg-border rounded-full overflow-hidden">
             <div
@@ -245,11 +246,11 @@ function SpendingRow({ categoryName, categoryIcon, amount, percentage, formatCur
               style={{ width: `${Math.min(percentage, 100)}%` }}
             />
           </div>
-          <span className="text-ui text-dimmed shrink-0">{percentage.toFixed(0)}%</span>
+          <span className="text-sm text-dimmed shrink-0">{percentage.toFixed(0)}%</span>
         </div>
       </div>
       <span
-        className="text-body font-medium text-foreground shrink-0"
+        className="text-base font-medium text-foreground shrink-0"
         style={{ fontFamily: 'var(--font-display)' }}
       >
         {fmt(amount)}

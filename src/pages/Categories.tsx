@@ -1,13 +1,31 @@
 import { useMemo, useState, type FormEvent } from 'react';
-import { ChevronDown, Pencil, Search, Trash2, X } from 'lucide-react';
+import { ChevronDown, Pencil, Search, Trash2 } from 'lucide-react';
 import { PageHeader, PageHeaderActions } from '../components/layout';
 import {
   DeleteConfirmationModal,
   EntityCard,
   EntityCardOverflowMenu,
   Icon,
-  Modal,
 } from '../components/ui';
+import { Badge } from '@/components/ui/Badge';
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import { Card } from '@/components/ui/Card';
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogFooter,
+} from '@/components/ui/dialog';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
 import type { EntityCardTone } from '../components/ui';
 import {
   CATEGORIES as DEFAULT_CATEGORIES,
@@ -366,7 +384,7 @@ export function Categories() {
   };
 
   return (
-    <div className="page-container">
+    <div className="space-y-6 max-w-[1000px] mx-auto px-[18px] pt-[30px] pb-9 lg:px-8 lg:py-11 xl:px-10 xl:py-12">
       <PageHeader title="Categories">
         <PageHeaderActions
           onImport={openFilePicker}
@@ -389,7 +407,7 @@ export function Categories() {
       />
 
       {importError && (
-        <p className="text-ui text-expense mb-3">{importError}</p>
+        <p className="text-sm text-expense mb-3">{importError}</p>
       )}
 
       {categoryToDelete && (
@@ -407,27 +425,19 @@ export function Categories() {
       )}
 
       {isCreateModalOpen && (
-        <Modal onClose={closeModal} panelClassName="max-w-xl p-5">
-          <section>
-              <div className="section-header mb-4">
-                <h2 id="modal-title" className="heading-3 text-foreground">
-                  {editingCategoryId ? 'Edit Category' : 'Create Category'}
-                </h2>
-                <button aria-label="Close modal"
-                  type="button"
-                  className="btn-icon"
-                  onClick={closeModal}
-                >
-                  <X size={16} />
-                </button>
-              </div>
+        <Dialog open onOpenChange={(open) => { if (!open) closeModal(); }}>
+          <DialogContent className="max-w-xl" showCloseButton={false}>
+            <DialogHeader>
+              <DialogTitle>
+                {editingCategoryId ? 'Edit Category' : 'Create Category'}
+              </DialogTitle>
+            </DialogHeader>
 
               <form className="space-y-4" onSubmit={handleCreateCategory}>
                 <div>
-                  <label className="label mb-1.5 block" htmlFor="category-name">Name</label>
-                  <input
+                  <Label className="mb-1.5 block" htmlFor="category-name">Name</Label>
+                  <Input
                     id="category-name"
-                    className="input"
                     placeholder="Groceries"
                     value={form.name}
                     onChange={(event) => setForm((current) => ({ ...current, name: event.target.value }))}
@@ -436,44 +446,47 @@ export function Categories() {
                 </div>
 
                 <div className="relative">
-                  <label className="label mb-1.5 block" htmlFor="category-group">Group</label>
-                  <select
-                    id="category-group"
-                    className="select"
+                  <Label className="mb-1.5 block" htmlFor="category-group">Group</Label>
+                  <Select
                     value={form.groupId}
-                    onChange={(event) => {
-                      setForm((current) => ({ ...current, groupId: event.target.value }));
+                    onValueChange={(value) => {
+                      setForm((current) => ({ ...current, groupId: value }));
                     }}
                   >
-                    {orderedGroups.map((group) => (
-                      <option key={group.id} value={group.id}>{group.name}</option>
-                    ))}
-                  </select>
+                    <SelectTrigger id="category-group">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {orderedGroups.map((group) => (
+                        <SelectItem key={group.id} value={group.id}>{group.name}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
                 </div>
 
                 <div className="relative">
-                  <label className="label mb-1.5 block" htmlFor="category-icon-search">Icon</label>
+                  <Label className="mb-1.5 block" htmlFor="category-icon-search">Icon</Label>
                   <button
                     type="button"
-                    className="input flex items-center justify-between"
+                    className="flex items-center justify-between w-full h-10 rounded-md border border-border bg-card px-4 text-base text-foreground transition-all duration-150 cursor-pointer"
                     onClick={() => iconPicker.setIsIconPickerOpen((current) => !current)}
                     aria-expanded={iconPicker.isIconPickerOpen}
                     aria-controls="category-icon-picker"
                   >
                     <span className="flex items-center gap-2 min-w-0">
                       <Icon name={form.icon} size={16} className="text-foreground" />
-                      <span className="text-body text-foreground truncate">{form.icon}</span>
+                      <span className="text-base text-foreground truncate">{form.icon}</span>
                     </span>
                     <ChevronDown size={16} className="text-dimmed" />
                   </button>
 
                   {iconPicker.isIconPickerOpen && (
-                    <div id="category-icon-picker" className="card absolute z-20 mt-2 w-full p-3">
+                    <Card id="category-icon-picker" className="absolute z-20 mt-2 w-full p-3">
                       <div className="relative mb-3">
                         <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-dimmed" />
-                        <input
+                        <Input
                           id="category-icon-search"
-                          className="input pl-9"
+                          className="pl-9"
                           placeholder="Search icon"
                           value={iconPicker.iconSearchQuery}
                           onChange={(event) => iconPicker.setIconSearchQuery(event.target.value)}
@@ -500,48 +513,48 @@ export function Categories() {
                               )}
                             >
                               <Icon name={iconName} size={16} />
-                              <span className="text-ui">{iconName}</span>
+                              <span className="text-sm text-muted-foreground">{iconName}</span>
                             </button>
                           );
                         })}
 
                         {iconPicker.filteredIconNames.length === 0 && (
-                          <div className="px-3 py-4 text-ui text-dimmed">No icons found.</div>
+                          <div className="px-3 py-4 text-sm text-dimmed">No icons found.</div>
                         )}
                       </div>
-                    </div>
+                    </Card>
                   )}
                 </div>
 
-                <div className="flex items-center justify-end gap-2 pt-1">
-                  <button
+                <DialogFooter>
+                  <Button
                     type="button"
-                    className="btn-secondary"
+                    variant="outline"
                     onClick={closeModal}
                   >
                     Cancel
-                  </button>
-                  <button type="submit" className="btn-primary">
+                  </Button>
+                  <Button type="submit">
                     {editingCategoryId ? 'Save Changes' : 'Create Category'}
-                  </button>
-                </div>
+                  </Button>
+                </DialogFooter>
               </form>
-          </section>
-        </Modal>
+          </DialogContent>
+        </Dialog>
       )}
 
       {/* Categories grouped by CategoryGroup */}
       <section>
-        <div className="section-header">
-          <h2 className="section-title">Category Groups</h2>
-          <span className="text-ui text-dimmed">{categories.length} categories</span>
+        <div className="flex items-center justify-between mb-3">
+          <h2 className="font-display text-base font-medium text-muted-foreground">Category Groups</h2>
+          <span className="text-sm text-dimmed">{categories.length} categories</span>
         </div>
 
         <div className="space-y-4">
           {groupedCategories.map((group) => (
-            <section
+            <Card
               key={group.id}
-              className="card p-4 sm:p-5"
+              className="p-4 sm:p-5"
             >
               <div className="mb-3 flex items-center justify-between gap-3">
                 <div className="flex min-w-0 items-center gap-2.5">
@@ -549,14 +562,14 @@ export function Categories() {
                     <Icon name={group.icon} size={16} />
                   </div>
                   <div className="min-w-0">
-                    <h3 className="heading-3 text-foreground">{group.name}</h3>
-                    <p className="text-ui text-dimmed">{group.categories.length} categories</p>
+                    <h3 className="font-display text-base font-medium text-foreground">{group.name}</h3>
+                    <p className="text-sm text-dimmed">{group.categories.length} categories</p>
                   </div>
                 </div>
 
-                <span className="badge-muted shrink-0">
+                <Badge variant="muted" className="shrink-0">
                   {group.categories.length}
-                </span>
+                </Badge>
               </div>
 
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
@@ -572,7 +585,7 @@ export function Categories() {
                       tone={entityTone}
                       actions={
                         isLocked
-                          ? <span className="badge-muted">Locked</span>
+                          ? <Badge variant="muted">Locked</Badge>
                           : (
                             <EntityCardOverflowMenu
                               label={`Actions for ${cat.name}`}
@@ -587,10 +600,10 @@ export function Categories() {
                   );
                 })}
               </div>
-            </section>
+            </Card>
           ))}
           {groupedCategories.length === 0 && (
-            <div className="col-span-full py-6 text-center text-ui text-dimmed">
+            <div className="col-span-full py-6 text-center text-sm text-dimmed">
               No categories yet.
             </div>
           )}

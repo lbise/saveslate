@@ -1,7 +1,24 @@
 import { useMemo, useState, type FormEvent } from 'react';
-import { Tag, Users, X } from 'lucide-react';
+import { Tag, Users } from 'lucide-react';
 import { getCurrencyOptionsWithFallback } from '../../lib/currencies';
-import { Modal } from '../ui';
+import { Button } from '@/components/ui/button';
+import { Card } from '@/components/ui/Card';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogFooter,
+} from '@/components/ui/dialog';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
 import {
   createTransactionFormState,
   toTransactionFormSubmitPayload,
@@ -167,26 +184,22 @@ export function TransactionFormModal({
   }
 
   return (
-    <Modal onClose={onCancel} panelClassName="max-w-3xl p-5">
-      <section>
-        <div className="section-header mb-4">
-          <h2 id="modal-title" className="heading-3 text-foreground">
+    <Dialog open onOpenChange={(open) => { if (!open) onCancel(); }}>
+      <DialogContent className="max-w-3xl" showCloseButton={false}>
+        <DialogHeader>
+          <DialogTitle>
             {isEditing ? 'Edit Transaction' : 'Create Transaction'}
-          </h2>
-          <button type="button" className="btn-icon" onClick={onCancel} aria-label="Close modal">
-            <X size={16} />
-          </button>
-        </div>
+          </DialogTitle>
+        </DialogHeader>
 
         <form className="space-y-4" onSubmit={handleSubmit}>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div>
-              <label className="label mb-1.5 block" htmlFor="transaction-description">
+              <Label className="mb-1.5 block" htmlFor="transaction-description">
                 Description
-              </label>
-              <input
+              </Label>
+              <Input
                 id="transaction-description"
-                className="input"
                 placeholder="Coffee with team"
                 value={form.description}
                 onChange={(event) => setForm((current) => ({ ...current, description: event.target.value }))}
@@ -195,12 +208,11 @@ export function TransactionFormModal({
             </div>
 
             <div>
-              <label className="label mb-1.5 block" htmlFor="transaction-reference">
+              <Label className="mb-1.5 block" htmlFor="transaction-reference">
                 Transaction reference (optional)
-              </label>
-              <input
+              </Label>
+              <Input
                 id="transaction-reference"
-                className="input"
                 placeholder="Bank transaction ID"
                 value={form.transactionId}
                 onChange={(event) => setForm((current) => ({ ...current, transactionId: event.target.value }))}
@@ -210,31 +222,29 @@ export function TransactionFormModal({
 
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
             <div>
-              <label className="label mb-1.5 block" htmlFor="transaction-direction">
+              <Label className="mb-1.5 block" htmlFor="transaction-direction">
                 Type
-              </label>
-              <select
-                id="transaction-direction"
-                className="select"
-                value={form.direction}
-                onChange={(event) => setForm((current) => ({
-                  ...current,
-                  direction: event.target.value as 'expense' | 'income',
-                }))}
-                disabled={isLinkedTransfer}
-              >
-                <option value="expense">Expense</option>
-                <option value="income">Income</option>
-              </select>
+              </Label>
+              <Select value={form.direction} onValueChange={(value) => setForm((current) => ({
+                ...current,
+                direction: value as 'expense' | 'income',
+              }))}>
+                <SelectTrigger id="transaction-direction" disabled={isLinkedTransfer}>
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="expense">Expense</SelectItem>
+                  <SelectItem value="income">Income</SelectItem>
+                </SelectContent>
+              </Select>
             </div>
 
             <div>
-              <label className="label mb-1.5 block" htmlFor="transaction-amount">
+              <Label className="mb-1.5 block" htmlFor="transaction-amount">
                 Amount
-              </label>
-              <input
+              </Label>
+              <Input
                 id="transaction-amount"
-                className="input"
                 type="number"
                 min="0.01"
                 step="0.01"
@@ -246,39 +256,37 @@ export function TransactionFormModal({
             </div>
 
             <div>
-              <label className="label mb-1.5 block" htmlFor="transaction-currency">
+              <Label className="mb-1.5 block" htmlFor="transaction-currency">
                 Currency
-              </label>
-              <select
-                id="transaction-currency"
-                className="select"
-                value={form.currency}
-                onChange={(event) => setForm((current) => ({ ...current, currency: event.target.value }))}
-                required
-              >
-                {currencyOptions.map((currency) => (
-                  <option key={currency.code} value={currency.code}>
-                    {currency.label} ({currency.code})
-                  </option>
-                ))}
-              </select>
+              </Label>
+              <Select value={form.currency} onValueChange={(value) => setForm((current) => ({ ...current, currency: value }))}>
+                <SelectTrigger id="transaction-currency">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  {currencyOptions.map((currency) => (
+                    <SelectItem key={currency.code} value={currency.code}>
+                      {currency.label} ({currency.code})
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
             </div>
           </div>
 
           {isLinkedTransfer && (
-            <p className="text-ui text-warning">
+            <p className="text-sm text-warning">
               This transaction is linked to a transfer pair. Type stays derived from the pair.
             </p>
           )}
 
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div>
-              <label className="label mb-1.5 block" htmlFor="transaction-date">
+              <Label className="mb-1.5 block" htmlFor="transaction-date">
                 Date
-              </label>
-              <input
+              </Label>
+              <Input
                 id="transaction-date"
-                className="input"
                 type="date"
                 value={form.date}
                 onChange={(event) => setForm((current) => ({ ...current, date: event.target.value }))}
@@ -287,12 +295,11 @@ export function TransactionFormModal({
             </div>
 
             <div>
-              <label className="label mb-1.5 block" htmlFor="transaction-time">
+              <Label className="mb-1.5 block" htmlFor="transaction-time">
                 Time (optional)
-              </label>
-              <input
+              </Label>
+              <Input
                 id="transaction-time"
-                className="input"
                 type="time"
                 value={form.time}
                 onChange={(event) => setForm((current) => ({ ...current, time: event.target.value }))}
@@ -302,70 +309,68 @@ export function TransactionFormModal({
 
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div>
-              <label className="label mb-1.5 block" htmlFor="transaction-account">
+              <Label className="mb-1.5 block" htmlFor="transaction-account">
                 Account
-              </label>
-              <select
-                id="transaction-account"
-                className="select"
-                value={form.accountId}
-                onChange={(event) => setForm((current) => ({ ...current, accountId: event.target.value }))}
-                required
-              >
-                {accountOptions.map((option) => (
-                  <option key={option.value} value={option.value}>
-                    {option.label}
-                  </option>
-                ))}
-              </select>
+              </Label>
+              <Select value={form.accountId} onValueChange={(value) => setForm((current) => ({ ...current, accountId: value }))}>
+                <SelectTrigger id="transaction-account">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  {accountOptions.map((option) => (
+                    <SelectItem key={option.value} value={option.value}>
+                      {option.label}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
             </div>
 
             <div>
-              <label className="label mb-1.5 block" htmlFor="transaction-category">
+              <Label className="mb-1.5 block" htmlFor="transaction-category">
                 Category
-              </label>
-              <select
-                id="transaction-category"
-                className="select"
-                value={form.categoryId}
-                onChange={(event) => setForm((current) => ({ ...current, categoryId: event.target.value }))}
-                required
-              >
-                {categoryOptions.map((option) => (
-                  <option key={option.value} value={option.value}>
-                    {option.label}
-                  </option>
-                ))}
-              </select>
+              </Label>
+              <Select value={form.categoryId} onValueChange={(value) => setForm((current) => ({ ...current, categoryId: value }))}>
+                <SelectTrigger id="transaction-category">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  {categoryOptions.map((option) => (
+                    <SelectItem key={option.value} value={option.value}>
+                      {option.label}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
             </div>
           </div>
 
           <div>
-            <label className="label mb-1.5 block" htmlFor="transaction-goal">
+            <Label className="mb-1.5 block" htmlFor="transaction-goal">
               Goal (optional)
-            </label>
-            <select
-              id="transaction-goal"
-              className="select"
-              value={form.goalId}
-              onChange={(event) => setForm((current) => ({ ...current, goalId: event.target.value }))}
-            >
-              <option value="">No goal</option>
-              {goalOptions.map((option) => (
-                <option key={option.value} value={option.value}>
-                  {option.label}
-                </option>
-              ))}
-            </select>
+            </Label>
+            <Select value={form.goalId || "__none__"} onValueChange={(value) => setForm((current) => ({ ...current, goalId: value === "__none__" ? "" : value }))}>
+              <SelectTrigger id="transaction-goal">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="__none__">No goal</SelectItem>
+                {goalOptions.map((option) => (
+                  <SelectItem key={option.value} value={option.value}>
+                    {option.label}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
           </div>
 
-          <div className="card p-3">
+          <Card className="p-3">
             <div className="flex items-center gap-2 mb-2">
               <Tag size={14} className="text-dimmed" />
-              <span className="text-body text-foreground">Tags</span>
+              <span className="text-base text-foreground">Tags</span>
             </div>
             {tagOptions.length === 0 ? (
-              <p className="text-ui text-dimmed">No tags yet. You can create tags from Transactions.</p>
+              <p className="text-sm text-dimmed">No tags yet. You can create tags from Transactions.</p>
             ) : (
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
                 {tagOptions.map((tagOption) => {
@@ -384,22 +389,22 @@ export function TransactionFormModal({
                         className="w-2 h-2 rounded-full shrink-0"
                         style={{ backgroundColor: tagOption.color }}
                       />
-                      <span className="text-ui text-foreground truncate">{tagOption.name}</span>
+                      <span className="text-sm text-foreground truncate">{tagOption.name}</span>
                     </label>
                   );
                 })}
               </div>
             )}
-          </div>
+          </Card>
 
-          <div className="card p-3 space-y-3">
+          <Card className="p-3 space-y-3">
             <label className="flex items-center gap-2 cursor-pointer">
               <input
                 type="checkbox"
                 checked={form.hasSplit}
                 onChange={(event) => setForm((current) => ({ ...current, hasSplit: event.target.checked }))}
               />
-              <span className="inline-flex items-center gap-2 text-body text-foreground">
+              <span className="inline-flex items-center gap-2 text-base text-foreground">
                 <Users size={14} className="text-dimmed" />
                 Split transaction with someone
               </span>
@@ -407,13 +412,12 @@ export function TransactionFormModal({
 
             {form.hasSplit && (
               <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
-                <div>
-                  <label className="label mb-1.5 block" htmlFor="transaction-split-person">
+                 <div>
+                  <Label className="mb-1.5 block" htmlFor="transaction-split-person">
                     Person
-                  </label>
-                  <input
+                  </Label>
+                  <Input
                     id="transaction-split-person"
-                    className="input"
                     placeholder="Alex"
                     value={form.splitWithPerson}
                     onChange={(event) => setForm((current) => ({ ...current, splitWithPerson: event.target.value }))}
@@ -422,12 +426,11 @@ export function TransactionFormModal({
                 </div>
 
                 <div>
-                  <label className="label mb-1.5 block" htmlFor="transaction-split-ratio">
+                  <Label className="mb-1.5 block" htmlFor="transaction-split-ratio">
                     Your share (%)
-                  </label>
-                  <input
+                  </Label>
+                  <Input
                     id="transaction-split-ratio"
-                    className="input"
                     type="number"
                     min="1"
                     max="99"
@@ -439,46 +442,46 @@ export function TransactionFormModal({
                 </div>
 
                 <div>
-                  <label className="label mb-1.5 block" htmlFor="transaction-split-status">
+                  <Label className="mb-1.5 block" htmlFor="transaction-split-status">
                     Status
-                  </label>
-                  <select
-                    id="transaction-split-status"
-                    className="select"
-                    value={form.splitStatus}
-                    onChange={(event) => setForm((current) => ({
-                      ...current,
-                      splitStatus: event.target.value as 'pending' | 'reimbursed',
-                    }))}
-                  >
-                    <option value="pending">Pending</option>
-                    <option value="reimbursed">Reimbursed</option>
-                  </select>
+                  </Label>
+                  <Select value={form.splitStatus} onValueChange={(value) => setForm((current) => ({
+                    ...current,
+                    splitStatus: value as 'pending' | 'reimbursed',
+                  }))}>
+                    <SelectTrigger id="transaction-split-status">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="pending">Pending</SelectItem>
+                      <SelectItem value="reimbursed">Reimbursed</SelectItem>
+                    </SelectContent>
+                  </Select>
                 </div>
               </div>
             )}
-          </div>
+          </Card>
 
           {!canSave && (
-            <p className="text-ui text-warning">
+            <p className="text-sm text-warning">
               You need at least one account and one category before saving a transaction.
             </p>
           )}
 
           {formError && (
-            <p className="text-ui text-expense">{formError}</p>
+            <p className="text-sm text-expense">{formError}</p>
           )}
 
-          <div className="flex items-center justify-end gap-2 pt-1">
-            <button type="button" className="btn-secondary" onClick={onCancel}>
+          <DialogFooter>
+            <Button type="button" variant="outline" onClick={onCancel}>
               Cancel
-            </button>
-            <button type="submit" className="btn-primary" disabled={!canSave}>
+            </Button>
+            <Button type="submit" disabled={!canSave}>
               {isEditing ? 'Save Changes' : 'Create Transaction'}
-            </button>
-          </div>
+            </Button>
+          </DialogFooter>
         </form>
-      </section>
-    </Modal>
+      </DialogContent>
+    </Dialog>
   );
 }

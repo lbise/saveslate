@@ -22,7 +22,7 @@ export function StatCard({ label, value, dotColor }: StatCardProps) {
         >
           {value}
         </span>
-        <span className="text-ui text-dimmed">{label}</span>
+        <span className="text-sm text-dimmed">{label}</span>
       </div>
     </div>
   );

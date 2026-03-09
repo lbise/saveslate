@@ -98,20 +98,20 @@ export function CategoryPicker({
           placeholder="Search..."
           value={query}
           onChange={(e) => setQuery(e.target.value)}
-          className="w-full pl-7 pr-2 py-1.5 rounded-(--radius-sm) bg-background border border-border text-ui text-foreground placeholder:text-dimmed focus:outline-none focus:border-dimmed transition-colors"
+          className="w-full pl-7 pr-2 py-1.5 rounded-(--radius-sm) bg-background border border-border text-sm text-foreground placeholder:text-dimmed focus:outline-none focus:border-dimmed transition-colors"
         />
       </div>
 
       {/* Category list — grouped by CategoryGroup */}
       <div className="max-h-64 overflow-y-auto py-1">
         {!hasAnyCategory ? (
-          <div className="px-3 py-3 text-ui text-dimmed text-center">
+          <div className="px-3 py-3 text-sm text-dimmed text-center">
             No categories found
           </div>
         ) : (
           groupedCategories.map(({ group, categories }) => (
             <div key={group.id} className="py-1">
-              <div className="px-3 py-1 text-ui text-dimmed uppercase tracking-wider">
+              <div className="px-3 py-1 text-sm text-dimmed uppercase tracking-wider">
                 {group.name}
               </div>
               {categories.map((cat) => {
@@ -121,7 +121,7 @@ export function CategoryPicker({
                     key={cat.id}
                     onClick={() => onSelect(cat.id)}
                     className={cn(
-                      'flex items-center gap-2.5 w-full px-3 py-1.5 text-left border-none cursor-pointer text-ui transition-colors',
+                      'flex items-center gap-2.5 w-full px-3 py-1.5 text-left border-none cursor-pointer text-sm text-muted-foreground transition-colors',
                       isCurrent
                         ? 'bg-foreground/10 text-foreground'
                         : 'bg-transparent text-muted-foreground hover:bg-secondary hover:text-foreground',

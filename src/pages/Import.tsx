@@ -2,6 +2,7 @@ import { useState, useMemo, useCallback } from 'react';
 import { ArrowLeft, CheckCircle, Upload, FileText } from 'lucide-react';
 import { Link, useNavigate } from 'react-router-dom';
 import { PageHeader } from '../components/layout/PageHeader';
+import { Button } from '@/components/ui/button';
 import {
   StepIndicator,
   FileUpload,
@@ -248,16 +249,16 @@ export function Import() {
   }, []);
 
   return (
-    <div className="page-container">
+    <div className="space-y-6 max-w-[1000px] mx-auto px-[18px] pt-[30px] pb-9 lg:px-8 lg:py-11 xl:px-10 xl:py-12">
       {/* Header */}
       <PageHeader title="Import Transactions">
-        <button
+        <Button
+          variant="ghost"
           onClick={() => navigate('/transactions')}
-          className="btn-ghost"
         >
           <ArrowLeft size={16} />
           Transactions
-        </button>
+        </Button>
       </PageHeader>
 
       {/* Step indicator */}
@@ -269,8 +270,8 @@ export function Import() {
       {step === 'upload' && (
         <div className="space-y-6">
           <div>
-            <h2 className="heading-2 mb-1">Select a CSV file</h2>
-            <p className="text-body">
+            <h2 className="font-display text-lg font-medium text-foreground mb-1">Select a CSV file</h2>
+            <p className="text-base text-muted-foreground">
               Upload a bank export or transaction file in CSV format.
             </p>
           </div>
@@ -288,11 +289,11 @@ export function Import() {
           {/* File info */}
           <div className="flex items-center gap-3 px-1">
             <FileText size={16} className="text-dimmed" />
-            <span className="text-ui">{fileName}</span>
-            <span className="text-ui text-dimmed">&middot; {dataRows.length} rows</span>
+            <span className="text-sm text-muted-foreground">{fileName}</span>
+            <span className="text-sm text-dimmed">&middot; {dataRows.length} rows</span>
             <button
               onClick={handleBackToUpload}
-              className="text-ui text-dimmed hover:text-foreground transition-colors ml-auto bg-transparent border-none cursor-pointer"
+              className="text-sm text-dimmed hover:text-foreground transition-colors ml-auto bg-transparent border-none cursor-pointer"
             >
               Change file
             </button>
@@ -323,13 +324,13 @@ export function Import() {
         <div className="space-y-6">
           <div className="flex items-center gap-3 px-1">
             <FileText size={16} className="text-dimmed" />
-            <span className="text-ui">{fileName}</span>
-            <span className="text-ui text-dimmed">
+            <span className="text-sm text-muted-foreground">{fileName}</span>
+            <span className="text-sm text-dimmed">
               &middot; parser: {selectedParser.name}
             </span>
             <button
               onClick={handleBackToParser}
-              className="text-ui text-dimmed hover:text-foreground transition-colors ml-auto bg-transparent border-none cursor-pointer"
+              className="text-sm text-dimmed hover:text-foreground transition-colors ml-auto bg-transparent border-none cursor-pointer"
             >
               Change parser
             </button>
@@ -351,32 +352,34 @@ export function Import() {
           <div className="w-16 h-16 rounded-full bg-income/10 flex items-center justify-center mb-6">
             <CheckCircle size={32} className="text-income" />
           </div>
-          <h2 className="heading-2 mb-2">Import complete</h2>
-          <p className="text-body mb-6">
+          <h2 className="font-display text-lg font-medium text-foreground mb-2">Import complete</h2>
+          <p className="text-base text-muted-foreground mb-6">
             Successfully imported {importResult.count} transaction{importResult.count !== 1 ? 's' : ''}
           </p>
           <div className="flex gap-6 mb-8">
             <div className="text-center">
-              <p className="text-ui text-dimmed mb-1">Income</p>
-              <p className="text-ui text-income font-medium" style={{ fontFamily: 'var(--font-display)' }}>
+              <p className="text-sm text-dimmed mb-1">Income</p>
+              <p className="text-sm text-income font-medium" style={{ fontFamily: 'var(--font-display)' }}>
                 +{formatCurrency(importResult.income)}
               </p>
             </div>
             <div className="text-center">
-              <p className="text-ui text-dimmed mb-1">Expenses</p>
-              <p className="text-ui text-expense font-medium" style={{ fontFamily: 'var(--font-display)' }}>
+              <p className="text-sm text-dimmed mb-1">Expenses</p>
+              <p className="text-sm text-expense font-medium" style={{ fontFamily: 'var(--font-display)' }}>
                 -{formatCurrency(importResult.expense)}
               </p>
             </div>
           </div>
           <div className="flex gap-3">
-            <Link to="/transactions" className="btn-primary">
-              View Transactions
-            </Link>
-            <button onClick={handleStartOver} className="btn-secondary">
+            <Button asChild>
+              <Link to="/transactions">
+                View Transactions
+              </Link>
+            </Button>
+            <Button variant="outline" onClick={handleStartOver}>
               <Upload size={14} />
               Import Another
-            </button>
+            </Button>
           </div>
         </div>
       )}

@@ -1,6 +1,16 @@
 import { useState, useMemo, useCallback } from "react";
 import { Save, RotateCcw, Plus, Pencil } from "lucide-react";
 import { cn } from "../../lib/utils";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import {
   detectDelimiter,
   parseRawCsv,
@@ -45,12 +55,14 @@ const DELIMITER_OPTIONS: { value: CsvDelimiter; label: string }[] = [
   { value: "|", label: "Pipe (|)" },
 ];
 
+const EMPTY_SEPARATOR_SENTINEL = "__empty__";
+
 const SEPARATOR_OPTIONS: { value: string; label: string }[] = [
   { value: " ", label: "Space" },
   { value: ", ", label: "Comma + space" },
   { value: " - ", label: "Dash" },
   { value: " / ", label: "Slash" },
-  { value: "", label: "None (concat)" },
+  { value: EMPTY_SEPARATOR_SENTINEL, label: "None (concat)" },
 ];
 
 /** Fields that support mapping to multiple CSV columns (string concatenation). */
@@ -589,28 +601,28 @@ export function ParserEditor({
     <div className="space-y-6">
       {/* Header */}
       <div className="flex items-center justify-between">
-        <h2 className="heading-2 flex items-center gap-2">
+        <h2 className="font-display text-lg font-medium text-foreground flex items-center gap-2">
           {existingParser ? <Pencil size={18} /> : <Plus size={18} />}
           {existingParser ? "Edit parser" : "Create new parser"}
         </h2>
-        <button onClick={onCancel} className="btn-ghost">
+        <Button variant="ghost" onClick={onCancel}>
           <RotateCcw size={14} />
           Back
-        </button>
+        </Button>
       </div>
 
       {/* Parser name */}
       <div>
-        <label className="label mb-1.5 block">Parser name</label>
-        <input
+        <Label className="mb-1.5 block">Parser name</Label>
+        <Input
           type="text"
           value={name}
           onChange={(e) => setName(e.target.value)}
           placeholder="e.g. UBS Export, PostFinance CSV..."
-          className="input max-w-sm"
+          className="max-w-sm"
         />
         {nameError && name.length > 0 && (
-          <p className="text-ui text-expense mt-1">{nameError}</p>
+          <p className="text-sm text-expense mt-1">{nameError}</p>
         )}
       </div>
 
@@ -618,23 +630,22 @@ export function ParserEditor({
       <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-4">
         {/* Delimiter */}
         <div>
-          <label className="label mb-1.5 block">Delimiter</label>
-          <select
-            value={delimiter}
-            onChange={(e) => setDelimiter(e.target.value as CsvDelimiter)}
-            className="select text-sm pl-3 pr-8"
-          >
-            {DELIMITER_OPTIONS.map((d) => (
-              <option key={d.value} value={d.value}>
-                {d.label}
-              </option>
-            ))}
-          </select>
+          <Label className="mb-1.5 block">Delimiter</Label>
+          <Select value={delimiter} onValueChange={(value) => setDelimiter(value as CsvDelimiter)}>
+            <SelectTrigger className="text-sm">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              {DELIMITER_OPTIONS.map((d) => (
+                <SelectItem key={d.value} value={d.value}>{d.label}</SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
         </div>
 
         {/* Header row */}
         <div>
-          <label className="label mb-1.5 block">Header row</label>
+          <Label className="mb-1.5 block">Header row</Label>
           <button
             onClick={() => setHasHeaderRow(!hasHeaderRow)}
             className={cn(
@@ -650,8 +661,8 @@ export function ParserEditor({
 
         {/* Skip rows */}
         <div>
-          <label className="label mb-1.5 block">Skip rows</label>
-          <input
+          <Label className="mb-1.5 block">Skip rows</Label>
+          <Input
             type="text"
             inputMode="numeric"
             value={skipRows}
@@ -667,117 +678,116 @@ export function ParserEditor({
               }
             }}
             onFocus={(e) => e.target.select()}
-            className="input text-sm"
+            className="text-sm"
           />
         </div>
 
         {/* Amount format */}
         <div>
-          <label className="label mb-1.5 block">Amount format</label>
-          <select
-            value={amountFormat}
-            onChange={(e) => setAmountFormat(e.target.value as AmountFormat)}
-            className="select text-sm"
-          >
-            <option value="single">Single column</option>
-            <option value="amount-type">Amount + indicator</option>
-            <option value="debit-credit">Debit / Credit</option>
-          </select>
+          <Label className="mb-1.5 block">Amount format</Label>
+          <Select value={amountFormat} onValueChange={(value) => setAmountFormat(value as AmountFormat)}>
+            <SelectTrigger className="text-sm">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="single">Single column</SelectItem>
+              <SelectItem value="amount-type">Amount + indicator</SelectItem>
+              <SelectItem value="debit-credit">Debit / Credit</SelectItem>
+            </SelectContent>
+          </Select>
         </div>
 
         {/* Time source */}
         <div>
-          <label className="label mb-1.5 block">Time source</label>
-          <select
-            value={timeMode}
-            onChange={(e) =>
-              setTimeMode(e.target.value as CsvParser["timeMode"])
-            }
-            className="select text-sm"
-          >
-            <option value="none">No time</option>
-            <option value="separate-column">Separate column</option>
-            <option value="in-date-column">In date column</option>
-          </select>
+          <Label className="mb-1.5 block">Time source</Label>
+          <Select value={timeMode} onValueChange={(value) => setTimeMode(value as CsvParser["timeMode"])}>
+            <SelectTrigger className="text-sm">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="none">No time</SelectItem>
+              <SelectItem value="separate-column">Separate column</SelectItem>
+              <SelectItem value="in-date-column">In date column</SelectItem>
+            </SelectContent>
+          </Select>
         </div>
 
         {/* Date format */}
         <div>
-          <label className="label mb-1.5 block">
+          <Label className="mb-1.5 block">
             {timeMode === "in-date-column" ? "Date/time format" : "Date format"}
-          </label>
-          <select
-            value={effectiveDateFormat}
-            onChange={(e) => setDateFormat(e.target.value)}
-            className="select text-sm"
-          >
-            {dateFormatOptions.map((f) => (
-              <option key={f.value} value={f.value}>
-                {f.label}
-              </option>
-            ))}
-          </select>
+          </Label>
+          <Select value={effectiveDateFormat} onValueChange={(value) => setDateFormat(value)}>
+            <SelectTrigger className="text-sm">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              {dateFormatOptions.map((f) => (
+                <SelectItem key={f.value} value={f.value}>{f.label}</SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
         </div>
 
         {/* Time format (separate column mode) */}
         {timeMode === "separate-column" && (
           <div>
-            <label className="label mb-1.5 block">Time format</label>
-            <select
-              value={effectiveTimeFormat ?? TIME_FORMAT_PRESETS[0].value}
-              onChange={(e) => setTimeFormat(e.target.value)}
-              className="select text-sm"
-            >
-              {TIME_FORMAT_PRESETS.map((preset) => (
-                <option key={preset.value} value={preset.value}>
-                  {preset.label}
-                </option>
-              ))}
-            </select>
+            <Label className="mb-1.5 block">Time format</Label>
+            <Select value={effectiveTimeFormat ?? TIME_FORMAT_PRESETS[0].value} onValueChange={(value) => setTimeFormat(value)}>
+              <SelectTrigger className="text-sm">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                {TIME_FORMAT_PRESETS.map((preset) => (
+                  <SelectItem key={preset.value} value={preset.value}>{preset.label}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
           </div>
         )}
 
         {/* Decimal separator */}
         <div>
-          <label className="label mb-1.5 block">Decimal sep.</label>
-          <select
-            value={decimalSeparator}
-            onChange={(e) => setDecimalSeparator(e.target.value as "." | ",")}
-            className="select text-sm"
-          >
-            <option value=".">Dot (.)</option>
-            <option value=",">Comma (,)</option>
-          </select>
+          <Label className="mb-1.5 block">Decimal sep.</Label>
+          <Select value={decimalSeparator} onValueChange={(value) => setDecimalSeparator(value as "." | ",")}>
+            <SelectTrigger className="text-sm">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value=".">Dot (.)</SelectItem>
+              <SelectItem value=",">Comma (,)</SelectItem>
+            </SelectContent>
+          </Select>
         </div>
       </div>
 
       {/* Account match — only when skipRows > 0 */}
       {skipRows > 0 && (
         <div>
-          <label className="label">
+          <Label>
             Account match
             <span className="text-dimmed font-normal ml-2">
               Auto-match imports to an account
             </span>
-          </label>
+          </Label>
           <div className="flex flex-col gap-2 mt-3">
-            <input
+            <Input
               type="text"
               value={accountPattern}
               onChange={(e) => setAccountPattern(e.target.value)}
               placeholder="e.g. IBAN: or (CH[0-9]{2}[\\s0-9]+)"
-              className="input text-sm max-w-md font-mono"
+              className="text-sm max-w-md font-mono"
             />
 
             {accountPatternPreview ? (
-              <div className="flex items-center gap-1.5 text-ui text-dimmed">
+              <div className="flex items-center gap-1.5 text-sm text-dimmed">
                 <span>Detected:</span>
                 <span className="font-mono text-muted-foreground">
                   {accountPatternPreview}
                 </span>
               </div>
             ) : accountPattern ? (
-              <div className="flex items-center gap-1.5 text-ui text-dimmed">
+              <div className="flex items-center gap-1.5 text-sm text-dimmed">
                 <span>No match found in skipped rows</span>
               </div>
             ) : null}
@@ -788,38 +798,37 @@ export function ParserEditor({
       {/* Field mapping (field-centric) */}
       <div>
         <div className="flex items-center justify-between mb-3">
-          <label className="label">
+          <Label>
             Column mapping
             <span className="text-dimmed font-normal ml-2">
               Assign CSV columns to each transaction field
             </span>
-          </label>
+          </Label>
           {/* Multi-column separator selector */}
           {Array.from(fieldMappings.entries()).some(
             ([f, indices]) => MULTI_COLUMN_FIELDS.has(f) && indices.length >= 2,
           ) && (
             <div className="flex items-center gap-2">
-              <span className="text-ui text-dimmed shrink-0">
+              <span className="text-sm text-dimmed shrink-0">
                 Merge separator
               </span>
-              <select
-                value={multiColumnSeparator}
-                onChange={(e) => setMultiColumnSeparator(e.target.value)}
-                className="select text-sm w-auto"
-              >
-                {SEPARATOR_OPTIONS.map((s) => (
-                  <option key={s.value} value={s.value}>
-                    {s.label}
-                  </option>
-                ))}
-              </select>
+              <Select value={multiColumnSeparator || EMPTY_SEPARATOR_SENTINEL} onValueChange={(value) => setMultiColumnSeparator(value === EMPTY_SEPARATOR_SENTINEL ? "" : value)}>
+                <SelectTrigger className="text-sm w-auto">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  {SEPARATOR_OPTIONS.map((s) => (
+                    <SelectItem key={s.value} value={s.value}>{s.label}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
             </div>
           )}
         </div>
 
         <div className="space-y-2 mb-4">
           {!hasSampleData && (
-            <p className="text-ui text-dimmed">
+            <p className="text-sm text-dimmed">
               No sample CSV loaded. You can still update parser settings, but mapping and preview require a file.
             </p>
           )}
@@ -849,24 +858,24 @@ export function ParserEditor({
       {/* Metadata fields */}
       <div>
         <div className="flex items-center justify-between mb-3">
-          <label className="label">
+          <Label>
             Metadata fields
             <span className="text-dimmed font-normal ml-2">
               Key/value data extracted from selected CSV columns
             </span>
-          </label>
-          <button
+          </Label>
+          <Button
+            variant="ghost"
             type="button"
             onClick={addMetadataMapping}
-            className="btn-ghost"
           >
             <Plus size={14} />
             Add metadata
-          </button>
+          </Button>
         </div>
 
         {metadataMappings.length === 0 ? (
-          <p className="text-ui text-dimmed">
+          <p className="text-sm text-dimmed">
             No metadata fields configured. Add a field to map one or more CSV
             columns.
           </p>
@@ -893,16 +902,16 @@ export function ParserEditor({
       {/* Field transforms */}
       <div>
         <div className="flex items-center justify-between mb-3">
-          <label className="label">
+          <Label>
             Field transforms
             <span className="text-dimmed font-normal ml-2">
               Use transforms when your CSV needs cleanup or custom extraction
             </span>
-          </label>
-          <button onClick={addTransform} className="btn-ghost">
+          </Label>
+          <Button variant="ghost" onClick={addTransform}>
             <Plus size={14} />
             Add rule
-          </button>
+          </Button>
         </div>
 
         {transforms.length > 0 && (
@@ -923,7 +932,7 @@ export function ParserEditor({
         )}
 
         {transforms.length === 0 && (
-          <p className="text-ui text-dimmed">
+          <p className="text-sm text-dimmed">
             No transforms configured yet.
           </p>
         )}
@@ -932,7 +941,7 @@ export function ParserEditor({
       {/* Preview table with highlights */}
       {hasSampleData && (
         <div>
-          <label className="label mb-2 block">Data preview</label>
+          <Label className="mb-2 block">Data preview</Label>
           <CsvPreviewTable
             headers={headers}
             rows={dataRows}
@@ -948,17 +957,16 @@ export function ParserEditor({
 
       {/* Actions */}
       <div className="flex gap-3 flex-wrap">
-        <button
+        <Button
           onClick={handleSave}
           disabled={hasValidationErrors || !name.trim()}
-          className="btn-primary"
         >
           <Save size={14} />
           Save parser
-        </button>
-        <button onClick={onCancel} className="btn-secondary">
+        </Button>
+        <Button variant="outline" onClick={onCancel}>
           Cancel
-        </button>
+        </Button>
       </div>
     </div>
   );

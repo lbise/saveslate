@@ -1,6 +1,8 @@
 import { useState, useRef, useCallback } from 'react';
 import { Upload, FileText, X } from 'lucide-react';
 import { cn } from '../../lib/utils';
+import { Button } from '@/components/ui/button';
+import { Card } from '@/components/ui/Card';
 
 interface FileUploadProps {
   onFileLoaded: (content: string, fileName: string) => void;
@@ -79,24 +81,25 @@ export function FileUpload({ onFileLoaded }: FileUploadProps) {
 
   if (fileName) {
     return (
-      <div className="card p-6">
+      <Card className="p-6">
         <div className="flex items-center gap-4">
           <div className="w-10 h-10 rounded-(--radius-md) bg-income/10 flex items-center justify-center">
             <FileText size={20} className="text-income" />
           </div>
           <div className="flex-1 min-w-0">
-            <p className="text-body text-foreground font-medium truncate">{fileName}</p>
-            <p className="text-ui text-dimmed mt-0.5">Ready to configure parser</p>
+            <p className="text-base text-foreground font-medium truncate">{fileName}</p>
+            <p className="text-sm text-dimmed mt-0.5">Ready to configure parser</p>
           </div>
-          <button
+          <Button
+            variant="ghost"
+            size="icon"
             onClick={handleClear}
-            className="btn-icon"
             aria-label="Remove file" title="Remove file"
           >
             <X size={16} />
-          </button>
+          </Button>
         </div>
-      </div>
+      </Card>
     );
   }
 
@@ -120,10 +123,10 @@ export function FileUpload({ onFileLoaded }: FileUploadProps) {
           <Upload size={20} className="text-dimmed" />
         </div>
         <div className="text-center">
-          <p className="text-body text-foreground font-medium">
+          <p className="text-base text-foreground font-medium">
             Drop a CSV file here or click to browse
           </p>
-          <p className="text-ui text-dimmed mt-1">
+          <p className="text-sm text-dimmed mt-1">
             Supports .csv files up to 10 MB
           </p>
         </div>
@@ -136,7 +139,7 @@ export function FileUpload({ onFileLoaded }: FileUploadProps) {
         className="hidden"
       />
       {error && (
-        <p className="text-ui text-expense mt-3">{error}</p>
+        <p className="text-sm text-expense mt-3">{error}</p>
       )}
     </div>
   );

@@ -1,4 +1,4 @@
-import { Tag, Users, MoreHorizontal } from "lucide-react";
+import { Tag, Users } from "lucide-react";
 import {
   Badge,
   CategoryPicker,
@@ -122,7 +122,7 @@ export function TransactionRow({
         <div className="flex-1 min-w-0">
           <div className="flex items-center gap-2">
             <span
-              className="text-ui text-foreground font-medium line-clamp-2"
+              className="text-sm text-foreground font-medium line-clamp-2"
               title={transaction.description}
             >
               {transaction.description}
@@ -149,7 +149,7 @@ export function TransactionRow({
               )}
             </div>
             {transaction.goal && (
-              <span className="inline-flex items-center gap-1 text-ui text-goal max-w-36">
+              <span className="inline-flex items-center gap-1 text-sm text-goal max-w-36">
                 <Icon name={transaction.goal.icon} size={10} className="shrink-0" />
                 <span className="truncate">{transaction.goal.name}</span>
               </span>
@@ -157,23 +157,23 @@ export function TransactionRow({
             {resolvedTags.length > 0 && (
               <span className="inline-flex items-center gap-2 flex-wrap max-w-full">
                 {visibleTags.map((tag) => (
-                  <span key={tag.id} className="inline-flex items-center gap-1 text-ui max-w-36" style={{ color: tag.color }}>
+                  <span key={tag.id} className="inline-flex items-center gap-1 text-sm max-w-36" style={{ color: tag.color }}>
                     <Tag size={10} className="shrink-0" />
                     <span className="truncate">{tag.name}</span>
                   </span>
                 ))}
                 {hiddenTagCount > 0 && (
-                  <span className="text-ui text-dimmed">+{hiddenTagCount}</span>
+                  <span className="text-sm text-dimmed">+{hiddenTagCount}</span>
                 )}
               </span>
             )}
             {transferFlow && (
-              <span className="text-ui text-dimmed truncate max-w-48">
+              <span className="text-sm text-dimmed truncate max-w-48">
                 {transferFlow.fromAccountName} &rarr; {transferFlow.toAccountName}
               </span>
             )}
             {transaction.split && (
-              <span className="inline-flex items-center gap-1 text-ui text-dimmed">
+              <span className="inline-flex items-center gap-1 text-sm text-dimmed">
                 <Users size={9} />
                 {transaction.split.withPerson}
                 {transaction.split.status === "pending" && (
@@ -184,7 +184,7 @@ export function TransactionRow({
                 )}
               </span>
             )}
-            <span className="text-ui text-dimmed">
+            <span className="text-sm text-dimmed">
               {formatDate(transaction.date)}
             </span>
           </div>
@@ -192,7 +192,7 @@ export function TransactionRow({
 
         <div className="flex items-center gap-1 shrink-0">
           <span
-            className={cn("text-ui font-medium", getAmountColorClass(type, transaction.amount))}
+            className={cn("text-sm text-muted-foreground font-medium", getAmountColorClass(type, transaction.amount))}
             style={{ fontFamily: "var(--font-display)" }}
           >
             {formatSignedCurrency(transaction.amount, transaction.currency)}
@@ -200,30 +200,18 @@ export function TransactionRow({
 
           {/* Action button — mobile */}
           <div className="relative">
-            <button
-              onClick={(e) => {
-                e.stopPropagation();
-                onToggleAction();
-              }}
-              className={cn(
-                "w-7 h-7 flex items-center justify-center rounded bg-transparent border-none cursor-pointer text-dimmed hover:text-foreground transition-opacity",
-                isActionOpen ? "opacity-100" : "opacity-60",
-              )}
-            >
-              <MoreHorizontal size={14} />
-            </button>
-            {isActionOpen && (
-              <ActionMenu
-                onAction={onAction}
-                onEditGoal={onToggleEditGoal}
-                onEditTags={onToggleEditTags}
-                onRemoveGoal={() => onGoalChange(null)}
-                onCreateRule={onCreateRule}
-                hasGoal={Boolean(transaction.goalId)}
-                hasTags={resolvedTags.length > 0}
-                className="right-0"
-              />
-            )}
+            <ActionMenu
+              onAction={onAction}
+              onEditGoal={onToggleEditGoal}
+              onEditTags={onToggleEditTags}
+              onRemoveGoal={() => onGoalChange(null)}
+              onCreateRule={onCreateRule}
+              hasGoal={Boolean(transaction.goalId)}
+              hasTags={resolvedTags.length > 0}
+              open={isActionOpen}
+              onOpenChange={(open) => { if (open) onToggleAction(); else if (isActionOpen) onToggleAction(); }}
+              triggerClassName={isActionOpen ? "opacity-100" : "opacity-60"}
+            />
             {isEditingGoal && (
               <GoalPicker
                 currentGoalId={transaction.goalId}
@@ -255,13 +243,13 @@ export function TransactionRow({
         <div className="flex-1 min-w-0">
           <div className="flex items-center gap-2">
             <span
-              className="text-ui text-foreground font-medium line-clamp-2"
+              className="text-sm text-foreground font-medium line-clamp-2"
               title={transaction.description}
             >
               {transaction.description}
             </span>
             {transaction.split && (
-              <span className="inline-flex items-center gap-1 text-ui text-dimmed shrink-0">
+              <span className="inline-flex items-center gap-1 text-sm text-dimmed shrink-0">
                 <Users size={9} />
                 {transaction.split.withPerson}
                 {transaction.split.status === "pending" && (
@@ -273,7 +261,7 @@ export function TransactionRow({
               </span>
             )}
           </div>
-          <div className="flex items-center gap-1 text-ui text-dimmed relative flex-wrap">
+          <div className="flex items-center gap-1 text-sm text-dimmed relative flex-wrap">
             <span>
               {transferFlow
                 ? `${transferFlow.fromAccountName} \u2192 ${transferFlow.toAccountName}`
@@ -285,7 +273,7 @@ export function TransactionRow({
                 e.stopPropagation();
                 onToggleEditCategory();
               }}
-              className="cursor-pointer bg-transparent border-none p-0 text-ui text-dimmed hover:text-foreground hover:underline transition-colors"
+              className="cursor-pointer bg-transparent border-none p-0 text-sm text-dimmed hover:text-foreground hover:underline transition-colors"
             >
               {transaction.category.name}
             </button>
@@ -302,13 +290,13 @@ export function TransactionRow({
                 <span>&middot;</span>
                 <span className="inline-flex items-center gap-2 flex-wrap max-w-[360px]">
                   {visibleTags.map((tag) => (
-                    <span key={tag.id} className="inline-flex items-center gap-1 text-ui max-w-40" style={{ color: tag.color }}>
+                    <span key={tag.id} className="inline-flex items-center gap-1 text-sm max-w-40" style={{ color: tag.color }}>
                       <Tag size={10} className="shrink-0" />
                       <span className="truncate">{tag.name}</span>
                     </span>
                   ))}
                   {hiddenTagCount > 0 && (
-                    <span className="text-ui text-dimmed">+{hiddenTagCount}</span>
+                    <span className="text-sm text-dimmed">+{hiddenTagCount}</span>
                   )}
                 </span>
               </>
@@ -326,12 +314,12 @@ export function TransactionRow({
         </div>
 
         {/* Date */}
-        <div className="w-24 text-ui">{formatDate(transaction.date)}</div>
+        <div className="w-24 text-sm text-muted-foreground">{formatDate(transaction.date)}</div>
 
         {/* Amount */}
         <span
           className={cn(
-            "w-28 text-right text-ui font-medium",
+            "w-28 text-right text-sm text-muted-foreground font-medium",
             getAmountColorClass(type, transaction.amount),
           )}
           style={{ fontFamily: "var(--font-display)" }}
@@ -341,32 +329,18 @@ export function TransactionRow({
 
         {/* Action menu trigger */}
         <div className="relative w-8 flex items-center justify-center shrink-0">
-          <button
-            onClick={(e) => {
-              e.stopPropagation();
-              onToggleAction();
-            }}
-            className={cn(
-              "w-7 h-7 flex items-center justify-center rounded bg-transparent border-none cursor-pointer text-dimmed hover:text-foreground transition-opacity",
-              isActionOpen
-                ? "opacity-100"
-                : "opacity-0 group-hover:opacity-100",
-            )}
-          >
-            <MoreHorizontal size={14} />
-          </button>
-          {isActionOpen && (
-              <ActionMenu
-                onAction={onAction}
-                onEditGoal={onToggleEditGoal}
-                onEditTags={onToggleEditTags}
-                onRemoveGoal={() => onGoalChange(null)}
-                onCreateRule={onCreateRule}
-                hasGoal={Boolean(transaction.goalId)}
-                hasTags={resolvedTags.length > 0}
-                className="right-0"
-              />
-          )}
+          <ActionMenu
+            onAction={onAction}
+            onEditGoal={onToggleEditGoal}
+            onEditTags={onToggleEditTags}
+            onRemoveGoal={() => onGoalChange(null)}
+            onCreateRule={onCreateRule}
+            hasGoal={Boolean(transaction.goalId)}
+            hasTags={resolvedTags.length > 0}
+            open={isActionOpen}
+            onOpenChange={(open) => { if (open) onToggleAction(); else if (isActionOpen) onToggleAction(); }}
+            triggerClassName={isActionOpen ? "opacity-100" : "opacity-0 group-hover:opacity-100"}
+          />
           {isEditingGoal && (
             <GoalPicker
               currentGoalId={transaction.goalId}

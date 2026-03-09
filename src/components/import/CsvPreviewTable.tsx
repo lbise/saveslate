@@ -45,7 +45,7 @@ export function CsvPreviewTable({
                   <div className="flex flex-col gap-1">
                     <span className="truncate max-w-[160px]">{h}</span>
                     {highlight && (
-                      <span className="text-ui text-income font-normal">{highlight}</span>
+                      <span className="text-sm text-income font-normal">{highlight}</span>
                     )}
                   </div>
                 </th>
@@ -80,7 +80,7 @@ export function CsvPreviewTable({
         </tbody>
       </table>
       {rows.length > PAGE_SIZE_OPTIONS[0] && (
-        <div className="flex items-center justify-between px-3 py-2 text-ui text-dimmed bg-card border-t border-border">
+        <div className="flex items-center justify-between px-3 py-2 text-sm text-dimmed bg-card border-t border-border">
           <div className="flex items-center gap-1.5">
             <span>Rows</span>
             <select

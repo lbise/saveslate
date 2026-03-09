@@ -96,11 +96,11 @@ export function FieldMappingRow({
           field === "transactionId" ? "w-56" : "w-28",
         )}
       >
-        <span className="text-ui font-medium text-foreground">
+        <span className="text-sm font-medium text-foreground">
           {TRANSACTION_FIELD_LABELS[field]}
         </span>
         {required && <span className="text-expense ml-0.5">*</span>}
-        {error && <p className="text-ui text-expense mt-0.5">{error}</p>}
+        {error && <p className="text-sm text-expense mt-0.5">{error}</p>}
         {field === "transactionId" && (
           <span className="inline-flex items-center ml-1.5 align-middle">
             <FieldHelpTooltip text="Recommended for reliable deduplication. Without it, imports only show possible matches." />
@@ -127,14 +127,14 @@ export function FieldMappingRow({
             )}
           >
             {assignedIndices.length === 0 && (
-              <span className="text-ui text-dimmed">
+              <span className="text-sm text-dimmed">
                 Select column{isMulti ? "s" : ""}...
               </span>
             )}
             {assignedIndices.map((colIdx) => (
               <span
                 key={colIdx}
-                className="inline-flex items-center gap-1 px-2 py-0.5 rounded-(--radius-sm) bg-foreground/10 text-ui text-foreground"
+                className="inline-flex items-center gap-1 px-2 py-0.5 rounded-(--radius-sm) bg-foreground/10 text-sm text-foreground"
               >
                 <span className="truncate max-w-[120px]">
                   {headers[colIdx] ?? `Col ${colIdx + 1}`}
@@ -183,7 +183,7 @@ export function FieldMappingRow({
                       <span className="flex items-center gap-2">
                         <span
                           className={cn(
-                            "text-ui",
+                            "text-sm",
                             alreadyAssigned
                               ? "text-foreground font-medium"
                               : "text-foreground",
@@ -192,11 +192,11 @@ export function FieldMappingRow({
                           {header}
                         </span>
                         {alreadyAssigned && isMulti && (
-                          <span className="text-ui text-income">selected</span>
+                          <span className="text-sm text-income">selected</span>
                         )}
                       </span>
                       {sampleValue && (
-                        <span className="text-ui text-dimmed truncate mt-0.5 max-w-full">
+                        <span className="text-sm text-dimmed truncate mt-0.5 max-w-full">
                           {sampleValue}
                         </span>
                       )}

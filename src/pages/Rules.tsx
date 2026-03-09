@@ -1,6 +1,9 @@
 import { useEffect, useMemo, useState } from "react";
 import { Pencil, Play, Power, Trash2 } from "lucide-react";
 import { useLocation, useNavigate } from "react-router-dom";
+import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/Badge";
+import { Card } from "@/components/ui/Card";
 import { PageHeader, PageHeaderActions } from "../components/layout";
 import {
   DeleteConfirmationModal,
@@ -361,7 +364,7 @@ export function Rules() {
   };
 
   return (
-    <div className="page-container">
+    <div className="space-y-6 max-w-[1000px] mx-auto px-[18px] pt-[30px] pb-9 lg:px-8 lg:py-11 xl:px-10 xl:py-12">
       <PageHeader title="Rules">
         <PageHeaderActions
           onImport={openFilePicker}
@@ -385,7 +388,7 @@ export function Rules() {
       />
 
       {importError && (
-        <p className="text-ui text-expense mb-3">{importError}</p>
+        <p className="text-sm text-expense mb-3">{importError}</p>
       )}
 
       {ruleToDelete && (
@@ -412,52 +415,51 @@ export function Rules() {
         />
       )}
 
-      <section className="card p-4">
+      <Card className="p-4">
         <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4">
           <div>
-            <h2 className="heading-3 text-foreground">Automation Engine</h2>
-            <p className="text-body mt-1">
+            <h2 className="font-display text-base font-medium text-foreground">Automation Engine</h2>
+            <p className="text-base text-muted-foreground mt-1">
               Runs enabled manual rules on current transactions.
             </p>
           </div>
-          <button
+          <Button
             type="button"
-            className="btn-primary"
             onClick={handleRunManualRules}
             disabled={manualRunnableRuleCount === 0}
           >
             <Play size={14} />
             Run
-          </button>
+          </Button>
         </div>
 
         {manualRunSummary && (
-          <p className="text-ui text-dimmed mt-3">
+          <p className="text-sm text-dimmed mt-3">
             Last run {new Date(manualRunSummary.ranAt).toLocaleString()}:
             evaluated {manualRunSummary.evaluatedCount}, matched{" "}
             {manualRunSummary.matchedCount}, changed{" "}
             {manualRunSummary.changedCount}.
           </p>
         )}
-      </section>
+      </Card>
 
       <section>
-        <div className="section-header">
-          <h2 className="section-title">All Rules</h2>
-          <span className="text-ui text-dimmed">{rules.length} rules</span>
+        <div className="flex items-center justify-between mb-3">
+          <h2 className="font-display text-base font-medium text-muted-foreground">All Rules</h2>
+          <span className="text-sm text-dimmed">{rules.length} rules</span>
         </div>
 
         {rules.length === 0 ? (
-          <div className="card p-6 text-center">
-            <p className="text-body text-foreground">No rules yet.</p>
-            <p className="text-ui text-dimmed mt-1">
+          <Card className="p-6 text-center">
+            <p className="text-base text-foreground">No rules yet.</p>
+            <p className="text-sm text-dimmed mt-1">
               Create a rule to auto-categorize transactions on import or manual
               run.
             </p>
-            <button className="btn-primary mt-4" onClick={openCreateModal}>
+            <Button className="mt-4" onClick={openCreateModal}>
               Create Rule
-            </button>
-          </div>
+            </Button>
+          </Card>
         ) : (
           <div className="flex flex-col gap-3">
             {rules.map((rule) => {
@@ -471,9 +473,9 @@ export function Rules() {
                   metric={rule.isEnabled ? "Enabled" : "Disabled"}
                   metricClassName={rule.isEnabled ? "text-income" : "text-dimmed"}
                   badges={rule.triggers.map((trigger) => (
-                    <span key={trigger} className="badge-muted">
+                    <Badge key={trigger} variant="muted">
                       {getTriggerLabel(trigger)}
-                    </span>
+                    </Badge>
                   ))}
                   actions={(
                     <EntityCardOverflowMenu
@@ -518,7 +520,7 @@ export function Rules() {
                     <EntityCardSection title="Conditions">
                       <div className="space-y-1.5">
                         {rule.conditions.map((condition) => (
-                          <p key={condition.id} className="text-ui text-dimmed">
+                          <p key={condition.id} className="text-sm text-dimmed">
                             {formatCondition(
                               condition,
                               resolveConditionValueLabel(condition.field, condition.value),

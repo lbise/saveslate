@@ -136,7 +136,10 @@ export function Sidebar({ collapsed, onToggleCollapse }: SidebarProps) {
             end={item.path === '/'}
             className={({ isActive }) =>
               cn(
-                isActive ? 'nav-link-active' : 'nav-link',
+                'flex items-center gap-3 rounded-md text-sm transition-all duration-150 py-3 px-4',
+                isActive
+                  ? 'bg-background text-foreground'
+                  : 'text-muted-foreground hover:text-foreground hover:bg-secondary',
                 isCollapsed && 'justify-center px-3',
               )
             }
@@ -156,7 +159,10 @@ export function Sidebar({ collapsed, onToggleCollapse }: SidebarProps) {
               to={item.path}
               className={({ isActive }) =>
                 cn(
-                  isActive ? 'nav-link-active' : 'nav-link',
+                  'flex items-center gap-3 rounded-md text-sm transition-all duration-150 py-3 px-4',
+                  isActive
+                    ? 'bg-background text-foreground'
+                    : 'text-muted-foreground hover:text-foreground hover:bg-secondary',
                   isCollapsed && 'justify-center px-3',
                 )
               }
@@ -186,7 +192,7 @@ export function Sidebar({ collapsed, onToggleCollapse }: SidebarProps) {
         {!isCollapsed && (
           <>
             <div className="flex-1 min-w-0">
-              <div className="text-body font-medium truncate">{user.name}</div>
+              <div className="text-base text-muted-foreground font-medium truncate">{user.name}</div>
             </div>
             <button
               onClick={logout} aria-label="Log out"

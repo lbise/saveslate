@@ -63,7 +63,7 @@ function FaqAccordion({ item }: { item: FaqItem }) {
         <div className="w-8 h-8 bg-card rounded-(--radius-sm) flex items-center justify-center shrink-0 transition-colors duration-150 group-hover:bg-secondary">
           <item.icon size={14} className="text-muted-foreground" />
         </div>
-        <span className="flex-1 text-body font-medium text-foreground">
+        <span className="flex-1 text-base font-medium text-foreground">
           {item.question}
         </span>
         <ChevronDown
@@ -80,7 +80,7 @@ function FaqAccordion({ item }: { item: FaqItem }) {
           isOpen ? 'max-h-40 opacity-100 pb-4' : 'max-h-0 opacity-0',
         )}
       >
-        <p className="text-body leading-relaxed pl-11">
+        <p className="text-base text-muted-foreground leading-relaxed pl-11">
           {item.answer}
         </p>
       </div>
@@ -90,7 +90,7 @@ function FaqAccordion({ item }: { item: FaqItem }) {
 
 export function Help() {
   return (
-    <div className="page-container">
+    <div className="space-y-6 max-w-[1000px] mx-auto px-[18px] pt-[30px] pb-9 lg:px-8 lg:py-11 xl:px-10 xl:py-12">
       <PageHeader title="Help" />
 
       {/* Quick Links */}
@@ -104,8 +104,8 @@ export function Help() {
               <BookOpen size={16} className="text-muted-foreground" />
             </div>
             <div>
-              <div className="text-body font-medium text-foreground">FAQ</div>
-              <div className="text-ui text-dimmed">Common questions answered</div>
+              <div className="text-base font-medium text-foreground">FAQ</div>
+              <div className="text-sm text-dimmed">Common questions answered</div>
             </div>
           </a>
           <a
@@ -116,8 +116,8 @@ export function Help() {
               <MessageCircle size={16} className="text-muted-foreground" />
             </div>
             <div>
-              <div className="text-body font-medium text-foreground">Contact Support</div>
-              <div className="text-ui text-dimmed">We usually reply within 24h</div>
+              <div className="text-base font-medium text-foreground">Contact Support</div>
+              <div className="text-sm text-dimmed">We usually reply within 24h</div>
             </div>
           </a>
         </div>
@@ -125,8 +125,8 @@ export function Help() {
 
       {/* FAQ */}
       <section id="faq">
-        <div className="section-header">
-          <h2 className="section-title">Frequently Asked Questions</h2>
+        <div className="flex items-center justify-between mb-3">
+          <h2 className="font-display text-base font-medium text-muted-foreground">Frequently Asked Questions</h2>
         </div>
         <div className="flex flex-col">
           {FAQ_ITEMS.map((item) => (
@@ -138,12 +138,12 @@ export function Help() {
       {/* Footer */}
       <section className="pt-4">
         <div className="text-center">
-          <div className="text-ui text-dimmed">
+          <div className="text-sm text-dimmed">
             Can&apos;t find what you need?
           </div>
           <a
             href="mailto:support@saveslate.ch"
-            className="text-ui hover:text-foreground transition-colors mt-1 inline-block"
+            className="text-sm text-muted-foreground hover:text-foreground transition-colors mt-1 inline-block"
           >
             support@saveslate.ch
           </a>

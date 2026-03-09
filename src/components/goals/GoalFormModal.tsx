@@ -1,6 +1,25 @@
 import { useMemo, useState, type FormEvent } from "react";
-import { ChevronDown, Search, X } from "lucide-react";
-import { Icon, Modal } from "../ui";
+import { ChevronDown, Search } from "lucide-react";
+import { Icon } from "../ui";
+import { Button } from "@/components/ui/button";
+import { Card } from "../ui/Card";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogFooter,
+} from "@/components/ui/dialog";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import { Textarea } from "@/components/ui/textarea";
 import { useFormatCurrency, useIconPicker } from "../../hooks";
 import {
   formatContributionPeriods,
@@ -144,26 +163,22 @@ export function GoalFormModal({
   // ─── Render ────────────────────────────────────────────────
 
   return (
-    <Modal onClose={onClose} panelClassName="max-w-3xl p-5">
-      <section>
-        <div className="section-header mb-4">
-          <h2 id="modal-title" className="heading-3 text-foreground">
+    <Dialog open onOpenChange={(open) => { if (!open) onClose(); }}>
+      <DialogContent className="max-w-3xl" showCloseButton={false}>
+        <DialogHeader>
+          <DialogTitle>
             {editingGoalId ? "Edit Goal" : "Create Goal"}
-          </h2>
-          <button className="btn-icon" onClick={onClose} aria-label="Close modal">
-            <X size={16} />
-          </button>
-        </div>
+          </DialogTitle>
+        </DialogHeader>
 
         <form className="space-y-4" onSubmit={handleSubmit}>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div>
-              <label className="label mb-1.5 block" htmlFor="goal-name">
+              <Label className="mb-1.5 block" htmlFor="goal-name">
                 Goal name
-              </label>
-              <input
+              </Label>
+              <Input
                 id="goal-name"
-                className="input"
                 placeholder="Emergency Fund"
                 value={form.name}
                 onChange={(event) =>
@@ -177,12 +192,12 @@ export function GoalFormModal({
             </div>
 
             <div className="relative">
-              <label className="label mb-1.5 block" htmlFor="goal-icon-search">
+              <Label className="mb-1.5 block" htmlFor="goal-icon-search">
                 Icon
-              </label>
+              </Label>
               <button
                 type="button"
-                className="input flex items-center justify-between"
+                className="flex items-center justify-between w-full h-10 rounded-md border border-border bg-card px-4 text-base text-foreground transition-all duration-150 cursor-pointer"
                 onClick={() =>
                   iconPicker.setIsIconPickerOpen((current) => !current)
                 }
@@ -191,7 +206,7 @@ export function GoalFormModal({
               >
                 <span className="flex items-center gap-2 min-w-0">
                   <Icon name={form.icon} size={16} className="text-foreground" />
-                  <span className="text-body text-foreground truncate">
+                  <span className="text-base text-foreground truncate">
                     {form.icon}
                   </span>
                 </span>
@@ -199,18 +214,18 @@ export function GoalFormModal({
               </button>
 
               {iconPicker.isIconPickerOpen && (
-                <div
+                <Card
                   id="goal-icon-picker"
-                  className="card absolute z-20 mt-2 w-full p-3"
+                  className="absolute z-20 mt-2 w-full p-3"
                 >
                   <div className="relative mb-3">
                     <Search
                       size={14}
                       className="absolute left-3 top-1/2 -translate-y-1/2 text-dimmed"
                     />
-                    <input
+                    <Input
                       id="goal-icon-search"
-                      className="input pl-9"
+                      className="pl-9"
                       placeholder="Search icon"
                       value={iconPicker.iconSearchQuery}
                       onChange={(event) =>
@@ -242,29 +257,28 @@ export function GoalFormModal({
                           ].join(" ")}
                         >
                           <Icon name={iconName} size={16} />
-                          <span className="text-ui">{iconName}</span>
+                          <span className="text-sm text-muted-foreground">{iconName}</span>
                         </button>
                       );
                     })}
 
                     {iconPicker.filteredIconNames.length === 0 && (
-                      <div className="px-3 py-4 text-ui text-dimmed">
+                      <div className="px-3 py-4 text-sm text-dimmed">
                         No icons found.
                       </div>
                     )}
                   </div>
-                </div>
+                </Card>
               )}
             </div>
           </div>
 
           <div>
-            <label className="label mb-1.5 block" htmlFor="goal-description">
+            <Label className="mb-1.5 block" htmlFor="goal-description">
               Description
-            </label>
-            <textarea
+            </Label>
+            <Textarea
               id="goal-description"
-              className="w-full px-4 py-2.5 rounded-md bg-card border border-border text-foreground placeholder:text-dimmed focus:outline-none focus:ring-1 focus:ring-dimmed focus:border-dimmed transition-all duration-150 leading-5 min-h-16 resize-y"
               placeholder="Why are you saving for this goal?"
               value={form.description}
               onChange={(event) =>
@@ -278,15 +292,14 @@ export function GoalFormModal({
 
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div>
-              <label
-                className="label mb-1.5 block"
+              <Label
+                className="mb-1.5 block"
                 htmlFor="goal-starting-amount"
               >
                 Starting amount
-              </label>
-              <input
+              </Label>
+              <Input
                 id="goal-starting-amount"
-                className="input"
                 type="number"
                 min="0"
                 step="0.01"
@@ -302,12 +315,11 @@ export function GoalFormModal({
             </div>
 
             <div>
-              <label className="label mb-1.5 block" htmlFor="goal-due-date">
+              <Label className="mb-1.5 block" htmlFor="goal-due-date">
                 Due date (optional)
-              </label>
-              <input
+              </Label>
+              <Input
                 id="goal-due-date"
-                className="input"
                 type="date"
                 min={todayDate}
                 value={form.dueDate}
@@ -322,10 +334,9 @@ export function GoalFormModal({
           </div>
 
           <div>
-            <label className="label mb-1.5 block">Target setup</label>
+            <Label className="mb-1.5 block">Target setup</Label>
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
-              <button
-                type="button"
+              <Card
                 onClick={() =>
                   setForm((current) => ({
                     ...current,
@@ -333,22 +344,21 @@ export function GoalFormModal({
                   }))
                 }
                 className={[
-                  "card p-3 text-left transition-colors duration-150 border",
+                  "p-3 text-left transition-colors duration-150 cursor-pointer",
                   form.targetMethod === "fixed"
                     ? "border-foreground bg-secondary"
-                    : "border-border hover:border-dimmed",
+                    : "hover:border-dimmed",
                 ].join(" ")}
               >
-                <div className="text-body text-foreground font-medium">
+                <div className="text-base text-foreground font-medium">
                   Fixed Target Amount
                 </div>
-                <div className="text-ui text-dimmed">
+                <div className="text-sm text-dimmed">
                   Set one exact target value.
                 </div>
-              </button>
+              </Card>
 
-              <button
-                type="button"
+              <Card
                 onClick={() =>
                   setForm((current) => ({
                     ...current,
@@ -356,33 +366,32 @@ export function GoalFormModal({
                   }))
                 }
                 className={[
-                  "card p-3 text-left transition-colors duration-150 border",
+                  "p-3 text-left transition-colors duration-150 cursor-pointer",
                   form.targetMethod === "contribution"
                     ? "border-foreground bg-secondary"
-                    : "border-border hover:border-dimmed",
+                    : "hover:border-dimmed",
                 ].join(" ")}
               >
-                <div className="text-body text-foreground font-medium">
+                <div className="text-base text-foreground font-medium">
                   Contribution Plan
                 </div>
-                <div className="text-ui text-dimmed">
+                <div className="text-sm text-dimmed">
                   Set a recurring contribution without a fixed target.
                 </div>
-              </button>
+              </Card>
             </div>
           </div>
 
           {form.targetMethod === "fixed" && (
             <div>
-              <label
-                className="label mb-1.5 block"
+              <Label
+                className="mb-1.5 block"
                 htmlFor="goal-target-amount"
               >
                 Target amount
-              </label>
-              <input
+              </Label>
+              <Input
                 id="goal-target-amount"
-                className="input"
                 type="number"
                 min="0"
                 step="0.01"
@@ -402,15 +411,14 @@ export function GoalFormModal({
           {form.targetMethod === "contribution" && (
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div>
-                <label
-                  className="label mb-1.5 block"
+                <Label
+                  className="mb-1.5 block"
                   htmlFor="goal-contribution-amount"
                 >
                   Expected contribution
-                </label>
-                <input
+                </Label>
+                <Input
                   id="goal-contribution-amount"
-                  className="input"
                   type="number"
                   min="0"
                   step="0.01"
@@ -427,89 +435,92 @@ export function GoalFormModal({
               </div>
 
               <div>
-                <label
-                  className="label mb-1.5 block"
+                <Label
+                  className="mb-1.5 block"
                   htmlFor="goal-contribution-frequency"
                 >
                   Contribution frequency
-                </label>
-                <select
-                  id="goal-contribution-frequency"
-                  className="select"
+                </Label>
+                <Select
                   value={form.expectedContributionFrequency}
-                  onChange={(event) =>
+                  onValueChange={(value) =>
                     setForm((current) => ({
                       ...current,
-                      expectedContributionFrequency: event.target
-                        .value as ContributionFrequency,
+                      expectedContributionFrequency:
+                        value as ContributionFrequency,
                     }))
                   }
                 >
-                  <option value="weekly">Weekly</option>
-                  <option value="monthly">Monthly</option>
-                </select>
+                  <SelectTrigger id="goal-contribution-frequency">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="weekly">Weekly</SelectItem>
+                    <SelectItem value="monthly">Monthly</SelectItem>
+                  </SelectContent>
+                </Select>
               </div>
             </div>
           )}
 
-          <div className="card p-3.5 bg-background">
+          <Card className="p-3.5 bg-background">
             {form.targetMethod === "fixed" ? (
               <>
-                <div className="text-ui text-dimmed">Target preview</div>
-                <div className="text-body text-foreground mt-1">
+                <div className="text-sm text-dimmed">Target preview</div>
+                <div className="text-base text-foreground mt-1">
                   {formatCurrency(previewTargetAmount)}
                 </div>
-                <div className="text-ui text-dimmed mt-2">
+                <div className="text-sm text-dimmed mt-2">
                   Already saved: {formatCurrency(startingAmount)}
                 </div>
-                <div className="text-ui text-dimmed">
+                <div className="text-sm text-dimmed">
                   Left to save: {formatCurrency(amountLeftToSave)}
                 </div>
               </>
             ) : (
               <>
-                <div className="text-ui text-dimmed">
+                <div className="text-sm text-dimmed">
                   Contribution plan
                 </div>
-                <div className="text-body text-foreground mt-1">
+                <div className="text-base text-foreground mt-1">
                   {formatCurrency(expectedContributionAmount)}{" "}
                   {form.expectedContributionFrequency}
                 </div>
-                <div className="text-ui text-dimmed mt-2">
+                <div className="text-sm text-dimmed mt-2">
                   Yearly contribution:{" "}
                   {formatCurrency(yearlyContributionAmount)}
                 </div>
-                <div className="text-ui text-dimmed">
+                <div className="text-sm text-dimmed">
                   Horizon:{" "}
                   {form.dueDate
                     ? `until due date (${contributionPeriodsLabel})`
                     : `until year end (${contributionPeriodsLabel})`}
                 </div>
-                <div className="text-ui text-dimmed">
+                <div className="text-sm text-dimmed">
                   Planned total in horizon:{" "}
                   {formatCurrency(derivedContributionPlanAmount)}
                 </div>
-                <div className="text-ui text-dimmed">
+                <div className="text-sm text-dimmed">
                   Current saved amount: {formatCurrency(startingAmount)}
                 </div>
               </>
             )}
-          </div>
+          </Card>
 
-          <div className="flex items-center justify-end gap-3">
-            <button
+          <DialogFooter>
+            <Button
               type="button"
-              className="btn-secondary"
+              variant="outline"
               onClick={onClose}
             >
               Cancel
-            </button>
-            <button type="submit" className="btn-primary" disabled={!canSubmit}>
+            </Button>
+            <Button type="submit" disabled={!canSubmit}>
               {editingGoalId ? "Save Changes" : "Create Goal"}
-            </button>
-          </div>
+            </Button>
+          </DialogFooter>
         </form>
-      </section>
-    </Modal>
+      </DialogContent>
+    </Dialog>
   );
 }

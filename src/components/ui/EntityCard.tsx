@@ -1,6 +1,14 @@
-import { useEffect, useRef, useState, type ReactNode } from 'react';
+import { type ReactNode } from 'react';
 import { MoreHorizontal, type LucideIcon } from 'lucide-react';
 import { Icon } from './Icon';
+import { Card } from './Card';
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from './dropdown-menu';
 import { cn } from '../../lib/utils';
 
 export type EntityCardTone =
@@ -98,9 +106,9 @@ const detailToneClasses: Record<EntityCardDetailTone, string> = {
   expense: 'text-expense font-medium',
 };
 
-const actionToneClasses = {
-  default: 'menu-item',
-  danger: 'menu-item-danger',
+const actionButtonToneClasses = {
+  default: 'text-muted-foreground hover:bg-secondary hover:text-foreground',
+  danger: 'text-expense hover:bg-expense/8 hover:text-expense',
 };
 
 export function EntityCard({
@@ -116,7 +124,7 @@ export function EntityCard({
   className,
 }: EntityCardProps) {
   return (
-    <article className={cn('card p-4 sm:p-5 transition-colors duration-150 hover:bg-secondary/35', className)}>
+    <Card className={cn('p-4 sm:p-5 transition-colors duration-150 hover:bg-secondary/35', className)}>
       <div className="flex items-start justify-between gap-3">
         <div className="min-w-0 flex items-start gap-3">
           <div
@@ -129,8 +137,8 @@ export function EntityCard({
           </div>
 
           <div className="min-w-0">
-            <h3 className="heading-3 text-foreground truncate">{title}</h3>
-            {subtitle && <p className="text-ui text-dimmed mt-0.5">{subtitle}</p>}
+            <h3 className="font-display text-base font-medium text-foreground truncate">{title}</h3>
+            {subtitle && <p className="text-sm text-dimmed mt-0.5">{subtitle}</p>}
             {badges && <div className="mt-2 flex flex-wrap gap-1.5">{badges}</div>}
           </div>
         </div>
@@ -139,7 +147,7 @@ export function EntityCard({
           <div className="shrink-0 flex items-start gap-1.5">
             {metric && (
               <div
-                className={cn('text-body font-medium text-foreground text-right', metricClassName)}
+                className={cn('text-base font-medium text-foreground text-right', metricClassName)}
                 style={{ fontFamily: 'var(--font-display)' }}
               >
                 {metric}
@@ -155,7 +163,7 @@ export function EntityCard({
           {children}
         </div>
       )}
-    </article>
+    </Card>
   );
 }
 
@@ -172,8 +180,7 @@ export function EntityCardActionButton({
       onClick={onClick}
       className={cn(
         'w-7 h-7 flex items-center justify-center rounded bg-transparent border-none cursor-pointer transition-colors',
-        actionToneClasses[tone],
-        className,
+        actionButtonToneClasses[tone],        className,
       )}
       aria-label={label}
       title={label}
@@ -190,8 +197,8 @@ export function EntityCardDetailList({ items, layout = 'compact', className }: E
       <div className={cn('space-y-1.5', className)}>
         {items.map((item) => (
           <div key={`${item.label}-${item.value}`} className="flex items-center justify-between gap-3">
-            <span className="text-ui text-dimmed">{item.label}</span>
-            <span className={cn('text-ui text-right', detailToneClasses[item.tone ?? 'default'])}>
+            <span className="text-sm text-dimmed">{item.label}</span>
+            <span className={cn('text-sm text-muted-foreground text-right', detailToneClasses[item.tone ?? 'default'])}>
               {item.value}
             </span>
           </div>
@@ -209,8 +216,8 @@ export function EntityCardDetailList({ items, layout = 'compact', className }: E
     >
       {items.map((item) => (
         <div key={`${item.label}-${item.value}`} className="contents">
-          <span className="text-ui text-dimmed whitespace-nowrap">{item.label}</span>
-          <span className={cn('text-ui min-w-0', detailToneClasses[item.tone ?? 'default'])}>
+          <span className="text-sm text-dimmed whitespace-nowrap">{item.label}</span>
+          <span className={cn('text-sm text-muted-foreground min-w-0', detailToneClasses[item.tone ?? 'default'])}>
             {item.value}
           </span>
         </div>
@@ -224,7 +231,7 @@ export function EntityCardSection({ title, action, children, className }: Entity
     <div className={cn('mt-3 pt-3 border-t border-border', className)}>
       {(title || action) && (
         <div className="mb-2 flex items-center justify-between gap-3">
-          {title ? <span className="text-ui text-dimmed uppercase tracking-wider">{title}</span> : <span />}
+          {title ? <span className="text-sm text-dimmed uppercase tracking-wider">{title}</span> : <span />}
           {action}
         </div>
       )}
@@ -234,77 +241,40 @@ export function EntityCardSection({ title, action, children, className }: Entity
 }
 
 export function EntityCardOverflowMenu({ label = 'More actions', actions }: EntityCardOverflowMenuProps) {
-  const [isOpen, setIsOpen] = useState(false);
-  const menuRef = useRef<HTMLDivElement>(null);
   const firstDangerActionIndex = actions.findIndex((action) => action.tone === 'danger');
 
-  useEffect(() => {
-    if (!isOpen) {
-      return;
-    }
-
-    function handlePointerDown(event: MouseEvent) {
-      if (!menuRef.current || menuRef.current.contains(event.target as Node)) {
-        return;
-      }
-      setIsOpen(false);
-    }
-
-    function handleEscape(event: KeyboardEvent) {
-      if (event.key === 'Escape') {
-        setIsOpen(false);
-      }
-    }
-
-    document.addEventListener('mousedown', handlePointerDown);
-    document.addEventListener('keydown', handleEscape);
-
-    return () => {
-      document.removeEventListener('mousedown', handlePointerDown);
-      document.removeEventListener('keydown', handleEscape);
-    };
-  }, [isOpen]);
-
   return (
-    <div className="relative" ref={menuRef}>
-      <button
-        type="button"
-        onClick={() => setIsOpen((current) => !current)}
-        className="w-7 h-7 flex items-center justify-center rounded bg-transparent border-none cursor-pointer text-dimmed hover:text-foreground transition-colors"
-        aria-label={label}
-        title={label}
-      >
-        <MoreHorizontal size={14} />
-      </button>
+    <DropdownMenu>
+      <DropdownMenuTrigger asChild>
+        <button
+          type="button"
+          className="w-7 h-7 flex items-center justify-center rounded bg-transparent border-none cursor-pointer text-dimmed hover:text-foreground transition-colors"
+          aria-label={label}
+          title={label}
+        >
+          <MoreHorizontal size={14} />
+        </button>
+      </DropdownMenuTrigger>
+      <DropdownMenuContent align="end" className="min-w-[144px]">
+        {actions.map((action, index) => {
+          const ActionIcon = action.icon;
+          const showDivider = firstDangerActionIndex > 0 && firstDangerActionIndex === index;
 
-      {isOpen && (
-        <div className="menu-popover right-0 min-w-[144px]">
-          {actions.map((action, index) => {
-            const ActionIcon = action.icon;
-            const showDivider = firstDangerActionIndex > 0 && firstDangerActionIndex === index;
-
-            return (
-              <div key={`${action.label}-${index}`}>
-                {showDivider && <div className="menu-divider" />}
-                <button
-                  type="button"
-                  disabled={action.disabled}
-                  onClick={() => {
-                    action.onClick();
-                    setIsOpen(false);
-                  }}
-                  className={cn(
-                    actionToneClasses[action.tone ?? 'default'],
-                  )}
-                >
-                  {ActionIcon && <ActionIcon size={12} />}
-                  {action.label}
-                </button>
-              </div>
-            );
-          })}
-        </div>
-      )}
-    </div>
+          return (
+            <div key={`${action.label}-${index}`}>
+              {showDivider && <DropdownMenuSeparator />}
+              <DropdownMenuItem
+                disabled={action.disabled}
+                variant={action.tone === 'danger' ? 'destructive' : 'default'}
+                onClick={action.onClick}
+              >
+                {ActionIcon && <ActionIcon size={12} />}
+                {action.label}
+              </DropdownMenuItem>
+            </div>
+          );
+        })}
+      </DropdownMenuContent>
+    </DropdownMenu>
   );
 }

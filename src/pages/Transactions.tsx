@@ -16,6 +16,10 @@ import {
   Upload,
 } from "lucide-react";
 import { useNavigate, useSearchParams } from "react-router-dom";
+import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/Badge";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 import { PageHeader, PageHeaderActions } from "../components/layout";
 import {
   TransactionFormModal,
@@ -24,10 +28,16 @@ import {
 } from "../components/transactions";
 import {
   DeleteConfirmationModal,
-  Modal,
   MultiSelectDropdown,
   PaginationButtons,
 } from "../components/ui";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogFooter,
+} from "@/components/ui/dialog";
 import {
   getAccounts,
   getCategoryById,
@@ -883,7 +893,7 @@ export function Transactions() {
   };
 
   return (
-    <div className="page-container">
+    <div className="space-y-6 max-w-[1000px] mx-auto px-[18px] pt-[30px] pb-9 lg:px-8 lg:py-11 xl:px-10 xl:py-12">
       {/* Backdrop — closes any open popover on click */}
       {(openActionId || editingCategoryId || editingGoalId || editingTagsId) && (
         <div className="fixed inset-0 z-10" onClick={closePopovers} />
@@ -918,53 +928,52 @@ export function Transactions() {
       )}
 
       {sourceToRename && (
-        <Modal
-          onClose={() => {
+        <Dialog open onOpenChange={(open) => {
+          if (!open) {
             setSourceToRename(null);
             setSourceRenameValue("");
-          }}
-          panelClassName="max-w-md p-5 space-y-4"
-        >
-          <div>
-              <h2 className="heading-2">Rename source</h2>
-              <div className="space-y-2">
-                <label className="label" htmlFor="rename-source-input">
-                  Source name
-                </label>
-                <input
-                  id="rename-source-input"
-                  type="text"
-                  value={sourceRenameValue}
-                  onChange={(event) => setSourceRenameValue(event.target.value)}
-                  className="input"
-                  placeholder="Source name"
-                  autoFocus
-                />
-              </div>
-              <p className="text-ui text-dimmed">
-                Leave empty to use the original file name.
-              </p>
-              <div className="flex items-center justify-end gap-2">
-                <button
-                  type="button"
-                  onClick={() => {
-                    setSourceToRename(null);
-                    setSourceRenameValue("");
-                  }}
-                  className="btn-secondary"
-                >
-                  Cancel
-                </button>
-                <button
-                  type="button"
-                  onClick={handleConfirmRenameSource}
-                  className="btn-primary"
-                >
-                  Save name
-                </button>
-              </div>
-          </div>
-        </Modal>
+          }
+        }}>
+          <DialogContent className="max-w-md">
+            <DialogHeader>
+              <DialogTitle>Rename source</DialogTitle>
+            </DialogHeader>
+            <div className="space-y-2">
+              <Label htmlFor="rename-source-input">
+                Source name
+              </Label>
+              <Input
+                id="rename-source-input"
+                type="text"
+                value={sourceRenameValue}
+                onChange={(event) => setSourceRenameValue(event.target.value)}
+                placeholder="Source name"
+                autoFocus
+              />
+            </div>
+            <p className="text-sm text-dimmed">
+              Leave empty to use the original file name.
+            </p>
+            <DialogFooter>
+              <Button
+                type="button"
+                variant="outline"
+                onClick={() => {
+                  setSourceToRename(null);
+                  setSourceRenameValue("");
+                }}
+              >
+                Cancel
+              </Button>
+              <Button
+                type="button"
+                onClick={handleConfirmRenameSource}
+              >
+                Save name
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
       )}
 
       {isTransactionFormOpen && (
@@ -1001,7 +1010,7 @@ export function Transactions() {
             >
               {filteredTransactions.length}
             </span>
-            <span className="text-ui text-dimmed">Transactions</span>
+            <span className="text-sm text-dimmed">Transactions</span>
           </div>
         </div>
         <div className="flex items-center gap-3">
@@ -1013,7 +1022,7 @@ export function Transactions() {
             >
               +{formatCurrency(totalIncome)}
             </span>
-            <span className="text-ui text-dimmed">Income</span>
+            <span className="text-sm text-dimmed">Income</span>
           </div>
         </div>
         <div className="flex items-center gap-3">
@@ -1025,7 +1034,7 @@ export function Transactions() {
             >
               -{formatCurrency(totalExpenses)}
             </span>
-            <span className="text-ui text-dimmed">Expenses</span>
+            <span className="text-sm text-dimmed">Expenses</span>
           </div>
         </div>
         {totalTransfers > 0 && (
@@ -1038,7 +1047,7 @@ export function Transactions() {
               >
                 {formatCurrency(totalTransfers)}
               </span>
-              <span className="text-ui text-dimmed">Transfers</span>
+              <span className="text-sm text-dimmed">Transfers</span>
             </div>
           </div>
         )}
@@ -1052,7 +1061,7 @@ export function Transactions() {
               >
                 {formatCurrency(pendingSplitTotal)}
               </span>
-              <span className="text-ui text-dimmed">Pending Splits</span>
+              <span className="text-sm text-dimmed">Pending Splits</span>
             </div>
           </div>
         )}
@@ -1063,12 +1072,12 @@ export function Transactions() {
         {/* Row 1: Search (full width) */}
         <div className="relative">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-dimmed" />
-          <input
+          <Input
             type="text"
             placeholder="Search transactions..."
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
-            className="input pl-10"
+            className="pl-10"
           />
         </div>
 
@@ -1164,14 +1173,14 @@ export function Transactions() {
                       onChange={() => setSourceFilterIds([])}
                       className="cursor-pointer accent-text"
                     />
-                    <span className="text-ui flex-1 truncate">Sources</span>
+                    <span className="text-sm text-muted-foreground flex-1 truncate">Sources</span>
                   </label>
 
                   <div className="h-px bg-border mx-1 my-1" />
 
                   <div className="max-h-64 overflow-y-auto">
                     {sourceOptions.length === 0 ? (
-                      <div className="px-2 py-2 text-ui text-dimmed">No sources available</div>
+                      <div className="px-2 py-2 text-sm text-dimmed">No sources available</div>
                     ) : (
                       sourceOptions.map((source) => {
                         const isSelected = activeSourceFilterIds.includes(source.id);
@@ -1191,8 +1200,8 @@ export function Transactions() {
                                 onChange={() => toggleSourceFilter(source.id)}
                                 className="cursor-pointer accent-text"
                               />
-                              <span className="text-ui flex-1 truncate">{source.label}</span>
-                              <span className="text-ui text-dimmed">{source.count}</span>
+                              <span className="text-sm text-muted-foreground flex-1 truncate">{source.label}</span>
+                              <span className="text-sm text-dimmed">{source.count}</span>
                             </label>
 
                             {source.deletable && (
@@ -1226,20 +1235,21 @@ export function Transactions() {
           </div>
 
           {/* Advanced filters toggle */}
-          <button
+          <Button
+            variant="ghost"
             type="button"
             onClick={() => setShowAdvancedFilters((prev) => !prev)}
             className={cn(
-              "btn-ghost flex items-center gap-2 shrink-0",
+              "flex items-center gap-2 shrink-0",
               showAdvancedFilters && "text-primary",
             )}
           >
             <SlidersHorizontal size={16} />
-            <span className="text-ui font-medium">Filters</span>
+            <span className="text-sm text-muted-foreground font-medium">Filters</span>
             {advancedFilterCount > 0 && (
-              <span className="badge-accent">{advancedFilterCount}</span>
+              <Badge>{advancedFilterCount}</Badge>
             )}
-          </button>
+          </Button>
         </div>
 
         {/* Advanced filters panel (date range + amount range only) */}
@@ -1247,35 +1257,32 @@ export function Transactions() {
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 p-4 bg-card border border-border rounded-(--radius-md)">
             {/* Date from */}
             <div className="flex flex-col gap-1">
-              <label className="text-ui text-dimmed">From date</label>
-              <input
+              <label className="text-sm text-dimmed">From date</label>
+              <Input
                 type="date"
                 value={dateFrom}
                 onChange={(e) => setDateFrom(e.target.value)}
-                className="input"
               />
             </div>
 
             {/* Date to */}
             <div className="flex flex-col gap-1">
-              <label className="text-ui text-dimmed">To date</label>
-              <input
+              <label className="text-sm text-dimmed">To date</label>
+              <Input
                 type="date"
                 value={dateTo}
                 onChange={(e) => setDateTo(e.target.value)}
-                className="input"
               />
             </div>
 
             {/* Amount min */}
             <div className="flex flex-col gap-1">
-              <label className="text-ui text-dimmed">Min amount</label>
-              <input
+              <label className="text-sm text-dimmed">Min amount</label>
+              <Input
                 type="number"
                 placeholder="0.00"
                 value={amountMin}
                 onChange={(e) => setAmountMin(e.target.value)}
-                className="input"
                 min="0"
                 step="0.01"
               />
@@ -1283,13 +1290,12 @@ export function Transactions() {
 
             {/* Amount max */}
             <div className="flex flex-col gap-1">
-              <label className="text-ui text-dimmed">Max amount</label>
-              <input
+              <label className="text-sm text-dimmed">Max amount</label>
+              <Input
                 type="number"
                 placeholder="0.00"
                 value={amountMax}
                 onChange={(e) => setAmountMax(e.target.value)}
-                className="input"
                 min="0"
                 step="0.01"
               />
@@ -1407,7 +1413,7 @@ export function Transactions() {
             <button
               type="button"
               onClick={clearAllFilters}
-              className="text-ui text-dimmed hover:text-foreground cursor-pointer bg-transparent border-none px-1 transition-colors"
+              className="text-sm text-dimmed hover:text-foreground cursor-pointer bg-transparent border-none px-1 transition-colors"
             >
               Clear all
             </button>
@@ -1426,7 +1432,7 @@ export function Transactions() {
             )}
           >
             <AlertTriangle size={14} className="text-warning" />
-            <span className="text-ui text-warning font-medium hover:underline">
+            <span className="text-sm text-warning font-medium hover:underline">
               {uncategorizedCount} uncategorized transaction
               {uncategorizedCount === 1 ? "" : "s"}
               {showUncategorizedOnly ? " (filtered)" : ""}
@@ -1437,19 +1443,19 @@ export function Transactions() {
       )}
 
       {/* Table Header */}
-      <div className="hidden lg:flex items-center gap-4 px-1 text-ui text-dimmed uppercase tracking-wider">
+      <div className="hidden lg:flex items-center gap-4 px-1 text-sm text-dimmed uppercase tracking-wider">
         <div className="w-[34px]" />
         <div className="flex-1">Description</div>
         <button
           onClick={() => toggleSort("date")}
-          className="flex items-center gap-1 w-24 bg-transparent border-none text-dimmed hover:text-foreground cursor-pointer transition-colors text-ui uppercase tracking-wider"
+          className="flex items-center gap-1 w-24 bg-transparent border-none text-dimmed hover:text-foreground cursor-pointer transition-colors text-sm uppercase tracking-wider"
         >
           Date
           <ArrowUpDown className="w-3 h-3" />
         </button>
         <button
           onClick={() => toggleSort("amount")}
-          className="flex items-center gap-1 w-28 justify-end bg-transparent border-none text-dimmed hover:text-foreground cursor-pointer transition-colors text-ui uppercase tracking-wider"
+          className="flex items-center gap-1 w-28 justify-end bg-transparent border-none text-dimmed hover:text-foreground cursor-pointer transition-colors text-sm uppercase tracking-wider"
         >
           Amount
           <ArrowUpDown className="w-3 h-3" />
@@ -1462,11 +1468,11 @@ export function Transactions() {
         {filteredTransactions.length === 0 ? (
           <div className="py-16 text-center">
             {transactions.length === 0 ? (
-              <p className="text-muted">
+              <p className="text-base text-dimmed">
                 No transactions yet. Import transactions or create a new one manually.
               </p>
             ) : (
-              <p className="text-muted">
+              <p className="text-base text-dimmed">
                 No transactions found. Try adjusting your filters.
               </p>
             )}
@@ -1503,7 +1509,7 @@ export function Transactions() {
 
       {/* Pagination */}
       {filteredTransactions.length > pageSizes[0] && (
-        <div className="flex items-center justify-between px-1 py-3 text-ui text-dimmed border-t border-border mt-2">
+        <div className="flex items-center justify-between px-1 py-3 text-sm text-dimmed border-t border-border mt-2">
           <div className="flex items-center gap-1.5">
             <span>Rows</span>
             <select

@@ -1,5 +1,7 @@
 import { useMemo, useRef, useState, type ChangeEvent } from 'react';
 import { Download, Edit, Plus, Upload } from 'lucide-react';
+import { Button } from '@/components/ui/button';
+import { Card } from '@/components/ui/Card';
 import {
   exportParser,
   importParserFromFile,
@@ -59,7 +61,7 @@ export function ParserLibrary({
   };
 
   return (
-    <div className="card p-5 space-y-4">
+    <Card className="p-5 space-y-4">
       <input
         ref={parserFileInputRef}
         type="file"
@@ -72,39 +74,39 @@ export function ParserLibrary({
 
       <div className="flex items-start justify-between gap-3 flex-wrap">
         <div>
-          <h3 className="section-title">Parser library</h3>
-          <p className="text-ui text-dimmed mt-1">
+          <h3 className="font-display text-base font-medium text-muted-foreground">Parser library</h3>
+          <p className="text-sm text-dimmed mt-1">
             Import and export parser presets without uploading a CSV first.
           </p>
         </div>
 
         <div className="flex items-center gap-2">
           {onCreateParser && (
-            <button
+            <Button
               type="button"
+              variant="outline"
               onClick={onCreateParser}
-              className="btn-secondary"
             >
               <Plus size={14} />
               Create parser
-            </button>
+            </Button>
           )}
-          <button
+          <Button
             type="button"
+            variant="outline"
             onClick={handleOpenImportPicker}
-            className="btn-secondary"
             disabled={isImporting}
           >
             <Upload size={14} />
             {isImporting ? 'Importing...' : 'Import parser'}
-          </button>
+          </Button>
         </div>
       </div>
 
-      {importError && <p className="text-ui text-expense">{importError}</p>}
+      {importError && <p className="text-sm text-expense">{importError}</p>}
 
       {sortedParsers.length === 0 ? (
-        <p className="text-ui text-dimmed">
+        <p className="text-sm text-dimmed">
           No parsers saved yet. Import one now, then pick it after you upload a CSV.
         </p>
       ) : (
@@ -115,35 +117,35 @@ export function ParserLibrary({
               className="flex items-center gap-2 p-2 rounded-(--radius-md) border border-border"
             >
               <div className="flex-1 min-w-0">
-                <p className="text-ui text-foreground font-medium truncate">{parser.name}</p>
+                <p className="text-sm text-foreground font-medium truncate">{parser.name}</p>
               </div>
 
               <div className="flex items-center gap-2">
                 {onEditParser && (
-                  <button
+                  <Button
                     type="button"
+                    variant="outline"
                     onClick={() => onEditParser(parser)}
-                    className="btn-secondary"
                     title={`Edit parser ${parser.name}`}
                   >
                     <Edit size={14} />
                     Edit
-                  </button>
+                  </Button>
                 )}
-                <button
+                <Button
                   type="button"
+                  variant="outline"
                   onClick={() => exportParser(parser)}
-                  className="btn-secondary"
                   title={`Export parser ${parser.name}`}
                 >
                   <Download size={14} />
                   Export
-                </button>
+                </Button>
               </div>
             </div>
           ))}
         </div>
       )}
-    </div>
+    </Card>
   );
 }

@@ -8,6 +8,16 @@ import {
   Filter,
   X,
 } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import {
   AccountFormModal,
   DEFAULT_ACCOUNT_FORM_STATE,
@@ -17,6 +27,7 @@ import { addAccount, loadAccounts } from "../../lib/account-storage";
 import { loadTransactions } from "../../lib/transaction-storage";
 import { cn, formatDate } from "../../lib/utils";
 import { useFormatCurrency } from "../../hooks";
+import { Card } from "../ui/Card";
 import { PaginationButtons } from "../ui";
 import type { ParsedRow } from "../../types";
 
@@ -502,13 +513,13 @@ export function TransactionPreview({
       <div className="flex flex-wrap items-center gap-6 px-1">
         <div className="flex items-center gap-2">
           <div className="w-2 h-2 rounded-full bg-muted-foreground" />
-          <span className="text-ui text-dimmed">
+          <span className="text-sm text-dimmed">
             {stats.count} of {rows.length} selected
           </span>
         </div>
         <div className="flex items-center gap-2">
           <div className="w-2 h-2 rounded-full bg-income" />
-          <span className="text-ui text-dimmed">
+          <span className="text-sm text-dimmed">
             Income:{" "}
             <span className="text-foreground font-medium">
               {formatCurrency(stats.income)}
@@ -517,7 +528,7 @@ export function TransactionPreview({
         </div>
         <div className="flex items-center gap-2">
           <div className="w-2 h-2 rounded-full bg-expense" />
-          <span className="text-ui text-dimmed">
+          <span className="text-sm text-dimmed">
             Expense:{" "}
             <span className="text-foreground font-medium">
               {formatCurrency(stats.expense)}
@@ -530,13 +541,13 @@ export function TransactionPreview({
       <div className="flex flex-col gap-3">
         <div className="flex flex-col gap-1.5">
           <div className="flex items-center gap-3">
-            <label className="label whitespace-nowrap">Import name</label>
-            <input
+            <Label className="whitespace-nowrap">Import name</Label>
+            <Input
               type="text"
               value={importName}
               onChange={(e) => setImportName(e.target.value)}
               placeholder={fileName ?? "Optional name for this import"}
-              className="input text-sm max-w-xs"
+              className="text-sm max-w-xs"
             />
           </div>
         </div>
@@ -544,33 +555,33 @@ export function TransactionPreview({
         <div className="flex flex-col gap-1.5">
           {hasAccounts ? (
             <div className="flex items-center gap-3">
-              <label className="label whitespace-nowrap">Import into</label>
-              <select
-                value={effectiveAccountId}
-                onChange={(e) => setAccountId(e.target.value)}
-                className="select text-sm max-w-xs"
-              >
-                {accounts.map((acc) => (
-                  <option key={acc.id} value={acc.id}>
-                    {acc.name} ({acc.type})
-                    {acc.id === matchedAccountId ? " — matched" : ""}
-                  </option>
-                ))}
-              </select>
+              <Label className="whitespace-nowrap">Import into</Label>
+              <Select value={effectiveAccountId} onValueChange={(value) => setAccountId(value)}>
+                <SelectTrigger className="text-sm max-w-xs">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  {accounts.map((acc) => (
+                    <SelectItem key={acc.id} value={acc.id}>
+                      {acc.name} ({acc.type})
+                      {acc.id === matchedAccountId ? " — matched" : ""}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
             </div>
           ) : (
-            <div className="card p-3 border-warning/30 space-y-3">
-              <p className="text-ui text-warning">
-                No accounts available. Create one to continue importing.
+            <Card className="p-3 border-warning/30 space-y-3">
+              <p className="text-sm text-warning">
               </p>
-              <button
+              <Button
                 type="button"
+                variant="outline"
                 onClick={() => setIsCreateAccountModalOpen(true)}
-                className="btn-secondary"
               >
                 Create account
-              </button>
-            </div>
+              </Button>
+            </Card>
           )}
         </div>
       </div>
@@ -593,7 +604,7 @@ export function TransactionPreview({
             )}
           >
             <AlertTriangle size={14} className="text-warning" />
-            <span className="text-ui text-warning font-medium hover:underline">
+            <span className="text-sm text-warning font-medium hover:underline">
               {stats.warningCount} with warnings
               {stats.duplicateCount > 0
                 ? ` · ${stats.duplicateCount} duplicate transaction${stats.duplicateCount !== 1 ? "s" : ""} detected`
@@ -627,7 +638,7 @@ export function TransactionPreview({
             title="Filter rows that have transfer link matches"
           >
             <Link2 size={14} className="text-dimmed" />
-            <span className="text-ui text-dimmed font-medium hover:underline">
+            <span className="text-sm text-dimmed font-medium hover:underline">
               {stats.transferMatchCount} transfer match{stats.transferMatchCount !== 1 ? "es" : ""}
               {stats.linkedTransferCount > 0
                 ? ` · ${stats.linkedTransferCount} link${stats.linkedTransferCount !== 1 ? "s" : ""} enabled`
@@ -792,7 +803,7 @@ export function TransactionPreview({
                                     : "Keep separate. Click to link"
                                   }
                                   className={cn(
-                                    "inline-flex items-center gap-1 rounded-(--radius-sm) border px-2 py-0.5 text-ui transition-colors",
+                                    "inline-flex items-center gap-1 rounded-(--radius-sm) border px-2 py-0.5 text-sm transition-colors",
                                     isLinkEnabled
                                       ? "border-transfer/40 bg-transfer/10 text-transfer"
                                       : "border-border bg-transparent text-dimmed hover:text-foreground",
@@ -812,7 +823,7 @@ export function TransactionPreview({
                                 </button>
                               </div>
                             ) : (
-                              <span className="text-ui text-dimmed">—</span>
+                              <span className="text-sm text-dimmed">—</span>
                             )}
                           </td>
                           {hasCurrency && (
@@ -851,28 +862,28 @@ export function TransactionPreview({
                             <td colSpan={columnCount} className="px-3 py-2.5">
                               <div className="rounded-(--radius-sm) border border-border bg-background p-3 space-y-2">
                                 <div className="flex items-center justify-between gap-2">
-                                  <span className="text-body text-foreground">Matched transaction</span>
+                                  <span className="text-base text-foreground">Matched transaction</span>
                                   {transferPairCandidate.isAlreadyLinked && (
-                                    <span className="text-ui text-warning">Existing link (will overwrite)</span>
+                                    <span className="text-sm text-warning">Existing link (will overwrite)</span>
                                   )}
                                 </div>
                                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-4 gap-y-1">
-                                  <div className="text-ui text-dimmed">
+                                  <div className="text-sm text-dimmed">
                                     Account: <span className="text-foreground">{transferPairCandidate.accountName}</span>
                                   </div>
-                                  <div className="text-ui text-dimmed">
+                                  <div className="text-sm text-dimmed">
                                     Date: <span className="text-foreground">{formatDate(transferPairCandidate.date)}</span>
                                   </div>
-                                  <div className="text-ui text-dimmed">
+                                  <div className="text-sm text-dimmed">
                                     Time: <span className="text-foreground">{transferPairCandidate.time ? transferPairCandidate.time.slice(0, 5) : "—"}</span>
                                   </div>
-                                  <div className="text-ui text-dimmed">
+                                  <div className="text-sm text-dimmed">
                                     Amount: <span className="text-foreground" style={{ fontFamily: "var(--font-display)" }}>{formatSignedCurrency(transferPairCandidate.amount, transferPairCandidate.currency)}</span>
                                   </div>
-                                  <div className="text-ui text-dimmed sm:col-span-2">
+                                  <div className="text-sm text-dimmed sm:col-span-2">
                                     Description: <span className="text-foreground">{transferPairCandidate.description || "—"}</span>
                                   </div>
-                                  <div className="text-ui text-dimmed sm:col-span-2">
+                                  <div className="text-sm text-dimmed sm:col-span-2">
                                     Transaction ID: <span className="text-foreground font-mono">{transferPairCandidate.transactionId || "—"}</span>
                                   </div>
                                 </div>
@@ -888,23 +899,24 @@ export function TransactionPreview({
             </div>
 
             {filteredRows.length > PREVIEW_PAGE_SIZES[0] && (
-              <div className="flex items-center justify-between px-3 py-2 text-ui text-dimmed bg-card border-t border-border">
+              <div className="flex items-center justify-between px-3 py-2 text-sm text-dimmed bg-card border-t border-border">
                 <div className="flex items-center gap-1.5">
                   <span>Rows</span>
-                  <select
-                    value={pageSize}
-                    onChange={(e) => {
-                      setPageSize(Number(e.target.value));
-                      setPage(0);
-                    }}
-                    className="text-sm bg-transparent border border-border rounded px-1 py-0.5 text-muted-foreground cursor-pointer"
-                  >
-                    {PREVIEW_PAGE_SIZES.map((size) => (
-                      <option key={size} value={size}>
-                        {size}
-                      </option>
-                    ))}
-                  </select>
+                  <Select value={String(pageSize)} onValueChange={(value) => {
+                    setPageSize(Number(value));
+                    setPage(0);
+                  }}>
+                    <SelectTrigger size="sm" className="w-auto bg-transparent border-border px-1 py-0.5 h-auto text-sm text-muted-foreground">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {PREVIEW_PAGE_SIZES.map((size) => (
+                        <SelectItem key={size} value={String(size)}>
+                          {size}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
                 </div>
                 <span>
                   {start + 1}–{end} of {filteredRows.length}
@@ -918,17 +930,16 @@ export function TransactionPreview({
 
       {/* Actions */}
       <div className="flex gap-3">
-        <button
+        <Button
           onClick={handleConfirm}
           disabled={stats.count === 0 || !effectiveAccountId || !hasAccounts}
-          className="btn-primary"
         >
           Import {stats.count} transaction{stats.count !== 1 ? "s" : ""}
-        </button>
-        <button onClick={onBack} className="btn-secondary">
+        </Button>
+        <Button variant="outline" onClick={onBack}>
           <X size={14} />
           Back
-        </button>
+        </Button>
       </div>
 
       {isCreateAccountModalOpen && (

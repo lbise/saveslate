@@ -1,4 +1,4 @@
-export { Card, CardHeader, CardTitle, CardContent } from './Card';
+export { Card, CardHeader, CardTitle, CardContent, CardDescription, CardFooter, CardAction } from './Card';
 export {
   EntityCard,
   EntityCardActionButton,
@@ -23,5 +23,17 @@ export { TransactionItem } from './TransactionItem';
 export { GoalCard } from './GoalCard';
 export { ActionCard } from './ActionCard';
 export { PaginationButtons } from './PaginationButtons';
-export { Modal } from './Modal';
 export { DeleteConfirmationModal } from './DeleteConfirmationModal';
+export { Input } from './input';
+export { Label } from './label';
+export { Textarea } from './textarea';
+export {
+  Select,
+  SelectContent,
+  SelectGroup,
+  SelectItem,
+  SelectLabel,
+  SelectSeparator,
+  SelectTrigger,
+  SelectValue,
+} from './select';

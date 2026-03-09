@@ -6,6 +6,15 @@ import {
   CircleHelp,
 } from "lucide-react";
 import { cn } from "../../lib/utils";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import type {
   ParsedRow,
   FieldTransform,
@@ -182,90 +191,104 @@ export function TransformRuleEditor({
     <div className="p-3 rounded-(--radius-md) border border-border bg-card space-y-2.5">
       {/* Header row: label + actions */}
       <div className="flex items-center gap-2">
-        <input
+        <Input
           type="text"
           value={transform.label ?? ""}
           onChange={(e) => onChange({ label: e.target.value })}
           placeholder={`Rule ${index + 1}`}
-          className="input text-sm flex-1"
+          className="text-sm flex-1"
         />
         <div className="flex items-center gap-1 shrink-0">
           {total > 1 && (
             <>
-              <button
+              <Button
+                variant="ghost"
+                size="icon"
                 onClick={() => onMove("up")}
                 disabled={index === 0}
-                className="btn-icon w-7 h-7 disabled:opacity-30" aria-label="Move rule up"
+                className="size-7 disabled:opacity-30" aria-label="Move rule up"
               >
                 <ChevronUp size={12} />
-              </button>
-              <button
+              </Button>
+              <Button
+                variant="ghost"
+                size="icon"
                 onClick={() => onMove("down")}
                 disabled={index === total - 1}
-                className="btn-icon w-7 h-7 disabled:opacity-30" aria-label="Move rule down"
+                className="size-7 disabled:opacity-30" aria-label="Move rule down"
               >
                 <ChevronDown size={12} />
-              </button>
+              </Button>
             </>
           )}
-          <button
+          <Button
+            variant="ghost"
+            size="icon"
             onClick={onRemove}
-            className="btn-icon w-7 h-7 text-dimmed hover:text-expense" aria-label="Remove transform rule"
+            className="size-7 text-dimmed hover:text-expense" aria-label="Remove transform rule"
           >
             <X size={12} />
-          </button>
+          </Button>
         </div>
       </div>
 
       {/* Source → Target */}
       <div className="flex items-center gap-2">
-        <label className="text-ui text-dimmed w-14 shrink-0">Source</label>
-        <select
+        <label className="text-sm text-dimmed w-14 shrink-0">Source</label>
+        <Select
           value={transform.sourceField}
-          onChange={(e) =>
-            onChange({ sourceField: e.target.value as TransformableField })
+          onValueChange={(value) =>
+            onChange({ sourceField: value as TransformableField })
           }
-          className="select text-sm flex-1"
         >
-          {TRANSFORMABLE_FIELDS.map((f) => (
-            <option key={f.value} value={f.value}>
-              {f.label}
-            </option>
-          ))}
-        </select>
-        <span className="text-ui text-dimmed">&rarr;</span>
-        <label className="text-ui text-dimmed w-14 shrink-0">Target</label>
-        <select
+          <SelectTrigger className="text-sm flex-1">
+            <SelectValue />
+          </SelectTrigger>
+          <SelectContent>
+            {TRANSFORMABLE_FIELDS.map((f) => (
+              <SelectItem key={f.value} value={f.value}>
+                {f.label}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+        <span className="text-sm text-dimmed">&rarr;</span>
+        <label className="text-sm text-dimmed w-14 shrink-0">Target</label>
+        <Select
           value={transform.targetField}
-          onChange={(e) =>
-            onChange({ targetField: e.target.value as TransformableField })
+          onValueChange={(value) =>
+            onChange({ targetField: value as TransformableField })
           }
-          className="select text-sm flex-1"
         >
-          {TRANSFORMABLE_FIELDS.map((f) => (
-            <option key={f.value} value={f.value}>
-              {f.label}
-            </option>
-          ))}
-        </select>
+          <SelectTrigger className="text-sm flex-1">
+            <SelectValue />
+          </SelectTrigger>
+          <SelectContent>
+            {TRANSFORMABLE_FIELDS.map((f) => (
+              <SelectItem key={f.value} value={f.value}>
+                {f.label}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
       </div>
 
       {/* Match pattern */}
       <div className="flex items-center gap-2">
-        <label className="text-ui text-dimmed w-14 shrink-0 inline-flex items-center gap-1">
+        <label className="text-sm text-dimmed w-14 shrink-0 inline-flex items-center gap-1">
           Match
           <FieldHelpTooltip text="Regex that decides which rows this rule applies to." />
           {!transform.matchPattern && (
             <span className="text-expense ml-0.5">*</span>
           )}
         </label>
-        <input
+        <Input
           type="text"
           value={transform.matchPattern}
           onChange={(e) => onChange({ matchPattern: e.target.value })}
           placeholder="Regex to test (e.g. ^TWINT)"
           className={cn(
-            "input text-sm font-mono flex-1",
+            "text-sm font-mono flex-1",
             !matchDetails.valid && "border-expense",
           )}
         />
@@ -273,7 +296,7 @@ export function TransformRuleEditor({
           <>
             <span
               className={cn(
-                "text-ui shrink-0 tabular-nums whitespace-nowrap",
+                "text-sm text-muted-foreground shrink-0 tabular-nums whitespace-nowrap",
                 !matchDetails.valid
                   ? "text-expense"
                   : matchDetails.matched > 0
@@ -289,7 +312,7 @@ export function TransformRuleEditor({
               <button
                 type="button"
                 onClick={() => setShowMatches(!showMatches)}
-                className="text-ui text-dimmed hover:text-foreground transition-colors shrink-0 bg-transparent border-none cursor-pointer"
+                className="text-sm text-dimmed hover:text-foreground transition-colors shrink-0 bg-transparent border-none cursor-pointer"
               >
                 {showMatches ? "Hide" : "Show"}
               </button>
@@ -300,40 +323,40 @@ export function TransformRuleEditor({
 
       {/* Extract pattern */}
       <div className="flex items-center gap-2">
-        <label className="text-ui text-dimmed w-14 shrink-0 inline-flex items-center gap-1">
+        <label className="text-sm text-dimmed w-14 shrink-0 inline-flex items-center gap-1">
           Extract
           <FieldHelpTooltip text="Use named capture groups, for example (?<merchant>...), to pick values from the source." />
           {!transform.extractPattern && (
             <span className="text-expense ml-0.5">*</span>
           )}
         </label>
-        <input
+        <Input
           type="text"
           value={transform.extractPattern}
           onChange={(e) => onChange({ extractPattern: e.target.value })}
           placeholder="Regex with named groups: (?<merchant>.+)"
           className={cn(
-            "input text-sm font-mono flex-1",
+            "text-sm font-mono flex-1",
             !extractValid && "border-expense",
           )}
         />
         {!extractValid && (
-          <span className="text-ui text-expense shrink-0">invalid</span>
+          <span className="text-sm text-expense shrink-0">invalid</span>
         )}
       </div>
 
       {/* Replacement template */}
       <div className="flex items-center gap-2">
-        <label className="text-ui text-dimmed w-14 shrink-0 inline-flex items-center gap-1">
+        <label className="text-sm text-dimmed w-14 shrink-0 inline-flex items-center gap-1">
           Output
           <FieldHelpTooltip text="Use templates like {{merchant}}. Leave empty to auto-join all named groups." />
         </label>
-        <input
+        <Input
           type="text"
           value={transform.replacement}
           onChange={(e) => onChange({ replacement: e.target.value })}
           placeholder="Template: {{merchant}}"
-          className="input text-sm font-mono flex-1"
+          className="text-sm font-mono flex-1"
         />
       </div>
 
@@ -371,7 +394,7 @@ export function TransformRuleEditor({
             <button
               type="button"
               onClick={() => setShowAllMatches(!showAllMatches)}
-              className="w-full px-2.5 py-1.5 text-ui text-dimmed hover:text-foreground bg-card border-t border-border transition-colors cursor-pointer border-x-0 border-b-0"
+              className="w-full px-2.5 py-1.5 text-sm text-dimmed hover:text-foreground bg-card border-t border-border transition-colors cursor-pointer border-x-0 border-b-0"
             >
               {showAllMatches
                 ? "Show less"

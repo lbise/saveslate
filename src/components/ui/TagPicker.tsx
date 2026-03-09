@@ -2,6 +2,8 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import { Pencil, Plus, Search, Tag as TagIcon, Trash2, X } from 'lucide-react';
 import { DEFAULT_TAG_COLOR, TAG_COLOR_PRESETS } from '../../lib/tag-storage';
 import { cn } from '../../lib/utils';
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
 import type { Tag } from '../../types';
 
 interface TagPickerProps {
@@ -153,13 +155,13 @@ export function TagPicker({
     >
       <div className="relative px-2 py-1.5">
         <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-dimmed" />
-        <input
+        <Input
           ref={searchInputRef}
           type="text"
           placeholder="Search tags..."
           value={query}
           onChange={(event) => setQuery(event.target.value)}
-          className="input pl-7 py-1.5 h-auto"
+          className="pl-7 py-1.5 h-auto"
         />
       </div>
 
@@ -168,7 +170,7 @@ export function TagPicker({
           <button
             type="button"
             onClick={() => onChange([])}
-            className="w-full px-2 py-1.5 rounded-(--radius-sm) bg-transparent border-none cursor-pointer text-ui text-dimmed hover:text-foreground hover:bg-secondary transition-colors text-left flex items-center gap-2"
+            className="w-full px-2 py-1.5 rounded-(--radius-sm) bg-transparent border-none cursor-pointer text-sm text-dimmed hover:text-foreground hover:bg-secondary transition-colors text-left flex items-center gap-2"
           >
             <X size={12} />
             Clear tags
@@ -178,7 +180,7 @@ export function TagPicker({
 
       <div className="max-h-56 overflow-y-auto py-1 px-2 space-y-1">
         {filteredTags.length === 0 ? (
-          <div className="px-2 py-2 text-ui text-dimmed text-center">
+          <div className="px-2 py-2 text-sm text-dimmed text-center">
             {tags.length === 0 ? 'No tags yet. Add your first tag below.' : 'No tags found'}
           </div>
         ) : (
@@ -203,10 +205,10 @@ export function TagPicker({
                   className="flex items-center gap-2 min-w-0 flex-1 bg-transparent border-none cursor-pointer p-0 text-left"
                 >
                   <TagIcon size={12} style={{ color: tag.color }} className="shrink-0" />
-                  <span className="text-ui truncate" style={{ color: tag.color }}>
+                  <span className="text-sm truncate" style={{ color: tag.color }}>
                     {tag.name}
                   </span>
-                  <span className="text-ui text-dimmed ml-auto shrink-0">{usageCount}</span>
+                  <span className="text-sm text-dimmed ml-auto shrink-0">{usageCount}</span>
                 </button>
 
                 <div className="ml-auto flex items-center gap-1">
@@ -218,7 +220,7 @@ export function TagPicker({
                           event.stopPropagation();
                           confirmTagDelete(tag.id);
                         }}
-                        className="text-ui text-expense bg-transparent border-none cursor-pointer hover:underline"
+                        className="text-sm text-expense bg-transparent border-none cursor-pointer hover:underline"
                       >
                         Confirm
                       </button>
@@ -228,7 +230,7 @@ export function TagPicker({
                           event.stopPropagation();
                           setPendingDeleteTagId(null);
                         }}
-                        className="text-ui text-dimmed bg-transparent border-none cursor-pointer hover:text-foreground"
+                        className="text-sm text-dimmed bg-transparent border-none cursor-pointer hover:text-foreground"
                       >
                         Cancel
                       </button>
@@ -270,10 +272,10 @@ export function TagPicker({
 
       <div className="px-2 pb-2 space-y-2">
         <div className="space-y-1">
-          <p className="text-ui text-dimmed">{editingTagId ? 'Edit tag' : 'Create tag'}</p>
-          <input
+          <p className="text-sm text-dimmed">{editingTagId ? 'Edit tag' : 'Create tag'}</p>
+          <Input
             type="text"
-            className="input h-auto py-1.5"
+            className="h-auto py-1.5"
             value={formName}
             onChange={(event) => {
               setFormName(event.target.value);
@@ -308,7 +310,7 @@ export function TagPicker({
             <button
               type="button"
               onClick={resetForm}
-              className="text-ui text-dimmed bg-transparent border-none cursor-pointer hover:text-foreground"
+              className="text-sm text-dimmed bg-transparent border-none cursor-pointer hover:text-foreground"
             >
               Cancel
             </button>
@@ -316,17 +318,18 @@ export function TagPicker({
         </div>
 
         {formError && (
-          <p className="text-ui text-expense">{formError}</p>
+          <p className="text-sm text-expense">{formError}</p>
         )}
 
-        <button
+        <Button
           type="button"
           onClick={submitTagForm}
-          className="btn-primary w-full h-9 py-0"
+          className="w-full"
+          size="sm"
         >
           <Plus size={14} />
           {editingTagId ? 'Save tag' : 'Add tag'}
-        </button>
+        </Button>
       </div>
     </div>
   );

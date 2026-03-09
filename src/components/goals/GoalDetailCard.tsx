@@ -163,7 +163,7 @@ export function GoalDetailCard({
 
       {gp.goal.expectedContribution && (
         <EntityCardSection title="Plan">
-          <p className="text-ui text-dimmed">
+          <p className="text-sm text-dimmed">
             {formatCurrency(gp.goal.expectedContribution.amount)}{" "}
             {gp.goal.expectedContribution.frequency} ·{" "}
             {formatCurrency(yearlyPlanAmount)} yearly · This year:{" "}
@@ -179,7 +179,7 @@ export function GoalDetailCard({
           action={
             <Link
               to={`/transactions?goal=${encodeURIComponent(gp.goal.id)}`}
-              className="text-link"
+              className="text-sm text-dimmed hover:text-foreground inline-flex items-center gap-1 transition-colors duration-150"
             >
               View all <ArrowUpRight size={10} />
             </Link>

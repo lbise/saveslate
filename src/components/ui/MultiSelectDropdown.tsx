@@ -113,7 +113,7 @@ export function MultiSelectDropdown({
               onChange={() => onChange([])}
               className="cursor-pointer accent-text"
             />
-            <span className="text-ui flex-1 truncate">{allLabel}</span>
+            <span className="text-sm text-muted-foreground flex-1 truncate">{allLabel}</span>
           </label>
 
           <div className="h-px bg-border mx-1 my-1" />
@@ -123,7 +123,7 @@ export function MultiSelectDropdown({
               groups.map((group) => (
                 <div key={group.key}>
                   {group.key && (
-                    <div className="px-2 pt-2 pb-1 text-ui text-dimmed font-medium uppercase tracking-wider">
+                    <div className="px-2 pt-2 pb-1 text-sm text-dimmed font-medium uppercase tracking-wider">
                       {group.key}
                     </div>
                   )}
@@ -145,7 +145,7 @@ export function MultiSelectDropdown({
                           onChange={() => toggle(option.id)}
                           className="cursor-pointer accent-text"
                         />
-                        <span className="text-ui flex-1 truncate">{option.label}</span>
+                        <span className="text-sm text-muted-foreground flex-1 truncate">{option.label}</span>
                       </label>
                     );
                   })}
@@ -170,7 +170,7 @@ export function MultiSelectDropdown({
                       onChange={() => toggle(option.id)}
                       className="cursor-pointer accent-text"
                     />
-                    <span className="text-ui flex-1 truncate">{option.label}</span>
+                    <span className="text-sm text-muted-foreground flex-1 truncate">{option.label}</span>
                   </label>
                 );
               })

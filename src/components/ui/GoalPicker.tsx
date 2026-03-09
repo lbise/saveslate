@@ -3,6 +3,7 @@ import { Check, Search, Target } from 'lucide-react';
 import { getActiveGoals } from '../../lib/data-service';
 import { cn } from '../../lib/utils';
 import { Icon } from './Icon';
+import { Input } from './input';
 
 interface GoalPickerProps {
   currentGoalId?: string;
@@ -59,13 +60,13 @@ export function GoalPicker({
     >
       <div className="relative px-2 py-1.5">
         <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-dimmed" />
-        <input
+        <Input
           ref={inputRef}
           type="text"
           placeholder="Search goals..."
           value={query}
           onChange={(event) => setQuery(event.target.value)}
-          className="input pl-7 py-1.5 h-auto"
+          className="pl-7 py-1.5 h-auto"
         />
       </div>
 
@@ -74,7 +75,7 @@ export function GoalPicker({
           type="button"
           onClick={() => onSelect(null)}
           className={cn(
-            'flex items-center gap-2.5 w-full px-3 py-1.5 text-left border-none cursor-pointer text-ui transition-colors',
+            'flex items-center gap-2.5 w-full px-3 py-1.5 text-left border-none cursor-pointer text-sm text-muted-foreground transition-colors',
             !currentGoalId
               ? 'bg-secondary text-foreground'
               : 'bg-transparent text-dimmed hover:bg-secondary hover:text-foreground',
@@ -88,7 +89,7 @@ export function GoalPicker({
         <div className="h-px bg-border mx-2 my-1" />
 
         {filteredGoals.length === 0 ? (
-          <div className="px-3 py-3 text-ui text-dimmed text-center">
+          <div className="px-3 py-3 text-sm text-dimmed text-center">
             No goals found
           </div>
         ) : (
@@ -100,7 +101,7 @@ export function GoalPicker({
                 type="button"
                 onClick={() => onSelect(goal.id)}
                 className={cn(
-                  'flex items-center gap-2.5 w-full px-3 py-1.5 text-left border-none cursor-pointer text-ui transition-colors',
+                  'flex items-center gap-2.5 w-full px-3 py-1.5 text-left border-none cursor-pointer text-sm text-muted-foreground transition-colors',
                   isCurrent
                     ? 'bg-goal/10 text-goal'
                     : 'bg-transparent text-muted-foreground hover:bg-secondary hover:text-foreground',

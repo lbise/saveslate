@@ -1,6 +1,8 @@
 import { useMemo, useState } from 'react';
 import { ArrowUpRight, Pencil, Trash2 } from 'lucide-react';
 import { Link } from 'react-router-dom';
+import { Button } from '@/components/ui/button';
+import { Card } from '@/components/ui/Card';
 import {
   AccountFormModal,
   ACCOUNT_TYPE_DEFAULT_ICONS,
@@ -272,7 +274,7 @@ export function Accounts() {
   };
 
   return (
-    <div className="page-container">
+    <div className="space-y-6 max-w-[1000px] mx-auto px-[18px] pt-[30px] pb-9 lg:px-8 lg:py-11 xl:px-10 xl:py-12">
       <PageHeader title="Accounts">
         <PageHeaderActions
           onImport={openFilePicker}
@@ -296,7 +298,7 @@ export function Accounts() {
       />
 
       {importError && (
-        <p className="text-ui text-expense mb-3">{importError}</p>
+        <p className="text-sm text-expense mb-3">{importError}</p>
       )}
 
       {accountToDelete && (
@@ -308,7 +310,7 @@ export function Accounts() {
             </>
           )}
           details={accountToDeleteTransactionCount > 0 ? (
-            <p className="text-ui text-warning">
+            <p className="text-sm text-warning">
               {accountToDeleteTransactionCount} transaction{accountToDeleteTransactionCount === 1 ? '' : 's'} are linked to this account. They will stay in your history and appear as Unknown Account.
             </p>
           ) : undefined}
@@ -329,7 +331,7 @@ export function Accounts() {
       )}
 
       <section className="mb-12">
-        <div className="text-muted mb-2">Net Worth</div>
+        <div className="text-base text-dimmed mb-2">Net Worth</div>
         <div
           className="text-foreground"
           style={{
@@ -343,17 +345,17 @@ export function Accounts() {
         </div>
       </section>
 
-      <div className="section-header">
-        <h2 className="section-title">All Accounts</h2>
-        <span className="text-ui text-dimmed">{accounts.length} accounts</span>
+      <div className="flex items-center justify-between mb-3">
+        <h2 className="font-display text-base font-medium text-muted-foreground">All Accounts</h2>
+        <span className="text-sm text-dimmed">{accounts.length} accounts</span>
       </div>
 
       {accounts.length === 0 ? (
-        <div className="card p-6 text-center">
-          <p className="text-body text-foreground">No accounts yet.</p>
-          <p className="text-ui text-dimmed mt-1">Create your first account or import an accounts file.</p>
-          <button className="btn-primary mt-4" onClick={openCreateModal}>Create Account</button>
-        </div>
+        <Card className="p-6 text-center">
+          <p className="text-base text-foreground">No accounts yet.</p>
+          <p className="text-sm text-dimmed mt-1">Create your first account or import an accounts file.</p>
+          <Button className="mt-4" onClick={openCreateModal}>Create Account</Button>
+        </Card>
       ) : (
         <div className="flex flex-col gap-3">
           {accounts.map((account) => (
@@ -419,7 +421,7 @@ function AccountRow({ account, computedBalance, onEdit, onDelete }: AccountRowPr
         <EntityCardSection
           title="Recent"
           action={(
-            <Link to={`/transactions?account=${encodeURIComponent(account.id)}`} className="text-link">
+            <Link to={`/transactions?account=${encodeURIComponent(account.id)}`} className="text-sm text-dimmed hover:text-foreground inline-flex items-center gap-1 transition-colors duration-150">
               View all <ArrowUpRight size={10} />
             </Link>
           )}
@@ -430,12 +432,12 @@ function AccountRow({ account, computedBalance, onEdit, onDelete }: AccountRowPr
               return (
                 <div key={tx.id} className="flex items-center justify-between gap-3">
                   <div className="flex flex-col min-w-0">
-                    <span className="text-ui truncate max-w-[220px]">{tx.description}</span>
-                    <span className="text-ui text-dimmed">{formatRelativeDate(tx.date)}</span>
+                    <span className="text-sm text-muted-foreground truncate max-w-[220px]">{tx.description}</span>
+                    <span className="text-sm text-dimmed">{formatRelativeDate(tx.date)}</span>
                   </div>
                   <span
                     className={cn(
-                      'text-ui font-medium shrink-0',
+                      'text-sm font-medium shrink-0',
                       txType === 'income'
                         ? 'text-income'
                         : txType === 'expense'
