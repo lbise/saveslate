@@ -217,7 +217,6 @@ export function TransactionRow({
                 currentGoalId={transaction.goalId}
                 onSelect={onGoalChange}
                 onClose={onToggleEditGoal}
-                className="top-full right-0 mt-1"
               />
             )}
             {isEditingTags && (
@@ -230,7 +229,6 @@ export function TransactionRow({
                 onDeleteTag={onDeleteTag}
                 tagUsageCountById={tagUsageCountById}
                 onClose={onToggleEditTags}
-                className="top-full right-0 mt-1"
               />
             )}
           </div>
@@ -346,7 +344,6 @@ export function TransactionRow({
               currentGoalId={transaction.goalId}
               onSelect={onGoalChange}
               onClose={onToggleEditGoal}
-              className="top-full right-0 mt-1"
             />
           )}
           {isEditingTags && (
@@ -359,7 +356,6 @@ export function TransactionRow({
               onDeleteTag={onDeleteTag}
               tagUsageCountById={tagUsageCountById}
               onClose={onToggleEditTags}
-              className="top-full right-0 mt-1"
             />
           )}
         </div>

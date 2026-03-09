@@ -1,3 +1,4 @@
+import { Button } from './button';
 import type { LucideIcon } from 'lucide-react';
 
 interface ActionCardProps {
@@ -8,14 +9,15 @@ interface ActionCardProps {
 
 export function ActionCard({ icon: Icon, label, onClick }: ActionCardProps) {
   return (
-    <button
+    <Button
+      variant="ghost"
       onClick={onClick}
-      className="flex items-center gap-3 w-full p-3 px-3.5 bg-card rounded-(--radius-md) text-sm text-muted-foreground text-left transition-all duration-150 hover:bg-secondary hover:text-foreground border-none cursor-pointer"
+      className="flex items-center justify-start gap-3 w-full h-auto p-3 px-3.5 bg-card text-sm text-muted-foreground text-left hover:bg-secondary hover:text-foreground cursor-pointer"
     >
       <div className="w-7 h-7 bg-background rounded-(--radius-sm) flex items-center justify-center shrink-0">
         <Icon size={14} />
       </div>
       {label}
-    </button>
+    </Button>
   );
 }

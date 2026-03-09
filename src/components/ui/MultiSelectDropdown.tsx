@@ -1,6 +1,9 @@
-import { useState, useRef, useEffect } from "react";
+import { useState } from "react";
 import { ChevronDown } from "lucide-react";
 import { cn } from "../../lib/utils";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { Checkbox } from "@/components/ui/checkbox";
+import { Separator } from "@/components/ui/separator";
 import type { ReactNode } from "react";
 
 export interface MultiSelectOption {
@@ -29,19 +32,6 @@ export function MultiSelectDropdown({
   className,
 }: MultiSelectDropdownProps) {
   const [isOpen, setIsOpen] = useState(false);
-  const containerRef = useRef<HTMLDivElement>(null);
-
-  // Close on click outside
-  useEffect(() => {
-    if (!isOpen) return;
-    const handler = (e: MouseEvent) => {
-      if (containerRef.current && !containerRef.current.contains(e.target as Node)) {
-        setIsOpen(false);
-      }
-    };
-    document.addEventListener("mousedown", handler);
-    return () => document.removeEventListener("mousedown", handler);
-  }, [isOpen]);
 
   const toggle = (id: string) => {
     if (selectedIds.includes(id)) {
@@ -76,108 +66,105 @@ export function MultiSelectDropdown({
   const hasSelection = selectedIds.length > 0;
 
   return (
-    <div ref={containerRef} className={cn("relative", className)}>
-      <button
-        type="button"
-        onClick={() => setIsOpen((prev) => !prev)}
-        className={cn(
-          "select flex items-center gap-2 text-left w-full pr-3",
-          hasSelection && "border-primary/40",
-        )}
-      >
-        {icon && <span className={cn("shrink-0", hasSelection ? "text-primary" : "text-dimmed")}>{icon}</span>}
-        <span className="flex-1 truncate">{placeholder && selectedIds.length === 0 ? placeholder : displayLabel}</span>
-        <ChevronDown
-          size={14}
+    <Popover open={isOpen} onOpenChange={setIsOpen}>
+      <PopoverTrigger asChild>
+        <button
+          type="button"
           className={cn(
-            "shrink-0 transition-transform duration-150",
-            isOpen && "rotate-180",
+            "flex h-10 items-center gap-2 rounded-md border border-border bg-card px-4 text-left text-sm text-foreground transition-colors cursor-pointer",
+            hasSelection && "border-primary/40",
+            className,
           )}
-        />
-      </button>
-
-      {isOpen && (
-        <div className="absolute top-full left-0 mt-1 w-full min-w-[220px] bg-card border border-border rounded-(--radius-md) p-1 z-20 shadow-(--shadow-md)">
-          {/* All option */}
-          <label
+        >
+          {icon && <span className={cn("shrink-0", hasSelection ? "text-primary" : "text-dimmed")}>{icon}</span>}
+          <span className="flex-1 truncate">{placeholder && selectedIds.length === 0 ? placeholder : displayLabel}</span>
+          <ChevronDown
+            size={14}
             className={cn(
-              "flex items-center gap-2 px-2 py-2 rounded-(--radius-sm) cursor-pointer transition-colors",
-              selectedIds.length === 0
-                ? "bg-foreground/10 text-foreground"
-                : "text-muted-foreground hover:text-foreground hover:bg-secondary",
+              "shrink-0 transition-transform duration-150",
+              isOpen && "rotate-180",
             )}
-          >
-            <input
-              type="checkbox"
-              checked={selectedIds.length === 0}
-              onChange={() => onChange([])}
-              className="cursor-pointer accent-text"
-            />
-            <span className="text-sm text-muted-foreground flex-1 truncate">{allLabel}</span>
-          </label>
+          />
+        </button>
+      </PopoverTrigger>
 
-          <div className="h-px bg-border mx-1 my-1" />
+      <PopoverContent
+        align="start"
+        className="w-[var(--radix-popover-trigger-width)] min-w-[220px] p-1"
+      >
+        {/* All option */}
+        <label
+          className={cn(
+            "flex items-center gap-2 px-2 py-2 rounded-sm cursor-pointer transition-colors",
+            selectedIds.length === 0
+              ? "bg-foreground/10 text-foreground"
+              : "text-muted-foreground hover:text-foreground hover:bg-secondary",
+          )}
+        >
+          <Checkbox
+            checked={selectedIds.length === 0}
+            onCheckedChange={() => onChange([])}
+          />
+          <span className="text-sm text-muted-foreground flex-1 truncate">{allLabel}</span>
+        </label>
 
-          <div className="max-h-64 overflow-y-auto">
-            {hasGroups ? (
-              groups.map((group) => (
-                <div key={group.key}>
-                  {group.key && (
-                    <div className="px-2 pt-2 pb-1 text-sm text-dimmed font-medium uppercase tracking-wider">
-                      {group.key}
-                    </div>
+        <Separator className="mx-1 my-1 w-auto" />
+
+        <div className="max-h-64 overflow-y-auto">
+          {hasGroups ? (
+            groups.map((group) => (
+              <div key={group.key}>
+                {group.key && (
+                  <div className="px-2 pt-2 pb-1 text-sm text-dimmed font-medium uppercase tracking-wider">
+                    {group.key}
+                  </div>
+                )}
+                {group.items.map((option) => {
+                  const isSelected = selectedIds.includes(option.id);
+                  return (
+                    <label
+                      key={option.id}
+                      className={cn(
+                        "flex items-center gap-2 px-2 py-2 rounded-sm cursor-pointer transition-colors",
+                        isSelected
+                          ? "bg-foreground/10 text-foreground"
+                          : "text-muted-foreground hover:text-foreground hover:bg-secondary",
+                      )}
+                    >
+                      <Checkbox
+                        checked={isSelected}
+                        onCheckedChange={() => toggle(option.id)}
+                      />
+                      <span className="text-sm text-muted-foreground flex-1 truncate">{option.label}</span>
+                    </label>
+                  );
+                })}
+              </div>
+            ))
+          ) : (
+            options.map((option) => {
+              const isSelected = selectedIds.includes(option.id);
+              return (
+                <label
+                  key={option.id}
+                  className={cn(
+                    "flex items-center gap-2 px-2 py-2 rounded-sm cursor-pointer transition-colors",
+                    isSelected
+                      ? "bg-foreground/10 text-foreground"
+                      : "text-muted-foreground hover:text-foreground hover:bg-secondary",
                   )}
-                  {group.items.map((option) => {
-                    const isSelected = selectedIds.includes(option.id);
-                    return (
-                      <label
-                        key={option.id}
-                        className={cn(
-                          "flex items-center gap-2 px-2 py-2 rounded-(--radius-sm) cursor-pointer transition-colors",
-                          isSelected
-                            ? "bg-foreground/10 text-foreground"
-                            : "text-muted-foreground hover:text-foreground hover:bg-secondary",
-                        )}
-                      >
-                        <input
-                          type="checkbox"
-                          checked={isSelected}
-                          onChange={() => toggle(option.id)}
-                          className="cursor-pointer accent-text"
-                        />
-                        <span className="text-sm text-muted-foreground flex-1 truncate">{option.label}</span>
-                      </label>
-                    );
-                  })}
-                </div>
-              ))
-            ) : (
-              options.map((option) => {
-                const isSelected = selectedIds.includes(option.id);
-                return (
-                  <label
-                    key={option.id}
-                    className={cn(
-                      "flex items-center gap-2 px-2 py-2 rounded-(--radius-sm) cursor-pointer transition-colors",
-                      isSelected
-                        ? "bg-foreground/10 text-foreground"
-                        : "text-muted-foreground hover:text-foreground hover:bg-secondary",
-                    )}
-                  >
-                    <input
-                      type="checkbox"
-                      checked={isSelected}
-                      onChange={() => toggle(option.id)}
-                      className="cursor-pointer accent-text"
-                    />
-                    <span className="text-sm text-muted-foreground flex-1 truncate">{option.label}</span>
-                  </label>
-                );
-              })
-            )}
-          </div>
+                >
+                  <Checkbox
+                    checked={isSelected}
+                    onCheckedChange={() => toggle(option.id)}
+                  />
+                  <span className="text-sm text-muted-foreground flex-1 truncate">{option.label}</span>
+                </label>
+              );
+            })
+          )}
         </div>
-      )}
-    </div>
+      </PopoverContent>
+    </Popover>
   );
 }

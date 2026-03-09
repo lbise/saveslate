@@ -2,6 +2,8 @@ import { type ReactNode } from 'react';
 import { MoreHorizontal, type LucideIcon } from 'lucide-react';
 import { Icon } from './Icon';
 import { Card } from './Card';
+import { Button } from './button';
+import { Separator } from './separator';
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -159,7 +161,8 @@ export function EntityCard({
       </div>
 
       {children && (
-        <div className="mt-3 pt-3 border-t border-border">
+        <div className="mt-3 pt-3">
+          <Separator className="mb-3 -mt-3" />
           {children}
         </div>
       )}
@@ -175,18 +178,19 @@ export function EntityCardActionButton({
   className,
 }: EntityCardActionButtonProps) {
   return (
-    <button
-      type="button"
+    <Button
+      variant="ghost"
+      size="icon-sm"
       onClick={onClick}
       className={cn(
-        'w-7 h-7 flex items-center justify-center rounded bg-transparent border-none cursor-pointer transition-colors',
-        actionButtonToneClasses[tone],        className,
+        actionButtonToneClasses[tone],
+        className,
       )}
       aria-label={label}
       title={label}
     >
       <ActionIcon size={14} />
-    </button>
+    </Button>
   );
 }
 
@@ -228,7 +232,8 @@ export function EntityCardDetailList({ items, layout = 'compact', className }: E
 
 export function EntityCardSection({ title, action, children, className }: EntityCardSectionProps) {
   return (
-    <div className={cn('mt-3 pt-3 border-t border-border', className)}>
+    <div className={cn('mt-3 pt-3', className)}>
+      <Separator className="mb-3 -mt-3" />
       {(title || action) && (
         <div className="mb-2 flex items-center justify-between gap-3">
           {title ? <span className="text-sm text-dimmed uppercase tracking-wider">{title}</span> : <span />}
@@ -246,14 +251,15 @@ export function EntityCardOverflowMenu({ label = 'More actions', actions }: Enti
   return (
     <DropdownMenu>
       <DropdownMenuTrigger asChild>
-        <button
-          type="button"
-          className="w-7 h-7 flex items-center justify-center rounded bg-transparent border-none cursor-pointer text-dimmed hover:text-foreground transition-colors"
+        <Button
+          variant="ghost"
+          size="icon-sm"
+          className="text-dimmed hover:text-foreground"
           aria-label={label}
           title={label}
         >
           <MoreHorizontal size={14} />
-        </button>
+        </Button>
       </DropdownMenuTrigger>
       <DropdownMenuContent align="end" className="min-w-[144px]">
         {actions.map((action, index) => {
