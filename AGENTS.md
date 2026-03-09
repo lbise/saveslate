@@ -6,9 +6,10 @@ Guidance for AI agents working on the SaveSlate codebase.
 
 Personal finance tracking app: **React 19 + TypeScript + Vite + Tailwind CSS v4**
 
+- **UI Components**: shadcn/ui (Radix primitives, `components.json` configured)
 - **Icons**: lucide-react
 - **Routing**: react-router-dom v7
-- **Theming**: CSS custom properties with dark mode support
+- **Theming**: shadcn/ui CSS variable conventions (oklch color space, dark-only)
 
 ## Build/Lint/Test Commands
 
@@ -89,16 +90,16 @@ export function Card({ children, className }: CardProps) {
 }
 ```
 
-### Styling (Tailwind + CSS Variables)
+### Styling (Tailwind + shadcn CSS Variables)
 
-- Use CSS custom properties
-- Use `cn()` utility for conditional classes
+- Use shadcn CSS variable conventions (oklch color space)
+- Use `cn()` utility (clsx + tailwind-merge) for conditional classes
 - Mobile-first responsive: `sm:`, `lg:` breakpoints
 
 ```typescript
 className={cn(
-  'bg-bg-card text-(--color-text-primary)',
-  isActive && 'border-(--color-accent)',
+  'bg-card text-foreground',
+  isActive && 'border-primary',
   className
 )}
 ```
@@ -112,7 +113,7 @@ className={cn(
 | Utilities       | camelCase         | `formatCurrency`       |
 | Types           | PascalCase        | `Transaction`          |
 | Constants       | SCREAMING_SNAKE   | `TRANSACTIONS`         |
-| CSS vars        | kebab-case        | `--color-text-primary` |
+| CSS vars        | kebab-case        | `--background`         |
 | Component files | PascalCase.tsx    | `Dashboard.tsx`        |
 | Utility files   | camelCase.ts      | `utils.ts`             |
 
@@ -138,18 +139,43 @@ export function useTheme() {
 
 ## Key Theme Variables (src/index.css)
 
-| Variable                 | Purpose              |
-| ------------------------ | -------------------- |
-| `--color-bg-primary`     | Main background      |
-| `--color-bg-card`        | Card backgrounds     |
-| `--color-text-primary`   | Primary text         |
-| `--color-text-secondary` | Secondary text       |
-| `--color-accent`         | Brand accent (coral) |
-| `--color-income`         | Income (green)       |
-| `--color-expense`        | Expense (red)        |
-| `--color-border`         | Standard borders     |
+Uses shadcn/ui naming conventions with oklch color space. Dark-only — variables defined under `:root` directly.
 
-Dark mode: `.dark` class on `<html>` overrides these variables.
+### shadcn Standard Colors
+
+| Variable                  | Purpose                          | Tailwind Usage            |
+| ------------------------- | -------------------------------- | ------------------------- |
+| `--background`            | Main background                  | `bg-background`           |
+| `--foreground`            | Primary text                     | `text-foreground`         |
+| `--card` / `--popover`    | Card/popover backgrounds         | `bg-card`, `bg-popover`   |
+| `--primary`               | Brand accent (#55aec8)           | `bg-primary`, `text-primary` |
+| `--secondary`             | Hover surfaces (#1c1c21)         | `bg-secondary`            |
+| `--muted`                 | Muted surfaces                   | `bg-muted`                |
+| `--muted-foreground`      | Secondary text (#9aa8a6)         | `text-muted-foreground`   |
+| `--accent`                | Active/highlight surface (#23232a)| `bg-accent`              |
+| `--destructive`           | Danger/error (#ef6a6a)           | `bg-destructive`          |
+| `--border` / `--input`    | Standard borders                 | `border-border`           |
+| `--ring`                  | Focus rings                      | `ring-ring`               |
+
+### Domain-Specific Colors (custom)
+
+| Variable       | Purpose          | Tailwind Usage      |
+| -------------- | ---------------- | ------------------- |
+| `--income`     | Income (green)   | `text-income`       |
+| `--expense`    | Expense (red)    | `text-expense`      |
+| `--transfer`   | Transfer (blue)  | `text-transfer`     |
+| `--split`      | Split (purple)   | `text-split`        |
+| `--goal`       | Goal (blue)      | `text-goal`         |
+| `--warning`    | Warning (yellow) | `text-warning`      |
+| `--dimmed`     | Tertiary text    | `text-dimmed`       |
+
+### Other Theme Values
+
+Shadows, radius, transitions, layout, and fonts are defined in the `@theme` block. Use `property-(--variable)` syntax for non-color values:
+
+```tsx
+className="rounded-(--radius-md) shadow-(--shadow-md)"
+```
 
 ## Icons (lucide-react)
 
@@ -169,9 +195,9 @@ For dynamic icons by name, use `<Icon name="TrendingUp" />` from `components/ui/
 
 ## CSS Component Classes (Tailwind v4)
 
-We use `@layer components` in `src/index.css` for reusable styles. **Prefer these classes over inline Tailwind utilities.**
+We use `@layer components` in `src/index.css` for reusable styles. These CSS classes are being **migrated to shadcn/ui components** — see `SHADCN_MIGRATION.md` for the full plan.
 
-### Available Classes
+### Currently Available Classes (will be replaced in Phase 3)
 
 | Category   | Classes                                                                             |
 | ---------- | ----------------------------------------------------------------------------------- |
@@ -183,75 +209,7 @@ We use `@layer components` in `src/index.css` for reusable styles. **Prefer thes
 | Navigation | `.nav-link`, `.nav-link-active`                                                     |
 | Layout     | `.page-container`, `.divider`                                                       |
 
-### Typography System
-
-All text in TSX files **must** use semantic typography classes defined in `src/index.css`. This ensures font sizes are controlled from one place and never scattered across components.
-
-#### Semantic Classes
-
-| Class             | Size  | Color            | Use for                                           |
-| ----------------- | ----- | ---------------- | ------------------------------------------------- |
-| `.heading-1`      | 24px  | text-primary     | Page titles                                       |
-| `.heading-2`      | 18px  | text-primary     | Section headings                                  |
-| `.heading-3`      | 16px  | text-primary     | Sub-section headings                              |
-| `.section-title`  | 16px  | text-secondary   | Card/section titles (lighter weight than heading)  |
-| `.section-action` | 14px  | accent           | Section header action links                       |
-| `.text-body`      | 16px  | text-secondary   | Body content, descriptions, secondary values       |
-| `.text-muted`     | 16px  | text-muted       | Tertiary/muted content                            |
-| `.text-ui`        | 14px  | text-secondary   | Small UI: metadata, counts, timestamps, hints, table cells |
-| `.text-link`      | 14px  | accent           | Clickable link text                               |
-| `.label`          | 16px  | text-secondary   | Form labels                                       |
-| `.btn` (base)     | 15px  | (inherited)      | Button text (handled by btn classes)              |
-| `.badge` (base)   | 14px  | (inherited)      | Badge text (handled by badge classes)             |
-
-#### Banned Patterns in TSX Files
-
-**Never** use these inline Tailwind utilities for text sizing in TSX:
-
-```tsx
-// ❌ BANNED - raw size utilities on content text
-className="text-xs ..."        // banned entirely
-className="text-[12px] ..."    // banned - no custom px sizes
-className="text-[14px] ..."    // banned
-className="text-[15px] ..."    // banned
-className="text-sm text-text-secondary ..."  // use .text-ui or .text-body instead
-className="text-base text-text-muted ..."    // use .text-muted instead
-
-// ✅ CORRECT - semantic classes
-className="text-ui"                          // 14px secondary
-className="text-ui text-income"              // 14px with color override
-className="text-body"                        // 16px secondary
-className="text-body text-text-primary"      // 16px with color override
-className="text-muted"                       // 16px muted
-className="heading-2"                        // 18px heading
-```
-
-#### Allowed Overrides on Top of Semantic Classes
-
-You **may** combine semantic classes with:
-
-- **Color**: `text-ui text-income`, `text-body text-text-primary`
-- **Weight**: `text-ui font-medium`, `text-body font-semibold`
-- **Font**: `text-ui font-mono`
-- **Alignment**: `text-body text-right`
-
-You must **not** override the font size: no `text-sm`, `text-lg`, etc. alongside a semantic class.
-
-#### Exceptions
-
-- **Form `<input>` and `<select>` elements**: Use the `.input` / `.select` CSS classes, which handle their own sizing. If you need a raw size on a form element (e.g., inline filter), use `text-sm` directly — not `.text-ui`.
-- **Icon sizing**: `w-4 h-4`, `w-5 h-5` etc. on icons is fine.
-- **Tailwind responsive/state prefixes**: Not applicable to our typography classes since they are defined in CSS, not as Tailwind utilities.
-
-#### Verification Commands
-
-Run these to ensure no banned patterns exist:
-
-```bash
-rg 'text-xs' -g '*.tsx'              # must return zero results
-rg 'text-xs' -g '*.css'              # must return zero results
-rg 'text-\[1[0-9]px\]' -g '*.tsx'   # must return zero results
-```
+> **Note:** Once shadcn components are added (Phase 3), prefer using the shadcn component over the CSS class. New code should use shadcn components when available.
 
 ### Tailwind v4 CSS Variable Syntax
 
@@ -259,15 +217,15 @@ rg 'text-\[1[0-9]px\]' -g '*.tsx'   # must return zero results
 
 #### Colors (registered in `@theme`)
 
-Use the variable name directly without `var()`:
+Use the shadcn variable name directly:
 
 ```tsx
-// ✅ CORRECT - Tailwind v4 syntax
-className = "bg-bg-card text-text-primary border-accent";
-className = "text-income bg-expense-bg";
+// ✅ CORRECT - Tailwind v4 with shadcn variables
+className="bg-card text-foreground border-primary"
+className="text-income bg-muted"
 
 // ❌ WRONG - old var() syntax
-className = "bg-[var(--color-bg-card)] text-[var(--color-text-primary)]";
+className="bg-[var(--card)] text-[var(--foreground)]"
 ```
 
 #### Non-color values (shadows, radius, transitions)
@@ -276,34 +234,28 @@ Use `property-(--variable)` syntax:
 
 ```tsx
 // ✅ CORRECT
-className = "rounded-lg shadow-(--shadow-md)";
+className="rounded-lg shadow-(--shadow-md)"
 
 // ❌ WRONG
-className = "rounded-[var(--radius-lg)]";
+className="rounded-[var(--radius-lg)]"
 ```
 
 ### Adding New Styles
 
-1. Add CSS variables to `@theme` block in `src/index.css`
-2. Add dark mode overrides in `.dark` selector
-3. Create component classes in `@layer components`
+1. Add CSS variables to `:root` block in `src/index.css`
+2. Register in `@theme inline` block for Tailwind v4 usage
+3. Create component classes in `@layer components` (or prefer shadcn components)
 4. Use `@apply` with Tailwind utilities
 
 Example:
 
 ```css
-@theme {
-  --color-new-color: #abc123;
+:root {
+  --new-color: oklch(0.5 0.1 200);
 }
 
-.dark {
-  --color-new-color: #321cba;
-}
-
-@layer components {
-  .new-component {
-    @apply bg-new-color text-white rounded-(--radius-md);
-  }
+@theme inline {
+  --color-new-color: var(--new-color);
 }
 ```
 

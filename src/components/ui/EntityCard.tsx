@@ -77,8 +77,8 @@ interface EntityCardOverflowMenuProps {
 }
 
 const iconToneClasses: Record<EntityCardTone, string> = {
-  neutral: 'bg-text/10 text-text-secondary',
-  accent: 'bg-accent/16 text-accent',
+  neutral: 'bg-foreground/10 text-muted-foreground',
+  accent: 'bg-primary/16 text-primary',
   goal: 'bg-goal/16 text-goal',
   income: 'bg-income/16 text-income',
   transfer: 'bg-transfer/16 text-transfer',
@@ -87,10 +87,10 @@ const iconToneClasses: Record<EntityCardTone, string> = {
 };
 
 const detailToneClasses: Record<EntityCardDetailTone, string> = {
-  default: 'text-text-secondary',
-  strong: 'text-text font-medium',
-  muted: 'text-text-muted',
-  accent: 'text-accent font-medium',
+  default: 'text-muted-foreground',
+  strong: 'text-foreground font-medium',
+  muted: 'text-dimmed',
+  accent: 'text-primary font-medium',
   goal: 'text-goal font-medium',
   income: 'text-income font-medium',
   transfer: 'text-transfer font-medium',
@@ -116,7 +116,7 @@ export function EntityCard({
   className,
 }: EntityCardProps) {
   return (
-    <article className={cn('card p-4 sm:p-5 transition-colors duration-150 hover:bg-surface-hover/35', className)}>
+    <article className={cn('card p-4 sm:p-5 transition-colors duration-150 hover:bg-secondary/35', className)}>
       <div className="flex items-start justify-between gap-3">
         <div className="min-w-0 flex items-start gap-3">
           <div
@@ -129,8 +129,8 @@ export function EntityCard({
           </div>
 
           <div className="min-w-0">
-            <h3 className="heading-3 text-text truncate">{title}</h3>
-            {subtitle && <p className="text-ui text-text-muted mt-0.5">{subtitle}</p>}
+            <h3 className="heading-3 text-foreground truncate">{title}</h3>
+            {subtitle && <p className="text-ui text-dimmed mt-0.5">{subtitle}</p>}
             {badges && <div className="mt-2 flex flex-wrap gap-1.5">{badges}</div>}
           </div>
         </div>
@@ -139,7 +139,7 @@ export function EntityCard({
           <div className="shrink-0 flex items-start gap-1.5">
             {metric && (
               <div
-                className={cn('text-body font-medium text-text text-right', metricClassName)}
+                className={cn('text-body font-medium text-foreground text-right', metricClassName)}
                 style={{ fontFamily: 'var(--font-display)' }}
               >
                 {metric}
@@ -190,7 +190,7 @@ export function EntityCardDetailList({ items, layout = 'compact', className }: E
       <div className={cn('space-y-1.5', className)}>
         {items.map((item) => (
           <div key={`${item.label}-${item.value}`} className="flex items-center justify-between gap-3">
-            <span className="text-ui text-text-muted">{item.label}</span>
+            <span className="text-ui text-dimmed">{item.label}</span>
             <span className={cn('text-ui text-right', detailToneClasses[item.tone ?? 'default'])}>
               {item.value}
             </span>
@@ -209,7 +209,7 @@ export function EntityCardDetailList({ items, layout = 'compact', className }: E
     >
       {items.map((item) => (
         <div key={`${item.label}-${item.value}`} className="contents">
-          <span className="text-ui text-text-muted whitespace-nowrap">{item.label}</span>
+          <span className="text-ui text-dimmed whitespace-nowrap">{item.label}</span>
           <span className={cn('text-ui min-w-0', detailToneClasses[item.tone ?? 'default'])}>
             {item.value}
           </span>
@@ -224,7 +224,7 @@ export function EntityCardSection({ title, action, children, className }: Entity
     <div className={cn('mt-3 pt-3 border-t border-border', className)}>
       {(title || action) && (
         <div className="mb-2 flex items-center justify-between gap-3">
-          {title ? <span className="text-ui text-text-muted uppercase tracking-wider">{title}</span> : <span />}
+          {title ? <span className="text-ui text-dimmed uppercase tracking-wider">{title}</span> : <span />}
           {action}
         </div>
       )}
@@ -270,7 +270,7 @@ export function EntityCardOverflowMenu({ label = 'More actions', actions }: Enti
       <button
         type="button"
         onClick={() => setIsOpen((current) => !current)}
-        className="w-7 h-7 flex items-center justify-center rounded bg-transparent border-none cursor-pointer text-text-muted hover:text-text transition-colors"
+        className="w-7 h-7 flex items-center justify-center rounded bg-transparent border-none cursor-pointer text-dimmed hover:text-foreground transition-colors"
         aria-label={label}
         title={label}
       >

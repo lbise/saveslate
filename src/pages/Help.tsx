@@ -60,16 +60,16 @@ function FaqAccordion({ item }: { item: FaqItem }) {
         onClick={() => setIsOpen(!isOpen)}
         className="flex items-center gap-3 w-full py-4 text-left bg-transparent border-none cursor-pointer group"
       >
-        <div className="w-8 h-8 bg-surface rounded-(--radius-sm) flex items-center justify-center shrink-0 transition-colors duration-150 group-hover:bg-surface-hover">
-          <item.icon size={14} className="text-text-secondary" />
+        <div className="w-8 h-8 bg-card rounded-(--radius-sm) flex items-center justify-center shrink-0 transition-colors duration-150 group-hover:bg-secondary">
+          <item.icon size={14} className="text-muted-foreground" />
         </div>
-        <span className="flex-1 text-body font-medium text-text">
+        <span className="flex-1 text-body font-medium text-foreground">
           {item.question}
         </span>
         <ChevronDown
           size={14}
           className={cn(
-            'text-text-muted transition-transform duration-200 shrink-0',
+            'text-dimmed transition-transform duration-200 shrink-0',
             isOpen && 'rotate-180',
           )}
         />
@@ -98,26 +98,26 @@ export function Help() {
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
           <a
             href="#faq"
-            className="flex items-center gap-3 p-4 bg-surface rounded-(--radius-md) transition-colors duration-150 hover:bg-surface-hover cursor-pointer no-underline"
+            className="flex items-center gap-3 p-4 bg-card rounded-(--radius-md) transition-colors duration-150 hover:bg-secondary cursor-pointer no-underline"
           >
-            <div className="w-9 h-9 bg-bg rounded-(--radius-sm) flex items-center justify-center shrink-0">
-              <BookOpen size={16} className="text-text-secondary" />
+            <div className="w-9 h-9 bg-background rounded-(--radius-sm) flex items-center justify-center shrink-0">
+              <BookOpen size={16} className="text-muted-foreground" />
             </div>
             <div>
-              <div className="text-body font-medium text-text">FAQ</div>
-              <div className="text-ui text-text-muted">Common questions answered</div>
+              <div className="text-body font-medium text-foreground">FAQ</div>
+              <div className="text-ui text-dimmed">Common questions answered</div>
             </div>
           </a>
           <a
             href="mailto:support@saveslate.ch"
-            className="flex items-center gap-3 p-4 bg-surface rounded-(--radius-md) transition-colors duration-150 hover:bg-surface-hover cursor-pointer no-underline"
+            className="flex items-center gap-3 p-4 bg-card rounded-(--radius-md) transition-colors duration-150 hover:bg-secondary cursor-pointer no-underline"
           >
-            <div className="w-9 h-9 bg-bg rounded-(--radius-sm) flex items-center justify-center shrink-0">
-              <MessageCircle size={16} className="text-text-secondary" />
+            <div className="w-9 h-9 bg-background rounded-(--radius-sm) flex items-center justify-center shrink-0">
+              <MessageCircle size={16} className="text-muted-foreground" />
             </div>
             <div>
-              <div className="text-body font-medium text-text">Contact Support</div>
-              <div className="text-ui text-text-muted">We usually reply within 24h</div>
+              <div className="text-body font-medium text-foreground">Contact Support</div>
+              <div className="text-ui text-dimmed">We usually reply within 24h</div>
             </div>
           </a>
         </div>
@@ -138,12 +138,12 @@ export function Help() {
       {/* Footer */}
       <section className="pt-4">
         <div className="text-center">
-          <div className="text-ui text-text-muted">
+          <div className="text-ui text-dimmed">
             Can&apos;t find what you need?
           </div>
           <a
             href="mailto:support@saveslate.ch"
-            className="text-ui hover:text-text transition-colors mt-1 inline-block"
+            className="text-ui hover:text-foreground transition-colors mt-1 inline-block"
           >
             support@saveslate.ch
           </a>

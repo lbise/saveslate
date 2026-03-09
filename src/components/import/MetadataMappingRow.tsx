@@ -49,8 +49,8 @@ export function MetadataMappingRow({
       className={cn(
         "p-3 rounded-(--radius-md) border",
         hasColumns && hasKey
-          ? "border-text/15 bg-text/[0.03]"
-          : "border-border bg-surface",
+          ? "border-foreground/15 bg-foreground/[0.03]"
+          : "border-border bg-card",
       )}
     >
       <div className="flex items-center gap-2 mb-2">
@@ -64,7 +64,7 @@ export function MetadataMappingRow({
         <button
           type="button"
           onClick={onRemove}
-          className="btn-icon w-7 h-7 text-text-muted hover:text-expense"
+          className="btn-icon w-7 h-7 text-dimmed hover:text-expense"
           aria-label="Remove metadata field" title="Remove metadata field"
         >
           <X size={12} />
@@ -78,21 +78,21 @@ export function MetadataMappingRow({
           className={cn(
             "flex items-center flex-wrap gap-1.5 w-full min-h-[36px] px-3 py-1.5 rounded-(--radius-md) border text-left cursor-pointer transition-colors",
             dropdownOpen
-              ? "border-text/30 bg-surface"
+              ? "border-foreground/30 bg-card"
               : hasColumns
-                ? "border-text/15 bg-surface hover:border-text/25"
-                : "border-border bg-surface hover:border-text-muted",
+                ? "border-foreground/15 bg-card hover:border-foreground/25"
+                : "border-border bg-card hover:border-dimmed",
           )}
         >
           {!hasColumns && (
-            <span className="text-ui text-text-muted">
+            <span className="text-ui text-dimmed">
               Select one or more columns...
             </span>
           )}
           {mapping.columnIndices.map((columnIndex) => (
             <span
               key={columnIndex}
-              className="inline-flex items-center gap-1 px-2 py-0.5 rounded-(--radius-sm) bg-text/10 text-ui text-text"
+              className="inline-flex items-center gap-1 px-2 py-0.5 rounded-(--radius-sm) bg-foreground/10 text-ui text-foreground"
             >
               <span className="truncate max-w-[140px]">
                 {headers[columnIndex] ?? `Col ${columnIndex + 1}`}
@@ -112,14 +112,14 @@ export function MetadataMappingRow({
           <ChevronDown
             size={14}
             className={cn(
-              "ml-auto shrink-0 text-text-muted transition-transform",
+              "ml-auto shrink-0 text-dimmed transition-transform",
               dropdownOpen && "rotate-180",
             )}
           />
         </button>
 
         {dropdownOpen && (
-          <div className="absolute top-full left-0 right-0 mt-1 bg-surface border border-border rounded-(--radius-md) py-1 z-20 shadow-(--shadow-md) max-h-80 overflow-y-auto">
+          <div className="absolute top-full left-0 right-0 mt-1 bg-card border border-border rounded-(--radius-md) py-1 z-20 shadow-(--shadow-md) max-h-80 overflow-y-auto">
             {headers.map((header, columnIndex) => {
               const isSelected = mapping.columnIndices.includes(columnIndex);
               const isMapped = mappedColumnIndices.has(columnIndex);
@@ -139,21 +139,21 @@ export function MetadataMappingRow({
                     "flex flex-col w-full px-3 py-2 text-left bg-transparent border-none transition-colors",
                     isDisabled
                       ? "opacity-40 cursor-not-allowed"
-                      : "cursor-pointer hover:bg-surface-hover",
-                    isSelected && "bg-text/5",
+                      : "cursor-pointer hover:bg-secondary",
+                    isSelected && "bg-foreground/5",
                   )}
                 >
                   <span className="flex items-center gap-2">
                     <span
                       className={cn(
                         "text-ui",
-                        isSelected ? "text-text font-medium" : "text-text",
+                        isSelected ? "text-foreground font-medium" : "text-foreground",
                       )}
                     >
                       {header || `Column ${columnIndex + 1}`}
                     </span>
                     {isDisabled && (
-                      <span className="text-ui text-text-muted">
+                      <span className="text-ui text-dimmed">
                         Mapped field
                       </span>
                     )}
@@ -162,7 +162,7 @@ export function MetadataMappingRow({
                     )}
                   </span>
                   {sampleValue && (
-                    <span className="text-ui text-text-muted truncate mt-0.5 max-w-full">
+                    <span className="text-ui text-dimmed truncate mt-0.5 max-w-full">
                       {sampleValue}
                     </span>
                   )}
@@ -174,7 +174,7 @@ export function MetadataMappingRow({
       </div>
 
       {(!hasKey || !hasColumns) && (
-        <p className="text-ui text-text-muted mt-2">
+        <p className="text-ui text-dimmed mt-2">
           Set a field name and choose at least one column.
         </p>
       )}

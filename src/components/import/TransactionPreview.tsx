@@ -501,25 +501,25 @@ export function TransactionPreview({
       {/* Summary bar */}
       <div className="flex flex-wrap items-center gap-6 px-1">
         <div className="flex items-center gap-2">
-          <div className="w-2 h-2 rounded-full bg-text-secondary" />
-          <span className="text-ui text-text-muted">
+          <div className="w-2 h-2 rounded-full bg-muted-foreground" />
+          <span className="text-ui text-dimmed">
             {stats.count} of {rows.length} selected
           </span>
         </div>
         <div className="flex items-center gap-2">
           <div className="w-2 h-2 rounded-full bg-income" />
-          <span className="text-ui text-text-muted">
+          <span className="text-ui text-dimmed">
             Income:{" "}
-            <span className="text-text font-medium">
+            <span className="text-foreground font-medium">
               {formatCurrency(stats.income)}
             </span>
           </span>
         </div>
         <div className="flex items-center gap-2">
           <div className="w-2 h-2 rounded-full bg-expense" />
-          <span className="text-ui text-text-muted">
+          <span className="text-ui text-dimmed">
             Expense:{" "}
-            <span className="text-text font-medium">
+            <span className="text-foreground font-medium">
               {formatCurrency(stats.expense)}
             </span>
           </span>
@@ -626,15 +626,15 @@ export function TransactionPreview({
             )}
             title="Filter rows that have transfer link matches"
           >
-            <Link2 size={14} className="text-text-muted" />
-            <span className="text-ui text-text-muted font-medium hover:underline">
+            <Link2 size={14} className="text-dimmed" />
+            <span className="text-ui text-dimmed font-medium hover:underline">
               {stats.transferMatchCount} transfer match{stats.transferMatchCount !== 1 ? "es" : ""}
               {stats.linkedTransferCount > 0
                 ? ` · ${stats.linkedTransferCount} link${stats.linkedTransferCount !== 1 ? "s" : ""} enabled`
                 : ""}
               {showMatchesOnly ? " (filtered)" : ""}
             </span>
-            <Filter size={12} className="text-text-muted" />
+            <Filter size={12} className="text-dimmed" />
           </button>
         </div>
       )}
@@ -677,7 +677,7 @@ export function TransactionPreview({
             <div className="overflow-x-auto">
               <table className="w-full text-sm">
                 <thead>
-                  <tr className="border-b border-border bg-surface">
+                  <tr className="border-b border-border bg-card">
                     <th className="px-3 py-2.5 text-left w-8">
                       <input
                         type="checkbox"
@@ -686,37 +686,37 @@ export function TransactionPreview({
                         className="cursor-pointer accent-text"
                       />
                     </th>
-                    <th className="px-3 py-2.5 text-left text-text-muted font-medium">
+                    <th className="px-3 py-2.5 text-left text-dimmed font-medium">
                       Date
                     </th>
                     {hasTime && (
-                      <th className="px-3 py-2.5 text-left text-text-muted font-medium">
+                      <th className="px-3 py-2.5 text-left text-dimmed font-medium">
                         Time
                       </th>
                     )}
-                    <th className="px-3 py-2.5 text-left text-text-muted font-medium">
+                    <th className="px-3 py-2.5 text-left text-dimmed font-medium">
                       Description
                     </th>
                     {hasTransactionId && (
-                      <th className="px-3 py-2.5 text-left text-text-muted font-medium">
+                      <th className="px-3 py-2.5 text-left text-dimmed font-medium">
                         Transaction ID
                       </th>
                     )}
-                    <th className="px-3 py-2.5 text-left text-text-muted font-medium">
+                    <th className="px-3 py-2.5 text-left text-dimmed font-medium">
                       Category
                     </th>
-                    <th className="px-3 py-2.5 text-left text-text-muted font-medium">
+                    <th className="px-3 py-2.5 text-left text-dimmed font-medium">
                       Transfer
                     </th>
                     {hasCurrency && (
-                      <th className="px-3 py-2.5 text-left text-text-muted font-medium">
+                      <th className="px-3 py-2.5 text-left text-dimmed font-medium">
                         Currency
                       </th>
                     )}
-                    <th className="px-3 py-2.5 text-right text-text-muted font-medium">
+                    <th className="px-3 py-2.5 text-right text-dimmed font-medium">
                       Amount
                     </th>
-                    <th className="px-3 py-2.5 text-center text-text-muted font-medium w-10">
+                    <th className="px-3 py-2.5 text-center text-dimmed font-medium w-10">
                       Status
                     </th>
                   </tr>
@@ -739,7 +739,7 @@ export function TransactionPreview({
                           className={cn(
                             "border-b border-border transition-colors",
                             isSelected
-                              ? "hover:bg-surface-hover/50"
+                              ? "hover:bg-secondary/50"
                               : isDuplicate
                                 ? "cursor-pointer opacity-70 hover:opacity-90"
                                 : "cursor-pointer opacity-40 hover:opacity-60",
@@ -755,28 +755,28 @@ export function TransactionPreview({
                               className="cursor-pointer accent-text"
                             />
                           </td>
-                          <td className="px-3 py-2.5 text-text-secondary whitespace-nowrap">
+                          <td className="px-3 py-2.5 text-muted-foreground whitespace-nowrap">
                             {row.date ? formatDate(row.date) : "—"}
                           </td>
                           {hasTime && (
-                            <td className="px-3 py-2.5 text-text-secondary whitespace-nowrap">
+                            <td className="px-3 py-2.5 text-muted-foreground whitespace-nowrap">
                               {row.time ? row.time.slice(0, 5) : "—"}
                             </td>
                           )}
-                          <td className="px-3 py-2.5 text-text">
+                          <td className="px-3 py-2.5 text-foreground">
                             <span className="break-words">
                               {row.description || "—"}
                             </span>
                           </td>
                           {hasTransactionId && (
-                            <td className="px-3 py-2.5 text-text-muted font-mono whitespace-nowrap">
+                            <td className="px-3 py-2.5 text-dimmed font-mono whitespace-nowrap">
                               {row.transactionId || "—"}
                             </td>
                           )}
-                          <td className="px-3 py-2.5 text-text-muted">
+                          <td className="px-3 py-2.5 text-dimmed">
                             {row.category || "—"}
                           </td>
-                          <td className="px-3 py-2.5 text-text-muted">
+                          <td className="px-3 py-2.5 text-dimmed">
                             {transferPairCandidate ? (
                               <div className="flex items-center gap-2" onClick={(event) => event.stopPropagation()}>
                                 <button
@@ -795,7 +795,7 @@ export function TransactionPreview({
                                     "inline-flex items-center gap-1 rounded-(--radius-sm) border px-2 py-0.5 text-ui transition-colors",
                                     isLinkEnabled
                                       ? "border-transfer/40 bg-transfer/10 text-transfer"
-                                      : "border-border bg-transparent text-text-muted hover:text-text",
+                                      : "border-border bg-transparent text-dimmed hover:text-foreground",
                                   )}
                                 >
                                   {isLinkEnabled ? <Link2 size={12} /> : <Link2Off size={12} />}
@@ -804,7 +804,7 @@ export function TransactionPreview({
                                 <button
                                   type="button"
                                   onClick={() => toggleMatchPreview(idx)}
-                                  className="inline-flex items-center justify-center h-6 w-6 rounded-(--radius-sm) border border-border bg-transparent text-text-muted hover:text-text hover:border-text-muted transition-colors"
+                                  className="inline-flex items-center justify-center h-6 w-6 rounded-(--radius-sm) border border-border bg-transparent text-dimmed hover:text-foreground hover:border-dimmed transition-colors"
                                   title={`View matched transaction in ${transferPairCandidate.accountName}`}
                                   aria-label={`View matched transaction in ${transferPairCandidate.accountName}`}
                                 >
@@ -812,11 +812,11 @@ export function TransactionPreview({
                                 </button>
                               </div>
                             ) : (
-                              <span className="text-ui text-text-muted">—</span>
+                              <span className="text-ui text-dimmed">—</span>
                             )}
                           </td>
                           {hasCurrency && (
-                            <td className="px-3 py-2.5 text-text-muted">
+                            <td className="px-3 py-2.5 text-dimmed">
                               {row.currency || "—"}
                             </td>
                           )}
@@ -847,33 +847,33 @@ export function TransactionPreview({
                         </tr>
 
                         {transferPairCandidate && isMatchPreviewOpen && (
-                          <tr className="border-b border-border bg-surface/40">
+                          <tr className="border-b border-border bg-card/40">
                             <td colSpan={columnCount} className="px-3 py-2.5">
-                              <div className="rounded-(--radius-sm) border border-border bg-bg p-3 space-y-2">
+                              <div className="rounded-(--radius-sm) border border-border bg-background p-3 space-y-2">
                                 <div className="flex items-center justify-between gap-2">
-                                  <span className="text-body text-text">Matched transaction</span>
+                                  <span className="text-body text-foreground">Matched transaction</span>
                                   {transferPairCandidate.isAlreadyLinked && (
                                     <span className="text-ui text-warning">Existing link (will overwrite)</span>
                                   )}
                                 </div>
                                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-4 gap-y-1">
-                                  <div className="text-ui text-text-muted">
-                                    Account: <span className="text-text">{transferPairCandidate.accountName}</span>
+                                  <div className="text-ui text-dimmed">
+                                    Account: <span className="text-foreground">{transferPairCandidate.accountName}</span>
                                   </div>
-                                  <div className="text-ui text-text-muted">
-                                    Date: <span className="text-text">{formatDate(transferPairCandidate.date)}</span>
+                                  <div className="text-ui text-dimmed">
+                                    Date: <span className="text-foreground">{formatDate(transferPairCandidate.date)}</span>
                                   </div>
-                                  <div className="text-ui text-text-muted">
-                                    Time: <span className="text-text">{transferPairCandidate.time ? transferPairCandidate.time.slice(0, 5) : "—"}</span>
+                                  <div className="text-ui text-dimmed">
+                                    Time: <span className="text-foreground">{transferPairCandidate.time ? transferPairCandidate.time.slice(0, 5) : "—"}</span>
                                   </div>
-                                  <div className="text-ui text-text-muted">
-                                    Amount: <span className="text-text" style={{ fontFamily: "var(--font-display)" }}>{formatSignedCurrency(transferPairCandidate.amount, transferPairCandidate.currency)}</span>
+                                  <div className="text-ui text-dimmed">
+                                    Amount: <span className="text-foreground" style={{ fontFamily: "var(--font-display)" }}>{formatSignedCurrency(transferPairCandidate.amount, transferPairCandidate.currency)}</span>
                                   </div>
-                                  <div className="text-ui text-text-muted sm:col-span-2">
-                                    Description: <span className="text-text">{transferPairCandidate.description || "—"}</span>
+                                  <div className="text-ui text-dimmed sm:col-span-2">
+                                    Description: <span className="text-foreground">{transferPairCandidate.description || "—"}</span>
                                   </div>
-                                  <div className="text-ui text-text-muted sm:col-span-2">
-                                    Transaction ID: <span className="text-text font-mono">{transferPairCandidate.transactionId || "—"}</span>
+                                  <div className="text-ui text-dimmed sm:col-span-2">
+                                    Transaction ID: <span className="text-foreground font-mono">{transferPairCandidate.transactionId || "—"}</span>
                                   </div>
                                 </div>
                               </div>
@@ -888,7 +888,7 @@ export function TransactionPreview({
             </div>
 
             {filteredRows.length > PREVIEW_PAGE_SIZES[0] && (
-              <div className="flex items-center justify-between px-3 py-2 text-ui text-text-muted bg-surface border-t border-border">
+              <div className="flex items-center justify-between px-3 py-2 text-ui text-dimmed bg-card border-t border-border">
                 <div className="flex items-center gap-1.5">
                   <span>Rows</span>
                   <select
@@ -897,7 +897,7 @@ export function TransactionPreview({
                       setPageSize(Number(e.target.value));
                       setPage(0);
                     }}
-                    className="text-sm bg-transparent border border-border rounded px-1 py-0.5 text-text-secondary cursor-pointer"
+                    className="text-sm bg-transparent border border-border rounded px-1 py-0.5 text-muted-foreground cursor-pointer"
                   >
                     {PREVIEW_PAGE_SIZES.map((size) => (
                       <option key={size} value={size}>

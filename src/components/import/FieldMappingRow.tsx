@@ -85,8 +85,8 @@ export function FieldMappingRow({
         error
           ? "border-expense/40 bg-expense/[0.03]"
           : hasValue
-            ? "border-text/15 bg-text/[0.03]"
-            : "border-border bg-surface",
+            ? "border-foreground/15 bg-foreground/[0.03]"
+            : "border-border bg-card",
       )}
     >
       {/* Field label */}
@@ -96,7 +96,7 @@ export function FieldMappingRow({
           field === "transactionId" ? "w-56" : "w-28",
         )}
       >
-        <span className="text-ui font-medium text-text">
+        <span className="text-ui font-medium text-foreground">
           {TRANSACTION_FIELD_LABELS[field]}
         </span>
         {required && <span className="text-expense ml-0.5">*</span>}
@@ -118,23 +118,23 @@ export function FieldMappingRow({
             className={cn(
               "flex items-center flex-wrap gap-1.5 w-full min-h-[36px] px-3 py-1.5",
               "rounded-(--radius-md) border text-left cursor-pointer transition-colors",
-              "focus:outline-none focus:ring-1 focus:ring-text-muted",
+              "focus:outline-none focus:ring-1 focus:ring-dimmed",
               dropdownOpen
-                ? "border-text/30 bg-surface"
+                ? "border-foreground/30 bg-card"
                 : hasValue
-                  ? "border-text/15 bg-surface hover:border-text/25"
-                  : "border-border bg-surface hover:border-text-muted",
+                  ? "border-foreground/15 bg-card hover:border-foreground/25"
+                  : "border-border bg-card hover:border-dimmed",
             )}
           >
             {assignedIndices.length === 0 && (
-              <span className="text-ui text-text-muted">
+              <span className="text-ui text-dimmed">
                 Select column{isMulti ? "s" : ""}...
               </span>
             )}
             {assignedIndices.map((colIdx) => (
               <span
                 key={colIdx}
-                className="inline-flex items-center gap-1 px-2 py-0.5 rounded-(--radius-sm) bg-text/10 text-ui text-text"
+                className="inline-flex items-center gap-1 px-2 py-0.5 rounded-(--radius-sm) bg-foreground/10 text-ui text-foreground"
               >
                 <span className="truncate max-w-[120px]">
                   {headers[colIdx] ?? `Col ${colIdx + 1}`}
@@ -154,7 +154,7 @@ export function FieldMappingRow({
             <ChevronDown
               size={14}
               className={cn(
-                "ml-auto shrink-0 text-text-muted transition-transform",
+                "ml-auto shrink-0 text-dimmed transition-transform",
                 dropdownOpen && "rotate-180",
               )}
             />
@@ -162,7 +162,7 @@ export function FieldMappingRow({
 
           {/* Dropdown */}
           {dropdownOpen && (
-            <div className="absolute top-full left-0 right-0 mt-1 bg-surface border border-border rounded-(--radius-md) py-1 z-20 shadow-(--shadow-md) max-h-80 overflow-y-auto">
+            <div className="absolute top-full left-0 right-0 mt-1 bg-card border border-border rounded-(--radius-md) py-1 z-20 shadow-(--shadow-md) max-h-80 overflow-y-auto">
               {availableColumns.map(
                 ({ idx, header, alreadyAssigned, disabled }) => {
                   const sampleValue = dataRows[0]?.[idx] ?? "";
@@ -176,8 +176,8 @@ export function FieldMappingRow({
                         "flex flex-col w-full px-3 py-2 text-left bg-transparent border-none transition-colors",
                         disabled
                           ? "opacity-30 cursor-not-allowed"
-                          : "cursor-pointer hover:bg-surface-hover",
-                        alreadyAssigned && isMulti && "bg-text/5",
+                          : "cursor-pointer hover:bg-secondary",
+                        alreadyAssigned && isMulti && "bg-foreground/5",
                       )}
                     >
                       <span className="flex items-center gap-2">
@@ -185,8 +185,8 @@ export function FieldMappingRow({
                           className={cn(
                             "text-ui",
                             alreadyAssigned
-                              ? "text-text font-medium"
-                              : "text-text",
+                              ? "text-foreground font-medium"
+                              : "text-foreground",
                           )}
                         >
                           {header}
@@ -196,7 +196,7 @@ export function FieldMappingRow({
                         )}
                       </span>
                       {sampleValue && (
-                        <span className="text-ui text-text-muted truncate mt-0.5 max-w-full">
+                        <span className="text-ui text-dimmed truncate mt-0.5 max-w-full">
                           {sampleValue}
                         </span>
                       )}
@@ -217,7 +217,7 @@ export function FieldMappingRow({
 function FieldHelpTooltip({ text }: { text: string }) {
   return (
     <span
-      className="inline-flex items-center text-text-muted hover:text-text cursor-help"
+      className="inline-flex items-center text-dimmed hover:text-foreground cursor-help"
       title={text}
       aria-label={text}
     >

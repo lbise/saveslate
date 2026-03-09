@@ -6,7 +6,7 @@ import type { Transaction, TransactionType, TransactionWithDetails } from "../ty
 const amountColors: Record<TransactionType, string> = {
   income: "text-income",
   expense: "text-expense",
-  transfer: "text-text",
+  transfer: "text-foreground",
 };
 
 export function getAmountColorClass(type: TransactionType, amount: number): string {
@@ -19,7 +19,7 @@ export function getAmountColorClass(type: TransactionType, amount: number): stri
   if (amount < 0) {
     return "text-expense";
   }
-  return "text-text";
+  return "text-foreground";
 }
 
 export const iconBoxStyles: Record<TransactionType, string> = {

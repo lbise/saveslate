@@ -17,7 +17,7 @@ export function AppLayout() {
   const effectiveCollapsed = isMobile || sidebarCollapsed;
 
   return (
-    <div className="min-h-screen flex bg-bg">
+    <div className="min-h-screen flex bg-background">
       <Sidebar
         collapsed={sidebarCollapsed}
         onToggleCollapse={() => setSidebarCollapsed((prev) => !prev)}

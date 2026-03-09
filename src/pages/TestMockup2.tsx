@@ -45,8 +45,8 @@ interface MockSection {
 /* ─── Tone maps ─────────────────────────────────────────────────── */
 
 const headerTintClasses: Record<CardTone, string> = {
-  neutral: 'bg-text/[0.03]',
-  accent: 'bg-accent/[0.06]',
+  neutral: 'bg-foreground/[0.03]',
+  accent: 'bg-primary/[0.06]',
   goal: 'bg-goal/[0.06]',
   income: 'bg-income/[0.06]',
   transfer: 'bg-transfer/[0.06]',
@@ -55,8 +55,8 @@ const headerTintClasses: Record<CardTone, string> = {
 };
 
 const iconToneClasses: Record<CardTone, string> = {
-  neutral: 'bg-text/10 text-text-secondary',
-  accent: 'bg-accent/16 text-accent',
+  neutral: 'bg-foreground/10 text-muted-foreground',
+  accent: 'bg-primary/16 text-primary',
   goal: 'bg-goal/16 text-goal',
   income: 'bg-income/16 text-income',
   transfer: 'bg-transfer/16 text-transfer',
@@ -65,8 +65,8 @@ const iconToneClasses: Record<CardTone, string> = {
 };
 
 const metricColorClasses: Record<CardTone, string> = {
-  neutral: 'text-text',
-  accent: 'text-accent',
+  neutral: 'text-foreground',
+  accent: 'text-primary',
   goal: 'text-goal',
   income: 'text-income',
   transfer: 'text-transfer',
@@ -75,8 +75,8 @@ const metricColorClasses: Record<CardTone, string> = {
 };
 
 const progressBarClasses: Record<CardTone, string> = {
-  neutral: 'bg-text-secondary',
-  accent: 'bg-accent',
+  neutral: 'bg-muted-foreground',
+  accent: 'bg-primary',
   goal: 'bg-goal',
   income: 'bg-income',
   transfer: 'bg-transfer',
@@ -85,8 +85,8 @@ const progressBarClasses: Record<CardTone, string> = {
 };
 
 const chipToneClasses: Record<CardTone, string> = {
-  neutral: 'text-text-secondary',
-  accent: 'text-accent',
+  neutral: 'text-muted-foreground',
+  accent: 'text-primary',
   goal: 'text-goal',
   income: 'text-income',
   transfer: 'text-transfer',
@@ -332,7 +332,7 @@ function OverflowMenu({ locked }: OverflowMenuProps) {
         onClick={() => setIsOpen((prev) => !prev)}
         className={cn(
           'w-7 h-7 flex items-center justify-center rounded-(--radius-sm)',
-          'text-text-muted hover:text-text hover:bg-surface-hover',
+          'text-dimmed hover:text-foreground hover:bg-secondary',
           'transition-colors duration-150',
         )}
         aria-label="Actions"
@@ -341,11 +341,11 @@ function OverflowMenu({ locked }: OverflowMenuProps) {
       </button>
 
       {isOpen && (
-        <div className="absolute right-0 top-full mt-1 z-20 min-w-[140px] rounded-(--radius-md) border border-border bg-surface py-1 shadow-(--shadow-md)">
+        <div className="absolute right-0 top-full mt-1 z-20 min-w-[140px] rounded-(--radius-md) border border-border bg-card py-1 shadow-(--shadow-md)">
           <button
             type="button"
             onClick={() => setIsOpen(false)}
-            className="w-full flex items-center gap-2.5 px-3.5 py-2 text-left bg-transparent border-none text-text-secondary hover:text-text hover:bg-surface-hover transition-colors duration-150"
+            className="w-full flex items-center gap-2.5 px-3.5 py-2 text-left bg-transparent border-none text-muted-foreground hover:text-foreground hover:bg-secondary transition-colors duration-150"
           >
             <Pencil size={13} />
             <span className="text-ui">Edit</span>
@@ -354,7 +354,7 @@ function OverflowMenu({ locked }: OverflowMenuProps) {
             <button
               type="button"
               onClick={() => setIsOpen(false)}
-              className="w-full flex items-center gap-2.5 px-3.5 py-2 text-left bg-transparent border-none text-text-muted hover:text-expense hover:bg-expense/8 transition-colors duration-150"
+              className="w-full flex items-center gap-2.5 px-3.5 py-2 text-left bg-transparent border-none text-dimmed hover:text-expense hover:bg-expense/8 transition-colors duration-150"
             >
               <Trash2 size={13} />
               <span className="text-ui">Delete</span>
@@ -376,7 +376,7 @@ function LayeredCard({ card }: LayeredCardProps) {
   const hasProgress = card.progress !== undefined;
 
   return (
-    <article className="rounded-(--radius-lg) border border-border overflow-hidden bg-surface transition-colors duration-150 hover:border-text-muted/30">
+    <article className="rounded-(--radius-lg) border border-border overflow-hidden bg-card transition-colors duration-150 hover:border-dimmed/30">
       {/* ── Header zone ──────────────────────────────── */}
       <div className={cn('px-5 pt-4 pb-3.5', headerTintClasses[card.tone])}>
         <div className="flex items-start justify-between gap-3">
@@ -390,8 +390,8 @@ function LayeredCard({ card }: LayeredCardProps) {
               <Icon name={card.icon} size={16} />
             </div>
             <div className="min-w-0">
-              <h3 className="heading-3 text-text truncate">{card.title}</h3>
-              <p className="text-ui text-text-muted mt-0.5">{card.subtitle}</p>
+              <h3 className="heading-3 text-foreground truncate">{card.title}</h3>
+              <p className="text-ui text-dimmed mt-0.5">{card.subtitle}</p>
               {card.badges && card.badges.length > 0 && (
                 <div className="mt-2 flex flex-wrap gap-1.5">
                   {card.badges.map((badge) => (
@@ -429,7 +429,7 @@ function LayeredCard({ card }: LayeredCardProps) {
             {card.metric}
           </div>
           {card.metricLabel && (
-            <p className="text-ui text-text-muted mt-1">{card.metricLabel}</p>
+            <p className="text-ui text-dimmed mt-1">{card.metricLabel}</p>
           )}
         </div>
 
@@ -438,10 +438,10 @@ function LayeredCard({ card }: LayeredCardProps) {
           {card.stats.map((stat) => (
             <div
               key={stat.label}
-              className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-(--radius-full) bg-bg border border-border-subtle"
+              className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-(--radius-full) bg-background border border-border-subtle"
             >
-              <span className="text-ui text-text-muted">{stat.label}</span>
-              <span className={cn('text-ui font-medium', stat.tone ? chipToneClasses[stat.tone] : 'text-text-secondary')}>
+              <span className="text-ui text-dimmed">{stat.label}</span>
+              <span className={cn('text-ui font-medium', stat.tone ? chipToneClasses[stat.tone] : 'text-muted-foreground')}>
                 {stat.value}
               </span>
             </div>
@@ -473,7 +473,7 @@ function MockSectionBlock({ section }: MockSectionBlockProps) {
     <section>
       <div className="section-header">
         <h2 className="section-title">{section.title}</h2>
-        <span className="text-ui text-text-muted">{section.count} items</span>
+        <span className="text-ui text-dimmed">{section.count} items</span>
       </div>
       <div className="flex flex-col gap-5">
         {section.cards.map((card) => (
@@ -491,7 +491,7 @@ export function TestMockup2() {
     <div className="page-container">
       <PageHeader title="Card Design v2" />
 
-      <p className="text-body text-text-muted">
+      <p className="text-body text-dimmed">
         Layered panel design: tinted header zone, prominent metric, horizontal stat chips, edge progress bar.
       </p>
 

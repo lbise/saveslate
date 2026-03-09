@@ -28,9 +28,9 @@ export function StepIndicator({ currentStep }: StepIndicatorProps) {
             <div
               className={cn(
                 'w-6 h-6 rounded-full flex items-center justify-center text-ui font-medium tabular-nums leading-none transition-colors duration-150 shrink-0',
-                isCompleted && 'bg-text text-bg',
-                isCurrent && 'bg-text/15 text-text border border-text/30',
-                !isCompleted && !isCurrent && 'bg-surface text-text-muted border border-border',
+                isCompleted && 'bg-foreground text-background',
+                isCurrent && 'bg-foreground/15 text-foreground border border-foreground/30',
+                !isCompleted && !isCurrent && 'bg-card text-dimmed border border-border',
               )}
             >
               {isCompleted ? <Check size={12} /> : idx + 1}
@@ -38,7 +38,7 @@ export function StepIndicator({ currentStep }: StepIndicatorProps) {
             <span
               className={cn(
                 'ml-2 text-ui font-medium hidden sm:inline-flex sm:items-center leading-none',
-                isCurrent ? 'text-text' : isCompleted ? 'text-text-secondary' : 'text-text-muted',
+                isCurrent ? 'text-foreground' : isCompleted ? 'text-muted-foreground' : 'text-dimmed',
               )}
             >
               {step.label}
@@ -47,7 +47,7 @@ export function StepIndicator({ currentStep }: StepIndicatorProps) {
               <div
                 className={cn(
                   'mx-2 w-8 border-t shrink-0 self-center',
-                  idx < currentIdx ? 'border-text' : 'border-border',
+                  idx < currentIdx ? 'border-foreground' : 'border-border',
                 )}
               />
             )}

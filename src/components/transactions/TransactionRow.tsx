@@ -88,7 +88,7 @@ export function TransactionRow({
   const hiddenTagCount = resolvedTags.length - visibleTags.length;
 
   return (
-    <div className="group flex items-center gap-3 py-3 border-b border-border last:border-b-0 transition-colors duration-150 hover:bg-surface-hover/30 relative">
+    <div className="group flex items-center gap-3 py-3 border-b border-border last:border-b-0 transition-colors duration-150 hover:bg-secondary/30 relative">
       {/* Icon — category shape, type-tinted (desktop), clickable to edit category */}
       <button
         onClick={(e) => {
@@ -122,7 +122,7 @@ export function TransactionRow({
         <div className="flex-1 min-w-0">
           <div className="flex items-center gap-2">
             <span
-              className="text-ui text-text font-medium line-clamp-2"
+              className="text-ui text-foreground font-medium line-clamp-2"
               title={transaction.description}
             >
               {transaction.description}
@@ -163,17 +163,17 @@ export function TransactionRow({
                   </span>
                 ))}
                 {hiddenTagCount > 0 && (
-                  <span className="text-ui text-text-muted">+{hiddenTagCount}</span>
+                  <span className="text-ui text-dimmed">+{hiddenTagCount}</span>
                 )}
               </span>
             )}
             {transferFlow && (
-              <span className="text-ui text-text-muted truncate max-w-48">
+              <span className="text-ui text-dimmed truncate max-w-48">
                 {transferFlow.fromAccountName} &rarr; {transferFlow.toAccountName}
               </span>
             )}
             {transaction.split && (
-              <span className="inline-flex items-center gap-1 text-ui text-text-muted">
+              <span className="inline-flex items-center gap-1 text-ui text-dimmed">
                 <Users size={9} />
                 {transaction.split.withPerson}
                 {transaction.split.status === "pending" && (
@@ -184,7 +184,7 @@ export function TransactionRow({
                 )}
               </span>
             )}
-            <span className="text-ui text-text-muted">
+            <span className="text-ui text-dimmed">
               {formatDate(transaction.date)}
             </span>
           </div>
@@ -206,7 +206,7 @@ export function TransactionRow({
                 onToggleAction();
               }}
               className={cn(
-                "w-7 h-7 flex items-center justify-center rounded bg-transparent border-none cursor-pointer text-text-muted hover:text-text transition-opacity",
+                "w-7 h-7 flex items-center justify-center rounded bg-transparent border-none cursor-pointer text-dimmed hover:text-foreground transition-opacity",
                 isActionOpen ? "opacity-100" : "opacity-60",
               )}
             >
@@ -255,13 +255,13 @@ export function TransactionRow({
         <div className="flex-1 min-w-0">
           <div className="flex items-center gap-2">
             <span
-              className="text-ui text-text font-medium line-clamp-2"
+              className="text-ui text-foreground font-medium line-clamp-2"
               title={transaction.description}
             >
               {transaction.description}
             </span>
             {transaction.split && (
-              <span className="inline-flex items-center gap-1 text-ui text-text-muted shrink-0">
+              <span className="inline-flex items-center gap-1 text-ui text-dimmed shrink-0">
                 <Users size={9} />
                 {transaction.split.withPerson}
                 {transaction.split.status === "pending" && (
@@ -273,7 +273,7 @@ export function TransactionRow({
               </span>
             )}
           </div>
-          <div className="flex items-center gap-1 text-ui text-text-muted relative flex-wrap">
+          <div className="flex items-center gap-1 text-ui text-dimmed relative flex-wrap">
             <span>
               {transferFlow
                 ? `${transferFlow.fromAccountName} \u2192 ${transferFlow.toAccountName}`
@@ -285,7 +285,7 @@ export function TransactionRow({
                 e.stopPropagation();
                 onToggleEditCategory();
               }}
-              className="cursor-pointer bg-transparent border-none p-0 text-ui text-text-muted hover:text-text hover:underline transition-colors"
+              className="cursor-pointer bg-transparent border-none p-0 text-ui text-dimmed hover:text-foreground hover:underline transition-colors"
             >
               {transaction.category.name}
             </button>
@@ -308,7 +308,7 @@ export function TransactionRow({
                     </span>
                   ))}
                   {hiddenTagCount > 0 && (
-                    <span className="text-ui text-text-muted">+{hiddenTagCount}</span>
+                    <span className="text-ui text-dimmed">+{hiddenTagCount}</span>
                   )}
                 </span>
               </>
@@ -347,7 +347,7 @@ export function TransactionRow({
               onToggleAction();
             }}
             className={cn(
-              "w-7 h-7 flex items-center justify-center rounded bg-transparent border-none cursor-pointer text-text-muted hover:text-text transition-opacity",
+              "w-7 h-7 flex items-center justify-center rounded bg-transparent border-none cursor-pointer text-dimmed hover:text-foreground transition-opacity",
               isActionOpen
                 ? "opacity-100"
                 : "opacity-0 group-hover:opacity-100",

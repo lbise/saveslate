@@ -163,7 +163,7 @@ export function GoalDetailCard({
 
       {gp.goal.expectedContribution && (
         <EntityCardSection title="Plan">
-          <p className="text-ui text-text-muted">
+          <p className="text-ui text-dimmed">
             {formatCurrency(gp.goal.expectedContribution.amount)}{" "}
             {gp.goal.expectedContribution.frequency} ·{" "}
             {formatCurrency(yearlyPlanAmount)} yearly · This year:{" "}

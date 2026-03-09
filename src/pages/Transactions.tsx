@@ -894,7 +894,7 @@ export function Transactions() {
           title="Delete transaction?"
           description={(
             <>
-              This will permanently delete <span className="text-text">{transactionToDelete.description}</span> ({formatSignedCurrency(transactionToDelete.amount, transactionToDelete.currency)}).
+              This will permanently delete <span className="text-foreground">{transactionToDelete.description}</span> ({formatSignedCurrency(transactionToDelete.amount, transactionToDelete.currency)}).
             </>
           )}
           confirmLabel="Delete transaction"
@@ -908,7 +908,7 @@ export function Transactions() {
           title="Delete source?"
           description={(
             <>
-              This will permanently delete <span className="text-text">{sourceToDelete.label}</span> and <span className="text-expense">{sourceToDelete.count} transaction{sourceToDelete.count === 1 ? "" : "s"}</span>.
+              This will permanently delete <span className="text-foreground">{sourceToDelete.label}</span> and <span className="text-expense">{sourceToDelete.count} transaction{sourceToDelete.count === 1 ? "" : "s"}</span>.
             </>
           )}
           confirmLabel="Delete source"
@@ -941,7 +941,7 @@ export function Transactions() {
                   autoFocus
                 />
               </div>
-              <p className="text-ui text-text-muted">
+              <p className="text-ui text-dimmed">
                 Leave empty to use the original file name.
               </p>
               <div className="flex items-center justify-end gap-2">
@@ -993,39 +993,39 @@ export function Transactions() {
       {/* Quick Stats */}
       <div className="flex flex-wrap gap-8 mb-2">
         <div className="flex items-center gap-3">
-          <div className="w-2 h-2 rounded-full bg-text-secondary" />
+          <div className="w-2 h-2 rounded-full bg-muted-foreground" />
           <div className="flex flex-col gap-0.5">
             <span
-              className="text-base font-medium text-text"
+              className="text-base font-medium text-foreground"
               style={{ fontFamily: "var(--font-display)" }}
             >
               {filteredTransactions.length}
             </span>
-            <span className="text-ui text-text-muted">Transactions</span>
+            <span className="text-ui text-dimmed">Transactions</span>
           </div>
         </div>
         <div className="flex items-center gap-3">
           <div className="w-2 h-2 rounded-full bg-income" />
           <div className="flex flex-col gap-0.5">
             <span
-              className="text-base font-medium text-text"
+              className="text-base font-medium text-foreground"
               style={{ fontFamily: "var(--font-display)" }}
             >
               +{formatCurrency(totalIncome)}
             </span>
-            <span className="text-ui text-text-muted">Income</span>
+            <span className="text-ui text-dimmed">Income</span>
           </div>
         </div>
         <div className="flex items-center gap-3">
           <div className="w-2 h-2 rounded-full bg-expense" />
           <div className="flex flex-col gap-0.5">
             <span
-              className="text-base font-medium text-text"
+              className="text-base font-medium text-foreground"
               style={{ fontFamily: "var(--font-display)" }}
             >
               -{formatCurrency(totalExpenses)}
             </span>
-            <span className="text-ui text-text-muted">Expenses</span>
+            <span className="text-ui text-dimmed">Expenses</span>
           </div>
         </div>
         {totalTransfers > 0 && (
@@ -1033,12 +1033,12 @@ export function Transactions() {
             <div className="w-2 h-2 rounded-full bg-transfer" />
             <div className="flex flex-col gap-0.5">
               <span
-                className="text-base font-medium text-text"
+                className="text-base font-medium text-foreground"
                 style={{ fontFamily: "var(--font-display)" }}
               >
                 {formatCurrency(totalTransfers)}
               </span>
-              <span className="text-ui text-text-muted">Transfers</span>
+              <span className="text-ui text-dimmed">Transfers</span>
             </div>
           </div>
         )}
@@ -1047,12 +1047,12 @@ export function Transactions() {
             <div className="w-2 h-2 rounded-full bg-split" />
             <div className="flex flex-col gap-0.5">
               <span
-                className="text-base font-medium text-text"
+                className="text-base font-medium text-foreground"
                 style={{ fontFamily: "var(--font-display)" }}
               >
                 {formatCurrency(pendingSplitTotal)}
               </span>
-              <span className="text-ui text-text-muted">Pending Splits</span>
+              <span className="text-ui text-dimmed">Pending Splits</span>
             </div>
           </div>
         )}
@@ -1062,7 +1062,7 @@ export function Transactions() {
       <div className="space-y-3">
         {/* Row 1: Search (full width) */}
         <div className="relative">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-text-muted" />
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-dimmed" />
           <input
             type="text"
             placeholder="Search transactions..."
@@ -1127,10 +1127,10 @@ export function Transactions() {
               }}
               className={cn(
                 "select flex items-center gap-2 text-left w-full pr-3",
-                activeSourceFilterIds.length > 0 && "border-accent/40",
+                activeSourceFilterIds.length > 0 && "border-primary/40",
               )}
             >
-              <span className={cn("shrink-0", activeSourceFilterIds.length > 0 ? "text-accent" : "text-text-muted")}>
+              <span className={cn("shrink-0", activeSourceFilterIds.length > 0 ? "text-primary" : "text-dimmed")}>
                 <Upload size={14} />
               </span>
               <span className="flex-1 truncate">{sourceFilterLabel}</span>
@@ -1149,13 +1149,13 @@ export function Transactions() {
                   className="fixed inset-0 z-10"
                   onClick={() => setIsSourceMenuOpen(false)}
                 />
-                <div className="absolute top-full left-0 mt-1 w-full min-w-[280px] bg-surface border border-border rounded-(--radius-md) p-1 z-20 shadow-(--shadow-md)">
+                <div className="absolute top-full left-0 mt-1 w-full min-w-[280px] bg-card border border-border rounded-(--radius-md) p-1 z-20 shadow-(--shadow-md)">
                   <label
                     className={cn(
                       "flex items-center gap-2 px-2 py-2 rounded-(--radius-sm) cursor-pointer transition-colors",
                       activeSourceFilterIds.length === 0
-                        ? "bg-text/10 text-text"
-                        : "text-text-secondary hover:text-text hover:bg-surface-hover",
+                        ? "bg-foreground/10 text-foreground"
+                        : "text-muted-foreground hover:text-foreground hover:bg-secondary",
                     )}
                   >
                     <input
@@ -1171,7 +1171,7 @@ export function Transactions() {
 
                   <div className="max-h-64 overflow-y-auto">
                     {sourceOptions.length === 0 ? (
-                      <div className="px-2 py-2 text-ui text-text-muted">No sources available</div>
+                      <div className="px-2 py-2 text-ui text-dimmed">No sources available</div>
                     ) : (
                       sourceOptions.map((source) => {
                         const isSelected = activeSourceFilterIds.includes(source.id);
@@ -1181,8 +1181,8 @@ export function Transactions() {
                               className={cn(
                                 "flex items-center gap-2 flex-1 px-2 py-2 rounded-(--radius-sm) cursor-pointer transition-colors",
                                 isSelected
-                                  ? "bg-text/10 text-text"
-                                  : "text-text-secondary hover:text-text hover:bg-surface-hover",
+                                  ? "bg-foreground/10 text-foreground"
+                                  : "text-muted-foreground hover:text-foreground hover:bg-secondary",
                               )}
                             >
                               <input
@@ -1192,7 +1192,7 @@ export function Transactions() {
                                 className="cursor-pointer accent-text"
                               />
                               <span className="text-ui flex-1 truncate">{source.label}</span>
-                              <span className="text-ui text-text-muted">{source.count}</span>
+                              <span className="text-ui text-dimmed">{source.count}</span>
                             </label>
 
                             {source.deletable && (
@@ -1200,7 +1200,7 @@ export function Transactions() {
                                 <button
                                   type="button"
                                   onClick={() => requestRenameSource(source.id)}
-                                  className="w-7 h-7 flex items-center justify-center rounded bg-transparent border-none cursor-pointer text-text-muted hover:text-text transition-colors opacity-60 hover:opacity-100"
+                                  className="w-7 h-7 flex items-center justify-center rounded bg-transparent border-none cursor-pointer text-dimmed hover:text-foreground transition-colors opacity-60 hover:opacity-100"
                                   title={`Rename source ${source.label}`}
                                 >
                                   <Pencil size={12} />
@@ -1208,7 +1208,7 @@ export function Transactions() {
                                 <button
                                   type="button"
                                   onClick={() => requestDeleteSource(source.id)}
-                                  className="w-7 h-7 flex items-center justify-center rounded bg-transparent border-none cursor-pointer text-text-muted hover:text-expense transition-colors opacity-60 hover:opacity-100"
+                                  className="w-7 h-7 flex items-center justify-center rounded bg-transparent border-none cursor-pointer text-dimmed hover:text-expense transition-colors opacity-60 hover:opacity-100"
                                   title={`Delete source ${source.label}`}
                                 >
                                   <Trash2 size={12} />
@@ -1231,7 +1231,7 @@ export function Transactions() {
             onClick={() => setShowAdvancedFilters((prev) => !prev)}
             className={cn(
               "btn-ghost flex items-center gap-2 shrink-0",
-              showAdvancedFilters && "text-accent",
+              showAdvancedFilters && "text-primary",
             )}
           >
             <SlidersHorizontal size={16} />
@@ -1244,10 +1244,10 @@ export function Transactions() {
 
         {/* Advanced filters panel (date range + amount range only) */}
         {showAdvancedFilters && (
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 p-4 bg-surface border border-border rounded-(--radius-md)">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 p-4 bg-card border border-border rounded-(--radius-md)">
             {/* Date from */}
             <div className="flex flex-col gap-1">
-              <label className="text-ui text-text-muted">From date</label>
+              <label className="text-ui text-dimmed">From date</label>
               <input
                 type="date"
                 value={dateFrom}
@@ -1258,7 +1258,7 @@ export function Transactions() {
 
             {/* Date to */}
             <div className="flex flex-col gap-1">
-              <label className="text-ui text-text-muted">To date</label>
+              <label className="text-ui text-dimmed">To date</label>
               <input
                 type="date"
                 value={dateTo}
@@ -1269,7 +1269,7 @@ export function Transactions() {
 
             {/* Amount min */}
             <div className="flex flex-col gap-1">
-              <label className="text-ui text-text-muted">Min amount</label>
+              <label className="text-ui text-dimmed">Min amount</label>
               <input
                 type="number"
                 placeholder="0.00"
@@ -1283,7 +1283,7 @@ export function Transactions() {
 
             {/* Amount max */}
             <div className="flex flex-col gap-1">
-              <label className="text-ui text-text-muted">Max amount</label>
+              <label className="text-ui text-dimmed">Max amount</label>
               <input
                 type="number"
                 placeholder="0.00"
@@ -1312,9 +1312,9 @@ export function Transactions() {
                   "px-3 py-1.5 rounded-full text-sm font-medium transition-all duration-150 border cursor-pointer",
                   isActive
                     ? t.value === "all"
-                      ? "bg-text/10 text-text border-text/20"
+                      ? "bg-foreground/10 text-foreground border-foreground/20"
                       : activeTypePillStyles[t.value]
-                    : "bg-surface text-text-secondary border-border opacity-60 hover:opacity-100",
+                    : "bg-card text-muted-foreground border-border opacity-60 hover:opacity-100",
                 )}
               >
                 {t.label}
@@ -1327,7 +1327,7 @@ export function Transactions() {
             <button
               type="button"
               onClick={() => setCategoryFilterIds([])}
-              className="flex items-center gap-1 px-2 py-1 rounded-full text-sm bg-accent/10 text-accent border border-accent/20 cursor-pointer transition-opacity hover:opacity-80"
+              className="flex items-center gap-1 px-2 py-1 rounded-full text-sm bg-primary/10 text-primary border border-primary/20 cursor-pointer transition-opacity hover:opacity-80"
             >
               {categoryFilterIds.length === 1
                 ? (availableCategories.find((c) => c.id === categoryFilterIds[0])?.name ?? "1 category")
@@ -1339,7 +1339,7 @@ export function Transactions() {
             <button
               type="button"
               onClick={() => setTagFilterIds([])}
-              className="flex items-center gap-1 px-2 py-1 rounded-full text-sm bg-accent/10 text-accent border border-accent/20 cursor-pointer transition-opacity hover:opacity-80"
+              className="flex items-center gap-1 px-2 py-1 rounded-full text-sm bg-primary/10 text-primary border border-primary/20 cursor-pointer transition-opacity hover:opacity-80"
             >
               {tagFilterIds.length === 1
                 ? (tagOptions.find((tagOption) => tagOption.id === tagFilterIds[0])?.label ?? "1 tag")
@@ -1351,7 +1351,7 @@ export function Transactions() {
             <button
               type="button"
               onClick={() => setGoalFilterIds([])}
-              className="flex items-center gap-1 px-2 py-1 rounded-full text-sm bg-accent/10 text-accent border border-accent/20 cursor-pointer transition-opacity hover:opacity-80"
+              className="flex items-center gap-1 px-2 py-1 rounded-full text-sm bg-primary/10 text-primary border border-primary/20 cursor-pointer transition-opacity hover:opacity-80"
             >
               {goalFilterIds.length === 1
                 ? (goalOptions.find((g) => g.id === goalFilterIds[0])?.label ?? "1 goal")
@@ -1363,7 +1363,7 @@ export function Transactions() {
             <button
               type="button"
               onClick={() => setAccountFilterIds([])}
-              className="flex items-center gap-1 px-2 py-1 rounded-full text-sm bg-accent/10 text-accent border border-accent/20 cursor-pointer transition-opacity hover:opacity-80"
+              className="flex items-center gap-1 px-2 py-1 rounded-full text-sm bg-primary/10 text-primary border border-primary/20 cursor-pointer transition-opacity hover:opacity-80"
             >
               {accountFilterIds.length === 1
                 ? (accountOptions.find((a) => a.id === accountFilterIds[0])?.label ?? "1 account")
@@ -1375,7 +1375,7 @@ export function Transactions() {
             <button
               type="button"
               onClick={() => setSourceFilterIds([])}
-              className="flex items-center gap-1 px-2 py-1 rounded-full text-sm bg-accent/10 text-accent border border-accent/20 cursor-pointer transition-opacity hover:opacity-80"
+              className="flex items-center gap-1 px-2 py-1 rounded-full text-sm bg-primary/10 text-primary border border-primary/20 cursor-pointer transition-opacity hover:opacity-80"
             >
               {activeSourceFilterIds.length === 1
                 ? (sourceOptions.find((s) => s.id === activeSourceFilterIds[0])?.label ?? "1 source")
@@ -1387,7 +1387,7 @@ export function Transactions() {
             <button
               type="button"
               onClick={() => { setDateFrom(""); setDateTo(""); }}
-              className="flex items-center gap-1 px-2 py-1 rounded-full text-sm bg-accent/10 text-accent border border-accent/20 cursor-pointer transition-opacity hover:opacity-80"
+              className="flex items-center gap-1 px-2 py-1 rounded-full text-sm bg-primary/10 text-primary border border-primary/20 cursor-pointer transition-opacity hover:opacity-80"
             >
               {dateFrom && dateTo ? `${dateFrom} - ${dateTo}` : dateFrom ? `From ${dateFrom}` : `To ${dateTo}`}
               <X size={12} />
@@ -1397,7 +1397,7 @@ export function Transactions() {
             <button
               type="button"
               onClick={() => { setAmountMin(""); setAmountMax(""); }}
-              className="flex items-center gap-1 px-2 py-1 rounded-full text-sm bg-accent/10 text-accent border border-accent/20 cursor-pointer transition-opacity hover:opacity-80"
+              className="flex items-center gap-1 px-2 py-1 rounded-full text-sm bg-primary/10 text-primary border border-primary/20 cursor-pointer transition-opacity hover:opacity-80"
             >
               {amountMin && amountMax ? `${amountMin} - ${amountMax}` : amountMin ? `Min ${amountMin}` : `Max ${amountMax}`}
               <X size={12} />
@@ -1407,7 +1407,7 @@ export function Transactions() {
             <button
               type="button"
               onClick={clearAllFilters}
-              className="text-ui text-text-muted hover:text-text cursor-pointer bg-transparent border-none px-1 transition-colors"
+              className="text-ui text-dimmed hover:text-foreground cursor-pointer bg-transparent border-none px-1 transition-colors"
             >
               Clear all
             </button>
@@ -1437,19 +1437,19 @@ export function Transactions() {
       )}
 
       {/* Table Header */}
-      <div className="hidden lg:flex items-center gap-4 px-1 text-ui text-text-muted uppercase tracking-wider">
+      <div className="hidden lg:flex items-center gap-4 px-1 text-ui text-dimmed uppercase tracking-wider">
         <div className="w-[34px]" />
         <div className="flex-1">Description</div>
         <button
           onClick={() => toggleSort("date")}
-          className="flex items-center gap-1 w-24 bg-transparent border-none text-text-muted hover:text-text cursor-pointer transition-colors text-ui uppercase tracking-wider"
+          className="flex items-center gap-1 w-24 bg-transparent border-none text-dimmed hover:text-foreground cursor-pointer transition-colors text-ui uppercase tracking-wider"
         >
           Date
           <ArrowUpDown className="w-3 h-3" />
         </button>
         <button
           onClick={() => toggleSort("amount")}
-          className="flex items-center gap-1 w-28 justify-end bg-transparent border-none text-text-muted hover:text-text cursor-pointer transition-colors text-ui uppercase tracking-wider"
+          className="flex items-center gap-1 w-28 justify-end bg-transparent border-none text-dimmed hover:text-foreground cursor-pointer transition-colors text-ui uppercase tracking-wider"
         >
           Amount
           <ArrowUpDown className="w-3 h-3" />
@@ -1503,13 +1503,13 @@ export function Transactions() {
 
       {/* Pagination */}
       {filteredTransactions.length > pageSizes[0] && (
-        <div className="flex items-center justify-between px-1 py-3 text-ui text-text-muted border-t border-border mt-2">
+        <div className="flex items-center justify-between px-1 py-3 text-ui text-dimmed border-t border-border mt-2">
           <div className="flex items-center gap-1.5">
             <span>Rows</span>
             <select
               value={pageSize}
               onChange={(e) => { setPageSize(Number(e.target.value)); setPage(0); }}
-              className="text-sm bg-transparent border border-border rounded px-1 py-0.5 text-text-secondary cursor-pointer"
+              className="text-sm bg-transparent border border-border rounded px-1 py-0.5 text-muted-foreground cursor-pointer"
             >
               {pageSizes.map((size) => (
                 <option key={size} value={size}>{size}</option>

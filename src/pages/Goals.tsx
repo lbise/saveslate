@@ -164,7 +164,7 @@ export function Goals() {
           title="Delete goal?"
           description={(
             <>
-              This will delete <span className="text-text">{goalToDelete.name}</span> and remove its goal link from related transactions.
+              This will delete <span className="text-foreground">{goalToDelete.name}</span> and remove its goal link from related transactions.
             </>
           )}
           confirmLabel="Delete goal"
@@ -175,41 +175,41 @@ export function Goals() {
 
       <div className="flex flex-wrap gap-8 mb-2">
         <div className="flex items-center gap-3">
-          <div className="w-2 h-2 rounded-full bg-text-secondary" />
+          <div className="w-2 h-2 rounded-full bg-muted-foreground" />
           <div className="flex flex-col gap-0.5">
             <span
-              className="text-body font-medium text-text"
+              className="text-body font-medium text-foreground"
               style={{ fontFamily: "var(--font-display)" }}
             >
               {goals.length}
             </span>
-            <span className="text-ui text-text-muted">Active Goals</span>
+            <span className="text-ui text-dimmed">Active Goals</span>
           </div>
         </div>
         <div className="flex items-center gap-3">
           <div className="w-2 h-2 rounded-full bg-income" />
           <div className="flex flex-col gap-0.5">
             <span
-              className="text-body font-medium text-text"
+              className="text-body font-medium text-foreground"
               style={{ fontFamily: "var(--font-display)" }}
             >
               {formatCurrency(goals.reduce((sum, g) => sum + g.currentAmount, 0))}
             </span>
-            <span className="text-ui text-text-muted">Total Saved</span>
+            <span className="text-ui text-dimmed">Total Saved</span>
           </div>
         </div>
         <div className="flex items-center gap-3">
-          <div className="w-2 h-2 rounded-full bg-text-muted" />
+          <div className="w-2 h-2 rounded-full bg-dimmed" />
           <div className="flex flex-col gap-0.5">
             <span
-              className="text-body font-medium text-text"
+              className="text-body font-medium text-foreground"
               style={{ fontFamily: "var(--font-display)" }}
             >
               {formatCurrency(
                 goals.reduce((sum, g) => sum + (g.goal.hasTarget === false ? 0 : g.goal.targetAmount), 0),
               )}
             </span>
-            <span className="text-ui text-text-muted">Total Target</span>
+            <span className="text-ui text-dimmed">Total Target</span>
           </div>
         </div>
       </div>
@@ -231,11 +231,11 @@ export function Goals() {
 
       {goals.length === 0 && (
         <div className="flex flex-col items-center justify-center py-20 text-center">
-          <div className="w-12 h-12 bg-surface rounded-(--radius-lg) flex items-center justify-center mb-4">
-            <Target size={24} className="text-text-muted" />
+          <div className="w-12 h-12 bg-card rounded-(--radius-lg) flex items-center justify-center mb-4">
+            <Target size={24} className="text-dimmed" />
           </div>
           <div className="text-body mb-1">No goals yet</div>
-          <div className="text-ui text-text-muted">
+          <div className="text-ui text-dimmed">
             Create your first savings goal to get started.
           </div>
         </div>

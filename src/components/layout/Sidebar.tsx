@@ -64,7 +64,7 @@ export function Sidebar({ collapsed, onToggleCollapse }: SidebarProps) {
     <aside
       className={cn(
         'fixed left-0 top-0 bottom-0 z-100 flex flex-col',
-        'bg-surface border-r border-border',
+        'bg-card border-r border-border',
         'transition-[width] duration-200 ease-out',
       )}
       style={{ width: isCollapsed ? 'var(--sidebar-collapsed)' : 'var(--sidebar-width)' }}
@@ -79,14 +79,14 @@ export function Sidebar({ collapsed, onToggleCollapse }: SidebarProps) {
         {!isCollapsed && (
           <Link
             to="/"
-            className="inline-flex items-center gap-2.5 whitespace-nowrap overflow-hidden text-text hover:text-text transition-colors"
+            className="inline-flex items-center gap-2.5 whitespace-nowrap overflow-hidden text-foreground hover:text-foreground transition-colors"
             style={{ textDecoration: 'none' }}
           >
-            <span className="w-8 h-8 rounded-(--radius-md) border border-accent/40 bg-accent/12 text-accent flex items-center justify-center shrink-0">
+            <span className="w-8 h-8 rounded-(--radius-md) border border-primary/40 bg-primary/12 text-primary flex items-center justify-center shrink-0">
               <PiggyBank size={16} />
             </span>
             <span
-              className="text-text"
+              className="text-foreground"
               style={{ fontFamily: 'var(--font-display)', fontSize: '22px', fontWeight: 600, letterSpacing: '-0.03em' }}
             >
               SaveSlate
@@ -96,7 +96,7 @@ export function Sidebar({ collapsed, onToggleCollapse }: SidebarProps) {
         {isCollapsed && isMobile && (
           <Link
             to="/"
-            className="w-8 h-8 rounded-(--radius-md) border border-accent/40 bg-accent/12 text-accent flex items-center justify-center hover:border-accent transition-colors"
+            className="w-8 h-8 rounded-(--radius-md) border border-primary/40 bg-primary/12 text-primary flex items-center justify-center hover:border-primary transition-colors"
             style={{ textDecoration: 'none' }}
           >
             <PiggyBank size={16} />
@@ -108,14 +108,14 @@ export function Sidebar({ collapsed, onToggleCollapse }: SidebarProps) {
             aria-label={isCollapsed ? 'Expand sidebar' : 'Collapse sidebar'}
             className={cn(
               'rounded-(--radius-sm) bg-transparent border border-border',
-              'text-text-muted hover:text-text hover:border-text-muted',
+              'text-dimmed hover:text-foreground hover:border-dimmed',
               'flex items-center justify-center transition-all duration-150',
               isCollapsed ? 'h-8 min-w-12 px-1.5 gap-1.5' : 'w-7 h-7',
             )}
           >
             {isCollapsed ? (
               <>
-                <span className="w-6 h-6 rounded-(--radius-sm) border border-accent/40 bg-accent/12 text-accent flex items-center justify-center">
+                <span className="w-6 h-6 rounded-(--radius-sm) border border-primary/40 bg-primary/12 text-primary flex items-center justify-center">
                   <PiggyBank size={12} />
                 </span>
                 <ChevronLeft size={14} className="rotate-180" />
@@ -192,7 +192,7 @@ export function Sidebar({ collapsed, onToggleCollapse }: SidebarProps) {
               onClick={logout} aria-label="Log out"
               className={cn(
                 'w-8 h-8 rounded-(--radius-sm) bg-transparent border-none',
-                'text-text-muted hover:text-expense hover:bg-expense/10',
+                'text-dimmed hover:text-expense hover:bg-expense/10',
                 'flex items-center justify-center transition-all duration-150',
               )}
             >

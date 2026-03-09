@@ -2,12 +2,12 @@ import { Link } from 'react-router-dom';
 
 export function Login() {
   return (
-    <div className="min-h-screen bg-bg-primary px-4 py-10 sm:px-6">
+    <div className="min-h-screen bg-background px-4 py-10 sm:px-6">
       <div className="mx-auto w-full max-w-md">
         <div className="card p-6 sm:p-7">
           <div className="mb-5">
             <h1 className="heading-1">Welcome back</h1>
-            <p className="text-body text-text-muted mt-1">Sign in to continue to SaveSlate.</p>
+            <p className="text-body text-dimmed mt-1">Sign in to continue to SaveSlate.</p>
           </div>
 
           <form className="space-y-4" onSubmit={(event) => event.preventDefault()}>
@@ -41,7 +41,7 @@ export function Login() {
             <button type="submit" className="btn-primary w-full">Sign in</button>
           </form>
 
-          <p className="text-ui text-text-muted mt-5 text-center">
+          <p className="text-ui text-dimmed mt-5 text-center">
             New here?{' '}
             <Link to="/register" className="text-link">Create an account</Link>
           </p>

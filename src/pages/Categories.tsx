@@ -397,7 +397,7 @@ export function Categories() {
           title="Delete category?"
           description={(
             <>
-              This will permanently delete <span className="text-text">{categoryToDelete.name}</span>.
+              This will permanently delete <span className="text-foreground">{categoryToDelete.name}</span>.
             </>
           )}
           confirmLabel="Delete category"
@@ -410,7 +410,7 @@ export function Categories() {
         <Modal onClose={closeModal} panelClassName="max-w-xl p-5">
           <section>
               <div className="section-header mb-4">
-                <h2 id="modal-title" className="heading-3 text-text">
+                <h2 id="modal-title" className="heading-3 text-foreground">
                   {editingCategoryId ? 'Edit Category' : 'Create Category'}
                 </h2>
                 <button aria-label="Close modal"
@@ -461,16 +461,16 @@ export function Categories() {
                     aria-controls="category-icon-picker"
                   >
                     <span className="flex items-center gap-2 min-w-0">
-                      <Icon name={form.icon} size={16} className="text-text" />
-                      <span className="text-body text-text truncate">{form.icon}</span>
+                      <Icon name={form.icon} size={16} className="text-foreground" />
+                      <span className="text-body text-foreground truncate">{form.icon}</span>
                     </span>
-                    <ChevronDown size={16} className="text-text-muted" />
+                    <ChevronDown size={16} className="text-dimmed" />
                   </button>
 
                   {iconPicker.isIconPickerOpen && (
                     <div id="category-icon-picker" className="card absolute z-20 mt-2 w-full p-3">
                       <div className="relative mb-3">
-                        <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-text-muted" />
+                        <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-dimmed" />
                         <input
                           id="category-icon-search"
                           className="input pl-9"
@@ -495,8 +495,8 @@ export function Categories() {
                                 'w-full flex items-center gap-2 px-3 py-2 text-left border-none bg-transparent',
                                 'transition-colors duration-150',
                                 isSelected
-                                  ? 'bg-surface-hover text-text'
-                                  : 'text-text-secondary hover:bg-surface-hover hover:text-text',
+                                  ? 'bg-secondary text-foreground'
+                                  : 'text-muted-foreground hover:bg-secondary hover:text-foreground',
                               )}
                             >
                               <Icon name={iconName} size={16} />
@@ -506,7 +506,7 @@ export function Categories() {
                         })}
 
                         {iconPicker.filteredIconNames.length === 0 && (
-                          <div className="px-3 py-4 text-ui text-text-muted">No icons found.</div>
+                          <div className="px-3 py-4 text-ui text-dimmed">No icons found.</div>
                         )}
                       </div>
                     </div>
@@ -534,7 +534,7 @@ export function Categories() {
       <section>
         <div className="section-header">
           <h2 className="section-title">Category Groups</h2>
-          <span className="text-ui text-text-muted">{categories.length} categories</span>
+          <span className="text-ui text-dimmed">{categories.length} categories</span>
         </div>
 
         <div className="space-y-4">
@@ -545,12 +545,12 @@ export function Categories() {
             >
               <div className="mb-3 flex items-center justify-between gap-3">
                 <div className="flex min-w-0 items-center gap-2.5">
-                  <div className="w-9 h-9 rounded-(--radius-md) flex items-center justify-center shrink-0 bg-text/10 text-text-secondary">
+                  <div className="w-9 h-9 rounded-(--radius-md) flex items-center justify-center shrink-0 bg-foreground/10 text-muted-foreground">
                     <Icon name={group.icon} size={16} />
                   </div>
                   <div className="min-w-0">
-                    <h3 className="heading-3 text-text">{group.name}</h3>
-                    <p className="text-ui text-text-muted">{group.categories.length} categories</p>
+                    <h3 className="heading-3 text-foreground">{group.name}</h3>
+                    <p className="text-ui text-dimmed">{group.categories.length} categories</p>
                   </div>
                 </div>
 
@@ -590,7 +590,7 @@ export function Categories() {
             </section>
           ))}
           {groupedCategories.length === 0 && (
-            <div className="col-span-full py-6 text-center text-ui text-text-muted">
+            <div className="col-span-full py-6 text-center text-ui text-dimmed">
               No categories yet.
             </div>
           )}

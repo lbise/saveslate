@@ -31,7 +31,7 @@ const iconBoxStyles = {
 const amountColors = {
   income: 'text-income',
   expense: 'text-expense',
-  transfer: 'text-text',
+  transfer: 'text-foreground',
 };
 
 function getAmountColorClass(type: TransactionType, amount: number): string {
@@ -44,7 +44,7 @@ function getAmountColorClass(type: TransactionType, amount: number): string {
   if (amount < 0) {
     return 'text-expense';
   }
-  return 'text-text';
+  return 'text-foreground';
 }
 
 export function TransactionItem({
@@ -80,16 +80,16 @@ export function TransactionItem({
 
       {/* Info */}
       <div className="flex-1 min-w-0">
-        <div className="text-body text-text truncate" title={description}>{description}</div>
-        <div className="text-ui text-text-muted flex items-center gap-2">
+        <div className="text-body text-foreground truncate" title={description}>{description}</div>
+        <div className="text-ui text-dimmed flex items-center gap-2">
           <span>{categoryName}</span>
           {transferFlow && (
-            <span className="text-text-secondary">
+            <span className="text-muted-foreground">
               &middot; {transferFlow.fromAccountName} &rarr; {transferFlow.toAccountName}
             </span>
           )}
-          {goalName && <span className="text-text-secondary">&middot; {goalName}</span>}
-          {isSplit && <span className="text-text-secondary">&middot; Split</span>}
+          {goalName && <span className="text-muted-foreground">&middot; {goalName}</span>}
+          {isSplit && <span className="text-muted-foreground">&middot; Split</span>}
         </div>
       </div>
 

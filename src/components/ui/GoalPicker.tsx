@@ -52,13 +52,13 @@ export function GoalPicker({
   return (
     <div
       className={cn(
-        'absolute z-30 w-56 bg-surface border border-border rounded-(--radius-md) py-1 shadow-(--shadow-md)',
+        'absolute z-30 w-56 bg-card border border-border rounded-(--radius-md) py-1 shadow-(--shadow-md)',
         className,
       )}
       onClick={(event) => event.stopPropagation()}
     >
       <div className="relative px-2 py-1.5">
-        <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-text-muted" />
+        <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-dimmed" />
         <input
           ref={inputRef}
           type="text"
@@ -76,11 +76,11 @@ export function GoalPicker({
           className={cn(
             'flex items-center gap-2.5 w-full px-3 py-1.5 text-left border-none cursor-pointer text-ui transition-colors',
             !currentGoalId
-              ? 'bg-surface-hover text-text'
-              : 'bg-transparent text-text-muted hover:bg-surface-hover hover:text-text',
+              ? 'bg-secondary text-foreground'
+              : 'bg-transparent text-dimmed hover:bg-secondary hover:text-foreground',
           )}
         >
-          <Target size={14} className={cn(!currentGoalId ? 'text-text' : 'text-text-muted')} />
+          <Target size={14} className={cn(!currentGoalId ? 'text-foreground' : 'text-dimmed')} />
           <span className="flex-1 truncate">No goal</span>
           {!currentGoalId && <Check size={12} />}
         </button>
@@ -88,7 +88,7 @@ export function GoalPicker({
         <div className="h-px bg-border mx-2 my-1" />
 
         {filteredGoals.length === 0 ? (
-          <div className="px-3 py-3 text-ui text-text-muted text-center">
+          <div className="px-3 py-3 text-ui text-dimmed text-center">
             No goals found
           </div>
         ) : (
@@ -103,10 +103,10 @@ export function GoalPicker({
                   'flex items-center gap-2.5 w-full px-3 py-1.5 text-left border-none cursor-pointer text-ui transition-colors',
                   isCurrent
                     ? 'bg-goal/10 text-goal'
-                    : 'bg-transparent text-text-secondary hover:bg-surface-hover hover:text-text',
+                    : 'bg-transparent text-muted-foreground hover:bg-secondary hover:text-foreground',
                 )}
               >
-                <Icon name={goal.icon} size={14} className={cn(isCurrent ? 'text-goal' : 'text-text-muted')} />
+                <Icon name={goal.icon} size={14} className={cn(isCurrent ? 'text-goal' : 'text-dimmed')} />
                 <span className="flex-1 truncate">{goal.name}</span>
                 {isCurrent && <Check size={12} />}
               </button>

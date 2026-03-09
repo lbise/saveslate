@@ -41,7 +41,7 @@ export function ParsedTransactionPreview({ rows }: ParsedTransactionPreviewProps
     <div>
       <div className="flex items-center gap-3 mb-2">
         <label className="label">Parsed preview</label>
-        <span className="text-ui text-text-muted">
+        <span className="text-ui text-dimmed">
           {rows.length} row{rows.length !== 1 ? "s" : ""}
         </span>
         {errorCount > 0 && (
@@ -66,30 +66,30 @@ export function ParsedTransactionPreview({ rows }: ParsedTransactionPreviewProps
       <div className="overflow-x-auto rounded-(--radius-md) border border-border">
         <table className="w-full text-sm">
           <thead>
-            <tr className="border-b border-border bg-surface">
-              <th className="px-3 py-2.5 text-left text-text-muted font-medium">
+            <tr className="border-b border-border bg-card">
+              <th className="px-3 py-2.5 text-left text-dimmed font-medium">
                 Date
               </th>
               {hasTime && (
-                <th className="px-3 py-2.5 text-left text-text-muted font-medium">
+                <th className="px-3 py-2.5 text-left text-dimmed font-medium">
                   Time
                 </th>
               )}
-              <th className="px-3 py-2.5 text-left text-text-muted font-medium">
+              <th className="px-3 py-2.5 text-left text-dimmed font-medium">
                 Description
               </th>
-              <th className="px-3 py-2.5 text-left text-text-muted font-medium">
+              <th className="px-3 py-2.5 text-left text-dimmed font-medium">
                 Category
               </th>
               {hasCurrency && (
-                <th className="px-3 py-2.5 text-left text-text-muted font-medium">
+                <th className="px-3 py-2.5 text-left text-dimmed font-medium">
                   Currency
                 </th>
               )}
-              <th className="px-3 py-2.5 text-right text-text-muted font-medium">
+              <th className="px-3 py-2.5 text-right text-dimmed font-medium">
                 Amount
               </th>
-              <th className="px-3 py-2.5 text-center text-text-muted font-medium w-10">
+              <th className="px-3 py-2.5 text-center text-dimmed font-medium w-10">
                 Status
               </th>
             </tr>
@@ -107,15 +107,15 @@ export function ParsedTransactionPreview({ rows }: ParsedTransactionPreviewProps
                     hasErrors && "bg-warning/[0.03]",
                   )}
                 >
-                  <td className="px-3 py-2.5 text-text-secondary whitespace-nowrap">
+                  <td className="px-3 py-2.5 text-muted-foreground whitespace-nowrap">
                     {row.date ? formatDate(row.date) : "\u2014"}
                   </td>
                   {hasTime && (
-                    <td className="px-3 py-2.5 text-text-secondary whitespace-nowrap">
+                    <td className="px-3 py-2.5 text-muted-foreground whitespace-nowrap">
                       {row.time ? row.time.slice(0, 5) : "\u2014"}
                     </td>
                   )}
-                  <td className="px-3 py-2.5 text-text">
+                  <td className="px-3 py-2.5 text-foreground">
                     <span
                       className="break-words"
                       title={row.description || undefined}
@@ -123,11 +123,11 @@ export function ParsedTransactionPreview({ rows }: ParsedTransactionPreviewProps
                       {row.description || "\u2014"}
                     </span>
                   </td>
-                  <td className="px-3 py-2.5 text-text-muted">
+                  <td className="px-3 py-2.5 text-dimmed">
                     {row.category || "\u2014"}
                   </td>
                   {hasCurrency && (
-                    <td className="px-3 py-2.5 text-text-muted">
+                    <td className="px-3 py-2.5 text-dimmed">
                       {row.currency || "\u2014"}
                     </td>
                   )}
@@ -158,7 +158,7 @@ export function ParsedTransactionPreview({ rows }: ParsedTransactionPreviewProps
           </tbody>
         </table>
         {filteredRows.length > PARSED_PAGE_SIZES[0] && (
-          <div className="flex items-center justify-between px-3 py-2 text-ui text-text-muted bg-surface border-t border-border">
+          <div className="flex items-center justify-between px-3 py-2 text-ui text-dimmed bg-card border-t border-border">
             <div className="flex items-center gap-1.5">
               <span>Rows</span>
               <select
@@ -167,7 +167,7 @@ export function ParsedTransactionPreview({ rows }: ParsedTransactionPreviewProps
                   setPageSize(Number(e.target.value));
                   setPage(0);
                 }}
-                className="text-sm bg-transparent border border-border rounded px-1 py-0.5 text-text-secondary cursor-pointer"
+                className="text-sm bg-transparent border border-border rounded px-1 py-0.5 text-muted-foreground cursor-pointer"
               >
                 {PARSED_PAGE_SIZES.map((size) => (
                   <option key={size} value={size}>

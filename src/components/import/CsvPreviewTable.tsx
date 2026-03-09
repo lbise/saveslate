@@ -38,8 +38,8 @@ export function CsvPreviewTable({
                   className={cn(
                     'px-3 py-2.5 text-left font-medium whitespace-nowrap',
                     highlight
-                      ? 'text-text bg-text/5'
-                      : 'text-text-muted bg-surface',
+                      ? 'text-foreground bg-foreground/5'
+                      : 'text-dimmed bg-card',
                   )}
                 >
                   <div className="flex flex-col gap-1">
@@ -57,7 +57,7 @@ export function CsvPreviewTable({
           {displayRows.map((row, rowIdx) => (
             <tr
               key={rowIdx}
-              className="border-b border-border last:border-b-0 hover:bg-surface-hover/30 transition-colors"
+              className="border-b border-border last:border-b-0 hover:bg-secondary/30 transition-colors"
             >
               {headers.map((_, colIdx) => {
                 const highlight = columnHighlights?.get(colIdx);
@@ -65,8 +65,8 @@ export function CsvPreviewTable({
                   <td
                     key={colIdx}
                     className={cn(
-                      'px-3 py-2 whitespace-nowrap text-text-secondary',
-                      highlight && 'bg-text/[0.02]',
+                      'px-3 py-2 whitespace-nowrap text-muted-foreground',
+                      highlight && 'bg-foreground/[0.02]',
                     )}
                   >
                     <span className="truncate block max-w-[200px]">
@@ -80,13 +80,13 @@ export function CsvPreviewTable({
         </tbody>
       </table>
       {rows.length > PAGE_SIZE_OPTIONS[0] && (
-        <div className="flex items-center justify-between px-3 py-2 text-ui text-text-muted bg-surface border-t border-border">
+        <div className="flex items-center justify-between px-3 py-2 text-ui text-dimmed bg-card border-t border-border">
           <div className="flex items-center gap-1.5">
             <span>Rows</span>
             <select
               value={pageSize}
               onChange={(e) => { setPageSize(Number(e.target.value)); setPage(0); }}
-              className="text-sm bg-transparent border border-border rounded px-1 py-0.5 text-text-secondary cursor-pointer"
+              className="text-sm bg-transparent border border-border rounded px-1 py-0.5 text-muted-foreground cursor-pointer"
             >
               {PAGE_SIZE_OPTIONS.map((size) => (
                 <option key={size} value={size}>{size}</option>

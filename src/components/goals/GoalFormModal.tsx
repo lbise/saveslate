@@ -147,7 +147,7 @@ export function GoalFormModal({
     <Modal onClose={onClose} panelClassName="max-w-3xl p-5">
       <section>
         <div className="section-header mb-4">
-          <h2 id="modal-title" className="heading-3 text-text">
+          <h2 id="modal-title" className="heading-3 text-foreground">
             {editingGoalId ? "Edit Goal" : "Create Goal"}
           </h2>
           <button className="btn-icon" onClick={onClose} aria-label="Close modal">
@@ -190,12 +190,12 @@ export function GoalFormModal({
                 aria-controls="goal-icon-picker"
               >
                 <span className="flex items-center gap-2 min-w-0">
-                  <Icon name={form.icon} size={16} className="text-text" />
-                  <span className="text-body text-text truncate">
+                  <Icon name={form.icon} size={16} className="text-foreground" />
+                  <span className="text-body text-foreground truncate">
                     {form.icon}
                   </span>
                 </span>
-                <ChevronDown size={16} className="text-text-muted" />
+                <ChevronDown size={16} className="text-dimmed" />
               </button>
 
               {iconPicker.isIconPickerOpen && (
@@ -206,7 +206,7 @@ export function GoalFormModal({
                   <div className="relative mb-3">
                     <Search
                       size={14}
-                      className="absolute left-3 top-1/2 -translate-y-1/2 text-text-muted"
+                      className="absolute left-3 top-1/2 -translate-y-1/2 text-dimmed"
                     />
                     <input
                       id="goal-icon-search"
@@ -237,8 +237,8 @@ export function GoalFormModal({
                             "w-full flex items-center gap-2 px-3 py-2 text-left border-none bg-transparent",
                             "transition-colors duration-150",
                             isSelected
-                              ? "bg-surface-hover text-text"
-                              : "text-text-secondary hover:bg-surface-hover hover:text-text",
+                              ? "bg-secondary text-foreground"
+                              : "text-muted-foreground hover:bg-secondary hover:text-foreground",
                           ].join(" ")}
                         >
                           <Icon name={iconName} size={16} />
@@ -248,7 +248,7 @@ export function GoalFormModal({
                     })}
 
                     {iconPicker.filteredIconNames.length === 0 && (
-                      <div className="px-3 py-4 text-ui text-text-muted">
+                      <div className="px-3 py-4 text-ui text-dimmed">
                         No icons found.
                       </div>
                     )}
@@ -264,7 +264,7 @@ export function GoalFormModal({
             </label>
             <textarea
               id="goal-description"
-              className="w-full px-4 py-2.5 rounded-md bg-surface border border-border text-text placeholder:text-text-muted focus:outline-none focus:ring-1 focus:ring-text-muted focus:border-text-muted transition-all duration-150 leading-5 min-h-16 resize-y"
+              className="w-full px-4 py-2.5 rounded-md bg-card border border-border text-foreground placeholder:text-dimmed focus:outline-none focus:ring-1 focus:ring-dimmed focus:border-dimmed transition-all duration-150 leading-5 min-h-16 resize-y"
               placeholder="Why are you saving for this goal?"
               value={form.description}
               onChange={(event) =>
@@ -335,14 +335,14 @@ export function GoalFormModal({
                 className={[
                   "card p-3 text-left transition-colors duration-150 border",
                   form.targetMethod === "fixed"
-                    ? "border-text bg-surface-hover"
-                    : "border-border hover:border-text-muted",
+                    ? "border-foreground bg-secondary"
+                    : "border-border hover:border-dimmed",
                 ].join(" ")}
               >
-                <div className="text-body text-text font-medium">
+                <div className="text-body text-foreground font-medium">
                   Fixed Target Amount
                 </div>
-                <div className="text-ui text-text-muted">
+                <div className="text-ui text-dimmed">
                   Set one exact target value.
                 </div>
               </button>
@@ -358,14 +358,14 @@ export function GoalFormModal({
                 className={[
                   "card p-3 text-left transition-colors duration-150 border",
                   form.targetMethod === "contribution"
-                    ? "border-text bg-surface-hover"
-                    : "border-border hover:border-text-muted",
+                    ? "border-foreground bg-secondary"
+                    : "border-border hover:border-dimmed",
                 ].join(" ")}
               >
-                <div className="text-body text-text font-medium">
+                <div className="text-body text-foreground font-medium">
                   Contribution Plan
                 </div>
-                <div className="text-ui text-text-muted">
+                <div className="text-ui text-dimmed">
                   Set a recurring contribution without a fixed target.
                 </div>
               </button>
@@ -452,44 +452,44 @@ export function GoalFormModal({
             </div>
           )}
 
-          <div className="card p-3.5 bg-bg">
+          <div className="card p-3.5 bg-background">
             {form.targetMethod === "fixed" ? (
               <>
-                <div className="text-ui text-text-muted">Target preview</div>
-                <div className="text-body text-text mt-1">
+                <div className="text-ui text-dimmed">Target preview</div>
+                <div className="text-body text-foreground mt-1">
                   {formatCurrency(previewTargetAmount)}
                 </div>
-                <div className="text-ui text-text-muted mt-2">
+                <div className="text-ui text-dimmed mt-2">
                   Already saved: {formatCurrency(startingAmount)}
                 </div>
-                <div className="text-ui text-text-muted">
+                <div className="text-ui text-dimmed">
                   Left to save: {formatCurrency(amountLeftToSave)}
                 </div>
               </>
             ) : (
               <>
-                <div className="text-ui text-text-muted">
+                <div className="text-ui text-dimmed">
                   Contribution plan
                 </div>
-                <div className="text-body text-text mt-1">
+                <div className="text-body text-foreground mt-1">
                   {formatCurrency(expectedContributionAmount)}{" "}
                   {form.expectedContributionFrequency}
                 </div>
-                <div className="text-ui text-text-muted mt-2">
+                <div className="text-ui text-dimmed mt-2">
                   Yearly contribution:{" "}
                   {formatCurrency(yearlyContributionAmount)}
                 </div>
-                <div className="text-ui text-text-muted">
+                <div className="text-ui text-dimmed">
                   Horizon:{" "}
                   {form.dueDate
                     ? `until due date (${contributionPeriodsLabel})`
                     : `until year end (${contributionPeriodsLabel})`}
                 </div>
-                <div className="text-ui text-text-muted">
+                <div className="text-ui text-dimmed">
                   Planned total in horizon:{" "}
                   {formatCurrency(derivedContributionPlanAmount)}
                 </div>
-                <div className="text-ui text-text-muted">
+                <div className="text-ui text-dimmed">
                   Current saved amount: {formatCurrency(startingAmount)}
                 </div>
               </>

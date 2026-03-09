@@ -71,7 +71,7 @@ export function Modal({ onClose, children, panelClassName, ariaLabelledBy = MODA
 
   return (
     <>
-      <div className="fixed inset-0 z-[190] bg-bg/70" onClick={onClose} aria-hidden="true" />
+      <div className="fixed inset-0 z-[190] bg-background/70" onClick={onClose} aria-hidden="true" />
       <div className="fixed inset-0 z-[200] overflow-y-auto p-4 sm:p-6">
         <div className="min-h-full flex items-start sm:items-center justify-center">
           <div

@@ -73,7 +73,7 @@ export function ParserLibrary({
       <div className="flex items-start justify-between gap-3 flex-wrap">
         <div>
           <h3 className="section-title">Parser library</h3>
-          <p className="text-ui text-text-muted mt-1">
+          <p className="text-ui text-dimmed mt-1">
             Import and export parser presets without uploading a CSV first.
           </p>
         </div>
@@ -104,7 +104,7 @@ export function ParserLibrary({
       {importError && <p className="text-ui text-expense">{importError}</p>}
 
       {sortedParsers.length === 0 ? (
-        <p className="text-ui text-text-muted">
+        <p className="text-ui text-dimmed">
           No parsers saved yet. Import one now, then pick it after you upload a CSV.
         </p>
       ) : (
@@ -115,7 +115,7 @@ export function ParserLibrary({
               className="flex items-center gap-2 p-2 rounded-(--radius-md) border border-border"
             >
               <div className="flex-1 min-w-0">
-                <p className="text-ui text-text font-medium truncate">{parser.name}</p>
+                <p className="text-ui text-foreground font-medium truncate">{parser.name}</p>
               </div>
 
               <div className="flex items-center gap-2">

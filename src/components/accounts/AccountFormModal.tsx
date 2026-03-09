@@ -64,7 +64,7 @@ export function AccountFormModal({
     <Modal onClose={onCancel} panelClassName="max-w-xl p-5">
       <section>
           <div className="section-header mb-4">
-            <h2 id="modal-title" className="heading-3 text-text">
+            <h2 id="modal-title" className="heading-3 text-foreground">
               {isEditing ? 'Edit Account' : 'Create Account'}
             </h2>
             <button type="button" className="btn-icon" onClick={onCancel} aria-label="Close modal">
@@ -196,10 +196,10 @@ export function AccountFormModal({
                 aria-controls="account-icon-picker"
               >
                 <span className="flex items-center gap-2 min-w-0">
-                  <Icon name={form.icon} size={16} className="text-text" />
-                  <span className="text-body text-text truncate">{form.icon}</span>
+                  <Icon name={form.icon} size={16} className="text-foreground" />
+                  <span className="text-body text-foreground truncate">{form.icon}</span>
                 </span>
-                <ChevronDown size={16} className="text-text-muted" />
+                <ChevronDown size={16} className="text-dimmed" />
               </button>
 
               {isIconPickerOpen && (
@@ -207,7 +207,7 @@ export function AccountFormModal({
                   <div className="relative mb-3">
                     <Search
                       size={14}
-                      className="absolute left-3 top-1/2 -translate-y-1/2 text-text-muted"
+                      className="absolute left-3 top-1/2 -translate-y-1/2 text-dimmed"
                     />
                     <input
                       id="account-icon-search"
@@ -233,8 +233,8 @@ export function AccountFormModal({
                             'w-full flex items-center gap-2 px-3 py-2 text-left border-none bg-transparent',
                             'transition-colors duration-150',
                             isSelected
-                              ? 'bg-surface-hover text-text'
-                              : 'text-text-secondary hover:bg-surface-hover hover:text-text',
+                              ? 'bg-secondary text-foreground'
+                              : 'text-muted-foreground hover:bg-secondary hover:text-foreground',
                           ].join(' ')}
                         >
                           <Icon name={iconName} size={16} />
@@ -244,7 +244,7 @@ export function AccountFormModal({
                     })}
 
                     {filteredIconNames.length === 0 && (
-                      <div className="px-3 py-4 text-ui text-text-muted">
+                      <div className="px-3 py-4 text-ui text-dimmed">
                         No icons found.
                       </div>
                     )}

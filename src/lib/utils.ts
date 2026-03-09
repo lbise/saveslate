@@ -102,7 +102,10 @@ export const formatPercentage = (value: number): string => {
   return `${value.toFixed(1)}%`;
 };
 
-// Class name helper (simple cn alternative)
-export const cn = (...classes: (string | undefined | false)[]): string => {
-  return classes.filter(Boolean).join(' ');
-};
+// Class name helper (shadcn pattern: clsx + tailwind-merge)
+import { type ClassValue, clsx } from 'clsx';
+import { twMerge } from 'tailwind-merge';
+
+export function cn(...inputs: ClassValue[]) {
+  return twMerge(clsx(inputs));
+}

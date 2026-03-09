@@ -135,10 +135,10 @@ const OPERATOR_LABELS: Record<AutomationConditionOperator, string> = {
 };
 
 const metricToneClasses: Record<EntityCardDetailTone, string> = {
-  default: 'text-text-secondary',
-  strong: 'text-text',
-  muted: 'text-text-muted',
-  accent: 'text-accent',
+  default: 'text-muted-foreground',
+  strong: 'text-foreground',
+  muted: 'text-dimmed',
+  accent: 'text-primary',
   goal: 'text-goal',
   income: 'text-income',
   transfer: 'text-transfer',
@@ -452,8 +452,8 @@ function MockSection({ section }: MockSectionProps) {
     <section className="space-y-3">
       <div className="flex items-start justify-between gap-3">
         <div>
-          <h2 className="section-title text-text">{section.title}</h2>
-          <p className="text-ui text-text-muted mt-0.5">{section.description}</p>
+          <h2 className="section-title text-foreground">{section.title}</h2>
+          <p className="text-ui text-dimmed mt-0.5">{section.description}</p>
         </div>
 
         <div className="flex items-center gap-1.5 shrink-0">
@@ -506,8 +506,8 @@ function MockSection({ section }: MockSectionProps) {
                         className="flex items-center justify-between gap-3"
                       >
                         <div className="min-w-0">
-                          <p className="text-ui text-text truncate">{item.description}</p>
-                          <p className="text-ui text-text-muted">{item.date}</p>
+                          <p className="text-ui text-foreground truncate">{item.description}</p>
+                          <p className="text-ui text-dimmed">{item.date}</p>
                         </div>
 
                         <span
@@ -550,7 +550,7 @@ function MockSection({ section }: MockSectionProps) {
                           : card.progress.tone === 'warning'
                             ? 'bg-warning'
                             : card.progress.tone === 'accent'
-                              ? 'bg-accent'
+                              ? 'bg-primary'
                               : 'bg-goal',
                       )}
                       style={{ width: `${Math.max(0, Math.min(card.progress.percentage, 100))}%` }}
@@ -940,7 +940,7 @@ export function TestMockup() {
         </Link>
       </PageHeader>
 
-      <p className="text-body text-text-muted">
+      <p className="text-body text-dimmed">
         Unified list-card language for Accounts, Categories, Goals, and Rules.
         This page uses your current local data whenever available, with typed fallback data only when a section is empty.
       </p>

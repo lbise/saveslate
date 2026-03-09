@@ -393,7 +393,7 @@ export function Rules() {
           title="Delete rule?"
           description={(
             <>
-              This will permanently delete <span className="text-text">{ruleToDelete.name}</span>.
+              This will permanently delete <span className="text-foreground">{ruleToDelete.name}</span>.
             </>
           )}
           confirmLabel="Delete rule"
@@ -415,7 +415,7 @@ export function Rules() {
       <section className="card p-4">
         <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4">
           <div>
-            <h2 className="heading-3 text-text">Automation Engine</h2>
+            <h2 className="heading-3 text-foreground">Automation Engine</h2>
             <p className="text-body mt-1">
               Runs enabled manual rules on current transactions.
             </p>
@@ -432,7 +432,7 @@ export function Rules() {
         </div>
 
         {manualRunSummary && (
-          <p className="text-ui text-text-muted mt-3">
+          <p className="text-ui text-dimmed mt-3">
             Last run {new Date(manualRunSummary.ranAt).toLocaleString()}:
             evaluated {manualRunSummary.evaluatedCount}, matched{" "}
             {manualRunSummary.matchedCount}, changed{" "}
@@ -444,13 +444,13 @@ export function Rules() {
       <section>
         <div className="section-header">
           <h2 className="section-title">All Rules</h2>
-          <span className="text-ui text-text-muted">{rules.length} rules</span>
+          <span className="text-ui text-dimmed">{rules.length} rules</span>
         </div>
 
         {rules.length === 0 ? (
           <div className="card p-6 text-center">
-            <p className="text-body text-text">No rules yet.</p>
-            <p className="text-ui text-text-muted mt-1">
+            <p className="text-body text-foreground">No rules yet.</p>
+            <p className="text-ui text-dimmed mt-1">
               Create a rule to auto-categorize transactions on import or manual
               run.
             </p>
@@ -469,7 +469,7 @@ export function Rules() {
                   title={rule.name}
                   tone={rule.isEnabled ? "income" : "warning"}
                   metric={rule.isEnabled ? "Enabled" : "Disabled"}
-                  metricClassName={rule.isEnabled ? "text-income" : "text-text-muted"}
+                  metricClassName={rule.isEnabled ? "text-income" : "text-dimmed"}
                   badges={rule.triggers.map((trigger) => (
                     <span key={trigger} className="badge-muted">
                       {getTriggerLabel(trigger)}
@@ -518,7 +518,7 @@ export function Rules() {
                     <EntityCardSection title="Conditions">
                       <div className="space-y-1.5">
                         {rule.conditions.map((condition) => (
-                          <p key={condition.id} className="text-ui text-text-muted">
+                          <p key={condition.id} className="text-ui text-dimmed">
                             {formatCondition(
                               condition,
                               resolveConditionValueLabel(condition.field, condition.value),

@@ -29,12 +29,12 @@ function SettingRow({ icon: IconComp, label, description, children }: SettingRow
   return (
     <div className="flex items-center justify-between gap-4 py-4 border-b border-border last:border-b-0">
       <div className="flex items-center gap-3 flex-1 min-w-0">
-        <div className="w-9 h-9 bg-surface rounded-(--radius-md) flex items-center justify-center shrink-0">
-          <IconComp size={16} className="text-text-secondary" />
+        <div className="w-9 h-9 bg-card rounded-(--radius-md) flex items-center justify-center shrink-0">
+          <IconComp size={16} className="text-muted-foreground" />
         </div>
         <div className="min-w-0">
-          <div className="text-body font-medium text-text">{label}</div>
-           <div className="text-ui text-text-muted">{description}</div>
+          <div className="text-body font-medium text-foreground">{label}</div>
+           <div className="text-ui text-dimmed">{description}</div>
         </div>
       </div>
       <div className="shrink-0">{children}</div>
@@ -88,7 +88,7 @@ export function Settings() {
           title="Clear all data?"
           description="This will permanently delete all saved financial data on this device."
           details={(
-            <p className="text-ui text-text-muted">
+            <p className="text-ui text-dimmed">
               This includes transactions, import batches, accounts, goals, tags, automation rules, and parser presets.
             </p>
           )}
@@ -193,28 +193,28 @@ export function Settings() {
           {clearDataError && (
             <p className="text-ui text-expense">{clearDataError}</p>
           )}
-          <button className="flex items-center gap-3 w-full p-3.5 bg-surface rounded-(--radius-md) text-left transition-colors duration-150 hover:bg-surface-hover cursor-pointer border-none">
-            <div className="w-9 h-9 bg-bg rounded-(--radius-sm) flex items-center justify-center shrink-0">
-              <Download size={16} className="text-text-secondary" />
+          <button className="flex items-center gap-3 w-full p-3.5 bg-card rounded-(--radius-md) text-left transition-colors duration-150 hover:bg-secondary cursor-pointer border-none">
+            <div className="w-9 h-9 bg-background rounded-(--radius-sm) flex items-center justify-center shrink-0">
+              <Download size={16} className="text-muted-foreground" />
             </div>
             <div>
-              <div className="text-body text-text">Export Data</div>
-               <div className="text-ui text-text-muted">Download all transactions as CSV</div>
+              <div className="text-body text-foreground">Export Data</div>
+               <div className="text-ui text-dimmed">Download all transactions as CSV</div>
             </div>
           </button>
           <button
-            className="flex items-center gap-3 w-full p-3.5 bg-surface rounded-(--radius-md) text-left transition-colors duration-150 hover:bg-surface-hover cursor-pointer border-none"
+            className="flex items-center gap-3 w-full p-3.5 bg-card rounded-(--radius-md) text-left transition-colors duration-150 hover:bg-secondary cursor-pointer border-none"
             onClick={() => {
               setClearDataError(null);
               setIsClearDataModalOpen(true);
             }}
           >
-            <div className="w-9 h-9 bg-bg rounded-(--radius-sm) flex items-center justify-center shrink-0">
+            <div className="w-9 h-9 bg-background rounded-(--radius-sm) flex items-center justify-center shrink-0">
               <Trash2 size={16} className="text-expense" />
             </div>
             <div>
               <div className="text-body text-expense">Clear All Data</div>
-              <div className="text-ui text-text-muted">
+              <div className="text-ui text-dimmed">
                 Permanently delete all saved transactions, accounts, goals, rules, tags, and parser presets
               </div>
             </div>
@@ -231,7 +231,7 @@ export function Settings() {
            >
              SaveSlate v0.1.0
             </div>
-           <div className="text-ui text-text-muted mt-1">
+           <div className="text-ui text-dimmed mt-1">
             Made with care in Switzerland
           </div>
         </div>

@@ -83,7 +83,7 @@ export function CategoryPicker({
   return (
     <div
       className={cn(
-        'absolute left-0 z-30 w-52 bg-surface border border-border rounded-(--radius-md) py-1 shadow-(--shadow-md)',
+        'absolute left-0 z-30 w-52 bg-card border border-border rounded-(--radius-md) py-1 shadow-(--shadow-md)',
         openUpward ? 'bottom-full mb-1' : 'top-full mt-1',
         className,
       )}
@@ -91,27 +91,27 @@ export function CategoryPicker({
     >
       {/* Search */}
       <div className="relative px-2 py-1.5">
-        <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-text-muted" />
+        <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-dimmed" />
         <input
           ref={inputRef}
           type="text"
           placeholder="Search..."
           value={query}
           onChange={(e) => setQuery(e.target.value)}
-          className="w-full pl-7 pr-2 py-1.5 rounded-(--radius-sm) bg-bg border border-border text-ui text-text placeholder:text-text-muted focus:outline-none focus:border-text-muted transition-colors"
+          className="w-full pl-7 pr-2 py-1.5 rounded-(--radius-sm) bg-background border border-border text-ui text-foreground placeholder:text-dimmed focus:outline-none focus:border-dimmed transition-colors"
         />
       </div>
 
       {/* Category list — grouped by CategoryGroup */}
       <div className="max-h-64 overflow-y-auto py-1">
         {!hasAnyCategory ? (
-          <div className="px-3 py-3 text-ui text-text-muted text-center">
+          <div className="px-3 py-3 text-ui text-dimmed text-center">
             No categories found
           </div>
         ) : (
           groupedCategories.map(({ group, categories }) => (
             <div key={group.id} className="py-1">
-              <div className="px-3 py-1 text-ui text-text-muted uppercase tracking-wider">
+              <div className="px-3 py-1 text-ui text-dimmed uppercase tracking-wider">
                 {group.name}
               </div>
               {categories.map((cat) => {
@@ -123,14 +123,14 @@ export function CategoryPicker({
                     className={cn(
                       'flex items-center gap-2.5 w-full px-3 py-1.5 text-left border-none cursor-pointer text-ui transition-colors',
                       isCurrent
-                        ? 'bg-text/10 text-text'
-                        : 'bg-transparent text-text-secondary hover:bg-surface-hover hover:text-text',
+                        ? 'bg-foreground/10 text-foreground'
+                        : 'bg-transparent text-muted-foreground hover:bg-secondary hover:text-foreground',
                     )}
                   >
                     <Icon
                       name={cat.icon}
                       size={14}
-                      className={cn('text-text-secondary', isCurrent ? 'opacity-100' : 'opacity-60')}
+                      className={cn('text-muted-foreground', isCurrent ? 'opacity-100' : 'opacity-60')}
                     />
                     <span className="flex-1 truncate">{cat.name}</span>
                     {isCurrent && <Check size={12} />}

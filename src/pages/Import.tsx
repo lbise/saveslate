@@ -287,12 +287,12 @@ export function Import() {
         <div className="space-y-6">
           {/* File info */}
           <div className="flex items-center gap-3 px-1">
-            <FileText size={16} className="text-text-muted" />
+            <FileText size={16} className="text-dimmed" />
             <span className="text-ui">{fileName}</span>
-            <span className="text-ui text-text-muted">&middot; {dataRows.length} rows</span>
+            <span className="text-ui text-dimmed">&middot; {dataRows.length} rows</span>
             <button
               onClick={handleBackToUpload}
-              className="text-ui text-text-muted hover:text-text transition-colors ml-auto bg-transparent border-none cursor-pointer"
+              className="text-ui text-dimmed hover:text-foreground transition-colors ml-auto bg-transparent border-none cursor-pointer"
             >
               Change file
             </button>
@@ -322,14 +322,14 @@ export function Import() {
       {step === 'preview' && selectedParser && (
         <div className="space-y-6">
           <div className="flex items-center gap-3 px-1">
-            <FileText size={16} className="text-text-muted" />
+            <FileText size={16} className="text-dimmed" />
             <span className="text-ui">{fileName}</span>
-            <span className="text-ui text-text-muted">
+            <span className="text-ui text-dimmed">
               &middot; parser: {selectedParser.name}
             </span>
             <button
               onClick={handleBackToParser}
-              className="text-ui text-text-muted hover:text-text transition-colors ml-auto bg-transparent border-none cursor-pointer"
+              className="text-ui text-dimmed hover:text-foreground transition-colors ml-auto bg-transparent border-none cursor-pointer"
             >
               Change parser
             </button>
@@ -357,13 +357,13 @@ export function Import() {
           </p>
           <div className="flex gap-6 mb-8">
             <div className="text-center">
-              <p className="text-ui text-text-muted mb-1">Income</p>
+              <p className="text-ui text-dimmed mb-1">Income</p>
               <p className="text-ui text-income font-medium" style={{ fontFamily: 'var(--font-display)' }}>
                 +{formatCurrency(importResult.income)}
               </p>
             </div>
             <div className="text-center">
-              <p className="text-ui text-text-muted mb-1">Expenses</p>
+              <p className="text-ui text-dimmed mb-1">Expenses</p>
               <p className="text-ui text-expense font-medium" style={{ fontFamily: 'var(--font-display)' }}>
                 -{formatCurrency(importResult.expense)}
               </p>

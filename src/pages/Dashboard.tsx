@@ -53,7 +53,7 @@ export function Dashboard() {
       <section className="mb-12">
         <div className="text-muted mb-2">Total Balance</div>
         <div
-          className="text-text mb-7"
+          className="text-foreground mb-7"
           style={{
             fontFamily: 'var(--font-display)',
             fontSize: '48px',
@@ -204,16 +204,16 @@ interface AccountRowProps {
 
 function AccountRow({ account, balance, formatCurrency: fmt }: AccountRowProps) {
   return (
-    <div className="flex items-center gap-3 p-3 rounded-(--radius-md) transition-colors duration-150 hover:bg-surface">
-      <div className="w-8 h-8 bg-surface rounded-(--radius-sm) flex items-center justify-center shrink-0">
-        <Icon name={account.icon} size={16} className="text-text-secondary" />
+    <div className="flex items-center gap-3 p-3 rounded-(--radius-md) transition-colors duration-150 hover:bg-card">
+      <div className="w-8 h-8 bg-card rounded-(--radius-sm) flex items-center justify-center shrink-0">
+        <Icon name={account.icon} size={16} className="text-muted-foreground" />
       </div>
       <div className="flex flex-col flex-1 min-w-0">
-        <span className="text-body font-medium text-text truncate">{account.name}</span>
-        <span className="text-ui text-text-muted capitalize">{account.type}</span>
+        <span className="text-body font-medium text-foreground truncate">{account.name}</span>
+        <span className="text-ui text-dimmed capitalize">{account.type}</span>
       </div>
       <span
-        className={`text-body font-medium ${balance < 0 ? 'text-expense' : 'text-text'}`}
+        className={`text-body font-medium ${balance < 0 ? 'text-expense' : 'text-foreground'}`}
         style={{ fontFamily: 'var(--font-display)' }}
       >
         {fmt(balance, account.currency)}
@@ -232,12 +232,12 @@ interface SpendingRowProps {
 
 function SpendingRow({ categoryName, categoryIcon, amount, percentage, formatCurrency: fmt }: SpendingRowProps) {
   return (
-    <div className="flex items-center gap-3 p-3 rounded-(--radius-md) transition-colors duration-150 hover:bg-surface">
-      <div className="w-8 h-8 bg-surface rounded-(--radius-sm) flex items-center justify-center shrink-0">
-        <Icon name={categoryIcon} size={16} className="text-text-secondary" />
+    <div className="flex items-center gap-3 p-3 rounded-(--radius-md) transition-colors duration-150 hover:bg-card">
+      <div className="w-8 h-8 bg-card rounded-(--radius-sm) flex items-center justify-center shrink-0">
+        <Icon name={categoryIcon} size={16} className="text-muted-foreground" />
       </div>
       <div className="flex flex-col flex-1 min-w-0">
-        <span className="text-body font-medium text-text truncate">{categoryName}</span>
+        <span className="text-body font-medium text-foreground truncate">{categoryName}</span>
         <div className="flex items-center gap-2 mt-1">
           <div className="h-1 flex-1 bg-border rounded-full overflow-hidden">
             <div
@@ -245,11 +245,11 @@ function SpendingRow({ categoryName, categoryIcon, amount, percentage, formatCur
               style={{ width: `${Math.min(percentage, 100)}%` }}
             />
           </div>
-          <span className="text-ui text-text-muted shrink-0">{percentage.toFixed(0)}%</span>
+          <span className="text-ui text-dimmed shrink-0">{percentage.toFixed(0)}%</span>
         </div>
       </div>
       <span
-        className="text-body font-medium text-text shrink-0"
+        className="text-body font-medium text-foreground shrink-0"
         style={{ fontFamily: 'var(--font-display)' }}
       >
         {fmt(amount)}

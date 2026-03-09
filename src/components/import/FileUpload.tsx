@@ -85,8 +85,8 @@ export function FileUpload({ onFileLoaded }: FileUploadProps) {
             <FileText size={20} className="text-income" />
           </div>
           <div className="flex-1 min-w-0">
-            <p className="text-body text-text font-medium truncate">{fileName}</p>
-            <p className="text-ui text-text-muted mt-0.5">Ready to configure parser</p>
+            <p className="text-body text-foreground font-medium truncate">{fileName}</p>
+            <p className="text-ui text-dimmed mt-0.5">Ready to configure parser</p>
           </div>
           <button
             onClick={handleClear}
@@ -112,18 +112,18 @@ export function FileUpload({ onFileLoaded }: FileUploadProps) {
           'flex flex-col items-center justify-center gap-4 py-16 px-8',
           'border-dashed',
           isDragging
-            ? 'border-text/40 bg-surface-hover'
-            : 'border-border hover:border-text-muted hover:bg-surface-hover/50',
+            ? 'border-foreground/40 bg-secondary'
+            : 'border-border hover:border-dimmed hover:bg-secondary/50',
         )}
       >
-        <div className="w-12 h-12 rounded-full bg-surface-hover flex items-center justify-center">
-          <Upload size={20} className="text-text-muted" />
+        <div className="w-12 h-12 rounded-full bg-secondary flex items-center justify-center">
+          <Upload size={20} className="text-dimmed" />
         </div>
         <div className="text-center">
-          <p className="text-body text-text font-medium">
+          <p className="text-body text-foreground font-medium">
             Drop a CSV file here or click to browse
           </p>
-          <p className="text-ui text-text-muted mt-1">
+          <p className="text-ui text-dimmed mt-1">
             Supports .csv files up to 10 MB
           </p>
         </div>

@@ -32,7 +32,7 @@ export function DeleteConfirmationModal({
           <h2 id="modal-title" className="heading-2">{title}</h2>
           <p className="text-body">{description}</p>
           {details}
-          <p className="text-ui text-text-muted">{note ?? 'This action cannot be undone.'}</p>
+          <p className="text-ui text-dimmed">{note ?? 'This action cannot be undone.'}</p>
         </div>
 
         <div className="flex items-center justify-end gap-2">

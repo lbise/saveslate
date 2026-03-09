@@ -146,13 +146,13 @@ export function TagPicker({
   return (
     <div
       className={cn(
-        'absolute z-30 w-80 max-w-[calc(100vw-2rem)] bg-surface border border-border rounded-(--radius-md) py-1 shadow-(--shadow-md)',
+        'absolute z-30 w-80 max-w-[calc(100vw-2rem)] bg-card border border-border rounded-(--radius-md) py-1 shadow-(--shadow-md)',
         className,
       )}
       onClick={(event) => event.stopPropagation()}
     >
       <div className="relative px-2 py-1.5">
-        <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-text-muted" />
+        <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-dimmed" />
         <input
           ref={searchInputRef}
           type="text"
@@ -168,7 +168,7 @@ export function TagPicker({
           <button
             type="button"
             onClick={() => onChange([])}
-            className="w-full px-2 py-1.5 rounded-(--radius-sm) bg-transparent border-none cursor-pointer text-ui text-text-muted hover:text-text hover:bg-surface-hover transition-colors text-left flex items-center gap-2"
+            className="w-full px-2 py-1.5 rounded-(--radius-sm) bg-transparent border-none cursor-pointer text-ui text-dimmed hover:text-foreground hover:bg-secondary transition-colors text-left flex items-center gap-2"
           >
             <X size={12} />
             Clear tags
@@ -178,7 +178,7 @@ export function TagPicker({
 
       <div className="max-h-56 overflow-y-auto py-1 px-2 space-y-1">
         {filteredTags.length === 0 ? (
-          <div className="px-2 py-2 text-ui text-text-muted text-center">
+          <div className="px-2 py-2 text-ui text-dimmed text-center">
             {tags.length === 0 ? 'No tags yet. Add your first tag below.' : 'No tags found'}
           </div>
         ) : (
@@ -193,8 +193,8 @@ export function TagPicker({
                 className={cn(
                   'flex items-center gap-2 rounded-(--radius-sm) px-2 py-1.5 transition-colors',
                   isSelected
-                    ? 'bg-surface-hover text-text'
-                    : 'text-text-secondary hover:bg-surface-hover hover:text-text',
+                    ? 'bg-secondary text-foreground'
+                    : 'text-muted-foreground hover:bg-secondary hover:text-foreground',
                 )}
               >
                 <button
@@ -206,7 +206,7 @@ export function TagPicker({
                   <span className="text-ui truncate" style={{ color: tag.color }}>
                     {tag.name}
                   </span>
-                  <span className="text-ui text-text-muted ml-auto shrink-0">{usageCount}</span>
+                  <span className="text-ui text-dimmed ml-auto shrink-0">{usageCount}</span>
                 </button>
 
                 <div className="ml-auto flex items-center gap-1">
@@ -228,7 +228,7 @@ export function TagPicker({
                           event.stopPropagation();
                           setPendingDeleteTagId(null);
                         }}
-                        className="text-ui text-text-muted bg-transparent border-none cursor-pointer hover:text-text"
+                        className="text-ui text-dimmed bg-transparent border-none cursor-pointer hover:text-foreground"
                       >
                         Cancel
                       </button>
@@ -241,7 +241,7 @@ export function TagPicker({
                           event.stopPropagation();
                           startEditingTag(tag);
                         }}
-                        className="w-6 h-6 flex items-center justify-center rounded-(--radius-sm) bg-transparent border-none text-text-muted hover:text-text hover:bg-surface-hover cursor-pointer"
+                        className="w-6 h-6 flex items-center justify-center rounded-(--radius-sm) bg-transparent border-none text-dimmed hover:text-foreground hover:bg-secondary cursor-pointer"
                         title={`Edit tag ${tag.name}`}
                       >
                         <Pencil size={12} />
@@ -252,7 +252,7 @@ export function TagPicker({
                           event.stopPropagation();
                           setPendingDeleteTagId(tag.id);
                         }}
-                        className="w-6 h-6 flex items-center justify-center rounded-(--radius-sm) bg-transparent border-none text-text-muted hover:text-expense hover:bg-expense/10 cursor-pointer"
+                        className="w-6 h-6 flex items-center justify-center rounded-(--radius-sm) bg-transparent border-none text-dimmed hover:text-expense hover:bg-expense/10 cursor-pointer"
                         title={`Delete tag ${tag.name}`}
                       >
                         <Trash2 size={12} />
@@ -270,7 +270,7 @@ export function TagPicker({
 
       <div className="px-2 pb-2 space-y-2">
         <div className="space-y-1">
-          <p className="text-ui text-text-muted">{editingTagId ? 'Edit tag' : 'Create tag'}</p>
+          <p className="text-ui text-dimmed">{editingTagId ? 'Edit tag' : 'Create tag'}</p>
           <input
             type="text"
             className="input h-auto py-1.5"
@@ -296,8 +296,8 @@ export function TagPicker({
                 className={cn(
                   'w-6 h-6 rounded-full border transition-all',
                   isActive
-                    ? 'border-text ring-1 ring-text'
-                    : 'border-border hover:border-text-muted',
+                    ? 'border-foreground ring-1 ring-foreground'
+                    : 'border-border hover:border-dimmed',
                 )}
                 style={{ backgroundColor: color }}
                 title={color}
@@ -308,7 +308,7 @@ export function TagPicker({
             <button
               type="button"
               onClick={resetForm}
-              className="text-ui text-text-muted bg-transparent border-none cursor-pointer hover:text-text"
+              className="text-ui text-dimmed bg-transparent border-none cursor-pointer hover:text-foreground"
             >
               Cancel
             </button>

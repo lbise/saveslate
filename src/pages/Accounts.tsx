@@ -304,7 +304,7 @@ export function Accounts() {
           title="Delete account?"
           description={(
             <>
-              This will permanently delete <span className="text-text">{accountToDelete.name}</span>.
+              This will permanently delete <span className="text-foreground">{accountToDelete.name}</span>.
             </>
           )}
           details={accountToDeleteTransactionCount > 0 ? (
@@ -331,7 +331,7 @@ export function Accounts() {
       <section className="mb-12">
         <div className="text-muted mb-2">Net Worth</div>
         <div
-          className="text-text"
+          className="text-foreground"
           style={{
             fontFamily: 'var(--font-display)',
             fontSize: '40px',
@@ -345,13 +345,13 @@ export function Accounts() {
 
       <div className="section-header">
         <h2 className="section-title">All Accounts</h2>
-        <span className="text-ui text-text-muted">{accounts.length} accounts</span>
+        <span className="text-ui text-dimmed">{accounts.length} accounts</span>
       </div>
 
       {accounts.length === 0 ? (
         <div className="card p-6 text-center">
-          <p className="text-body text-text">No accounts yet.</p>
-          <p className="text-ui text-text-muted mt-1">Create your first account or import an accounts file.</p>
+          <p className="text-body text-foreground">No accounts yet.</p>
+          <p className="text-ui text-dimmed mt-1">Create your first account or import an accounts file.</p>
           <button className="btn-primary mt-4" onClick={openCreateModal}>Create Account</button>
         </div>
       ) : (
@@ -392,7 +392,7 @@ function AccountRow({ account, computedBalance, onEdit, onDelete }: AccountRowPr
       subtitle={account.currency}
       tone={ACCOUNT_TONES[account.type]}
       metric={formatCurrency(computedBalance, account.currency)}
-      metricClassName={balanceTone === 'expense' ? 'text-expense' : 'text-text'}
+      metricClassName={balanceTone === 'expense' ? 'text-expense' : 'text-foreground'}
       badges={<Badge variant={ACCOUNT_TYPE_BADGE_VARIANTS[account.type]}>{ACCOUNT_TYPE_LABELS[account.type]}</Badge>}
       actions={(
         <EntityCardOverflowMenu
@@ -431,7 +431,7 @@ function AccountRow({ account, computedBalance, onEdit, onDelete }: AccountRowPr
                 <div key={tx.id} className="flex items-center justify-between gap-3">
                   <div className="flex flex-col min-w-0">
                     <span className="text-ui truncate max-w-[220px]">{tx.description}</span>
-                    <span className="text-ui text-text-muted">{formatRelativeDate(tx.date)}</span>
+                    <span className="text-ui text-dimmed">{formatRelativeDate(tx.date)}</span>
                   </div>
                   <span
                     className={cn(
@@ -444,7 +444,7 @@ function AccountRow({ account, computedBalance, onEdit, onDelete }: AccountRowPr
                             ? 'text-income'
                             : tx.amount < 0
                               ? 'text-expense'
-                              : 'text-text',
+                              : 'text-foreground',
                     )}
                     style={{ fontFamily: 'var(--font-display)' }}
                   >

@@ -170,7 +170,7 @@ export function TransactionFormModal({
     <Modal onClose={onCancel} panelClassName="max-w-3xl p-5">
       <section>
         <div className="section-header mb-4">
-          <h2 id="modal-title" className="heading-3 text-text">
+          <h2 id="modal-title" className="heading-3 text-foreground">
             {isEditing ? 'Edit Transaction' : 'Create Transaction'}
           </h2>
           <button type="button" className="btn-icon" onClick={onCancel} aria-label="Close modal">
@@ -361,11 +361,11 @@ export function TransactionFormModal({
 
           <div className="card p-3">
             <div className="flex items-center gap-2 mb-2">
-              <Tag size={14} className="text-text-muted" />
-              <span className="text-body text-text">Tags</span>
+              <Tag size={14} className="text-dimmed" />
+              <span className="text-body text-foreground">Tags</span>
             </div>
             {tagOptions.length === 0 ? (
-              <p className="text-ui text-text-muted">No tags yet. You can create tags from Transactions.</p>
+              <p className="text-ui text-dimmed">No tags yet. You can create tags from Transactions.</p>
             ) : (
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
                 {tagOptions.map((tagOption) => {
@@ -373,7 +373,7 @@ export function TransactionFormModal({
                   return (
                     <label
                       key={tagOption.id}
-                      className="flex items-center gap-2 rounded-(--radius-sm) border border-border px-2.5 py-2 cursor-pointer transition-colors duration-150 hover:bg-surface-hover"
+                      className="flex items-center gap-2 rounded-(--radius-sm) border border-border px-2.5 py-2 cursor-pointer transition-colors duration-150 hover:bg-secondary"
                     >
                       <input
                         type="checkbox"
@@ -384,7 +384,7 @@ export function TransactionFormModal({
                         className="w-2 h-2 rounded-full shrink-0"
                         style={{ backgroundColor: tagOption.color }}
                       />
-                      <span className="text-ui text-text truncate">{tagOption.name}</span>
+                      <span className="text-ui text-foreground truncate">{tagOption.name}</span>
                     </label>
                   );
                 })}
@@ -399,8 +399,8 @@ export function TransactionFormModal({
                 checked={form.hasSplit}
                 onChange={(event) => setForm((current) => ({ ...current, hasSplit: event.target.checked }))}
               />
-              <span className="inline-flex items-center gap-2 text-body text-text">
-                <Users size={14} className="text-text-muted" />
+              <span className="inline-flex items-center gap-2 text-body text-foreground">
+                <Users size={14} className="text-dimmed" />
                 Split transaction with someone
               </span>
             </label>

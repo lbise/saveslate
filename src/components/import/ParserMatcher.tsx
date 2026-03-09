@@ -81,10 +81,10 @@ export function ParserMatcher({ rawContent, onSelectParser, onEditParser, onCrea
               <Zap size={18} className="text-income" />
             </div>
             <div className="flex-1 min-w-0">
-              <p className="text-body text-text font-medium">
+              <p className="text-body text-foreground font-medium">
                 Parser matched: {matchedParser.name}
               </p>
-              <p className="text-ui text-text-muted mt-1">
+              <p className="text-ui text-dimmed mt-1">
                 {matchScore}% header match
                 &middot; {matchedParser.columnMappings.filter((m) => m.field !== 'ignore').length} mapped columns
                 &middot; {matchedParser.amountFormat === 'single' ? 'Single amount' : 'Debit/Credit'} format
@@ -175,12 +175,12 @@ export function ParserMatcher({ rawContent, onSelectParser, onEditParser, onCrea
           <FileQuestion size={18} className="text-expense" />
         </div>
         <div className="flex-1">
-          <p className="text-body text-text font-medium">
+          <p className="text-body text-foreground font-medium">
             {hasExistingParsers
               ? 'No parser matches this file format'
               : 'No parsers configured yet'}
           </p>
-          <p className="text-ui text-text-muted mt-1">
+          <p className="text-ui text-dimmed mt-1">
             {hasExistingParsers
               ? 'Create a new parser or select an existing one to map the columns.'
               : 'Create a parser to define how columns in this CSV map to transaction fields.'}
@@ -252,25 +252,25 @@ function ParserDropdown({ parsers, excludeId, onSelect, onCreateNew, onClose }: 
   return (
     <>
       <div className="fixed inset-0 z-10" onClick={onClose} />
-      <div className="absolute top-full left-0 mt-1 w-64 bg-surface border border-border rounded-(--radius-md) py-1 z-20 shadow-(--shadow-md)">
+      <div className="absolute top-full left-0 mt-1 w-64 bg-card border border-border rounded-(--radius-md) py-1 z-20 shadow-(--shadow-md)">
         {filtered.map((parser) => (
           <div key={parser.id} className="flex items-center gap-1 px-1">
             <button
               onClick={() => onSelect(parser)}
               className={cn(
                 'flex flex-col flex-1 px-2 py-2.5 text-left bg-transparent border-none cursor-pointer rounded-(--radius-sm)',
-                'hover:bg-surface-hover transition-colors',
+                'hover:bg-secondary transition-colors',
               )}
             >
-              <span className="text-ui text-text font-medium">{parser.name}</span>
-              <span className="text-ui text-text-muted mt-0.5">
+              <span className="text-ui text-foreground font-medium">{parser.name}</span>
+              <span className="text-ui text-dimmed mt-0.5">
                 {parser.columnMappings.filter((m) => m.field !== 'ignore').length} columns
                 &middot; delimiter: {parser.delimiter === '\t' ? 'tab' : `"${parser.delimiter}"`}
               </span>
             </button>
             <button
               onClick={() => exportParser(parser)}
-              className="btn-icon w-7 h-7 shrink-0 text-text-muted hover:text-text"
+              className="btn-icon w-7 h-7 shrink-0 text-dimmed hover:text-foreground"
               aria-label={`Export parser ${parser.name}`}
               title={`Export parser ${parser.name}`}
             >
@@ -281,7 +281,7 @@ function ParserDropdown({ parsers, excludeId, onSelect, onCreateNew, onClose }: 
         {filtered.length > 0 && <div className="h-px bg-border mx-2 my-1" />}
         <button
           onClick={onCreateNew}
-          className="flex items-center gap-2 w-full px-3 py-2.5 text-left bg-transparent border-none cursor-pointer text-ui hover:text-text hover:bg-surface-hover transition-colors"
+          className="flex items-center gap-2 w-full px-3 py-2.5 text-left bg-transparent border-none cursor-pointer text-ui hover:text-foreground hover:bg-secondary transition-colors"
         >
           <Plus size={12} />
           Create new parser

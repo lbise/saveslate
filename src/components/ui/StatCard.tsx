@@ -8,7 +8,7 @@ const dotColors: Record<StatCardProps['dotColor'], string> = {
   income: 'bg-income',
   expense: 'bg-expense',
   transfer: 'bg-transfer',
-  muted: 'bg-text-secondary',
+  muted: 'bg-muted-foreground',
 };
 
 export function StatCard({ label, value, dotColor }: StatCardProps) {
@@ -17,12 +17,12 @@ export function StatCard({ label, value, dotColor }: StatCardProps) {
       <div className={`w-2 h-2 rounded-full ${dotColors[dotColor]}`} />
       <div className="flex flex-col gap-0.5">
         <span
-          className="text-base font-medium text-text"
+          className="text-base font-medium text-foreground"
           style={{ fontFamily: 'var(--font-display)' }}
         >
           {value}
         </span>
-        <span className="text-ui text-text-muted">{label}</span>
+        <span className="text-ui text-dimmed">{label}</span>
       </div>
     </div>
   );

@@ -179,7 +179,7 @@ export function TransformRuleEditor({
   }, [transform.extractPattern]);
 
   return (
-    <div className="p-3 rounded-(--radius-md) border border-border bg-surface space-y-2.5">
+    <div className="p-3 rounded-(--radius-md) border border-border bg-card space-y-2.5">
       {/* Header row: label + actions */}
       <div className="flex items-center gap-2">
         <input
@@ -210,7 +210,7 @@ export function TransformRuleEditor({
           )}
           <button
             onClick={onRemove}
-            className="btn-icon w-7 h-7 text-text-muted hover:text-expense" aria-label="Remove transform rule"
+            className="btn-icon w-7 h-7 text-dimmed hover:text-expense" aria-label="Remove transform rule"
           >
             <X size={12} />
           </button>
@@ -219,7 +219,7 @@ export function TransformRuleEditor({
 
       {/* Source → Target */}
       <div className="flex items-center gap-2">
-        <label className="text-ui text-text-muted w-14 shrink-0">Source</label>
+        <label className="text-ui text-dimmed w-14 shrink-0">Source</label>
         <select
           value={transform.sourceField}
           onChange={(e) =>
@@ -233,8 +233,8 @@ export function TransformRuleEditor({
             </option>
           ))}
         </select>
-        <span className="text-ui text-text-muted">&rarr;</span>
-        <label className="text-ui text-text-muted w-14 shrink-0">Target</label>
+        <span className="text-ui text-dimmed">&rarr;</span>
+        <label className="text-ui text-dimmed w-14 shrink-0">Target</label>
         <select
           value={transform.targetField}
           onChange={(e) =>
@@ -252,7 +252,7 @@ export function TransformRuleEditor({
 
       {/* Match pattern */}
       <div className="flex items-center gap-2">
-        <label className="text-ui text-text-muted w-14 shrink-0 inline-flex items-center gap-1">
+        <label className="text-ui text-dimmed w-14 shrink-0 inline-flex items-center gap-1">
           Match
           <FieldHelpTooltip text="Regex that decides which rows this rule applies to." />
           {!transform.matchPattern && (
@@ -278,7 +278,7 @@ export function TransformRuleEditor({
                   ? "text-expense"
                   : matchDetails.matched > 0
                     ? "text-income"
-                    : "text-text-muted",
+                    : "text-dimmed",
               )}
             >
               {!matchDetails.valid
@@ -289,7 +289,7 @@ export function TransformRuleEditor({
               <button
                 type="button"
                 onClick={() => setShowMatches(!showMatches)}
-                className="text-ui text-text-muted hover:text-text transition-colors shrink-0 bg-transparent border-none cursor-pointer"
+                className="text-ui text-dimmed hover:text-foreground transition-colors shrink-0 bg-transparent border-none cursor-pointer"
               >
                 {showMatches ? "Hide" : "Show"}
               </button>
@@ -300,7 +300,7 @@ export function TransformRuleEditor({
 
       {/* Extract pattern */}
       <div className="flex items-center gap-2">
-        <label className="text-ui text-text-muted w-14 shrink-0 inline-flex items-center gap-1">
+        <label className="text-ui text-dimmed w-14 shrink-0 inline-flex items-center gap-1">
           Extract
           <FieldHelpTooltip text="Use named capture groups, for example (?<merchant>...), to pick values from the source." />
           {!transform.extractPattern && (
@@ -324,7 +324,7 @@ export function TransformRuleEditor({
 
       {/* Replacement template */}
       <div className="flex items-center gap-2">
-        <label className="text-ui text-text-muted w-14 shrink-0 inline-flex items-center gap-1">
+        <label className="text-ui text-dimmed w-14 shrink-0 inline-flex items-center gap-1">
           Output
           <FieldHelpTooltip text="Use templates like {{merchant}}. Leave empty to auto-join all named groups." />
         </label>
@@ -346,9 +346,9 @@ export function TransformRuleEditor({
               .map((item, i) => (
                 <div
                   key={i}
-                  className="flex items-start gap-2 px-2.5 py-1.5 text-sm border-b border-border last:border-b-0 bg-bg/50"
+                  className="flex items-start gap-2 px-2.5 py-1.5 text-sm border-b border-border last:border-b-0 bg-background/50"
                 >
-                  <span className="text-text-secondary break-words min-w-0 flex-1 font-mono">
+                  <span className="text-muted-foreground break-words min-w-0 flex-1 font-mono">
                     <HighlightedSource
                       source={item.source}
                       highlights={item.highlights}
@@ -356,7 +356,7 @@ export function TransformRuleEditor({
                   </span>
                   {item.output !== undefined && (
                     <>
-                      <span className="text-text-muted shrink-0 mt-0.5">
+                      <span className="text-dimmed shrink-0 mt-0.5">
                         &rarr;
                       </span>
                       <span className="text-income break-words min-w-0 flex-1 font-mono">
@@ -371,7 +371,7 @@ export function TransformRuleEditor({
             <button
               type="button"
               onClick={() => setShowAllMatches(!showAllMatches)}
-              className="w-full px-2.5 py-1.5 text-ui text-text-muted hover:text-text bg-surface border-t border-border transition-colors cursor-pointer border-x-0 border-b-0"
+              className="w-full px-2.5 py-1.5 text-ui text-dimmed hover:text-foreground bg-card border-t border-border transition-colors cursor-pointer border-x-0 border-b-0"
             >
               {showAllMatches
                 ? "Show less"
@@ -406,7 +406,7 @@ function HighlightedSource({ source, highlights }: HighlightedSourceProps) {
     segments.push(
       <span
         key={`${start}-${end}`}
-        className="bg-accent/15 rounded-sm px-px"
+        className="bg-primary/15 rounded-sm px-px"
         title={groupName}
       >
         {source.slice(start, end)}
@@ -429,7 +429,7 @@ interface FieldHelpTooltipProps {
 function FieldHelpTooltip({ text }: FieldHelpTooltipProps) {
   return (
     <span
-      className="inline-flex items-center text-text-muted hover:text-text cursor-help"
+      className="inline-flex items-center text-dimmed hover:text-foreground cursor-help"
       title={text}
       aria-label={text}
     >

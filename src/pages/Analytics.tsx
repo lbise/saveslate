@@ -407,7 +407,7 @@ export function Analytics() {
                     style={{ backgroundColor: item.color }}
                     aria-hidden
                   />
-                  <span className="text-ui text-text-secondary">{item.label}</span>
+                  <span className="text-ui text-muted-foreground">{item.label}</span>
                 </div>
               ))}
             </div>
@@ -425,7 +425,7 @@ export function Analytics() {
         {hasMonthlyData ? (
           <div className="card" style={{ padding: '16px 20px 16px' }}>
             <div className="relative" style={{ height: 320 }}>
-              <span className="pointer-events-none absolute left-0 top-0 z-10 text-ui text-text-muted">
+              <span className="pointer-events-none absolute left-0 top-0 z-10 text-ui text-dimmed">
                 CHF
               </span>
 
@@ -459,10 +459,10 @@ export function Analytics() {
                   const net = data.income - data.expenses;
                   return (
                     <div style={barTooltipStyle}>
-                      <div className="text-ui text-text-muted mb-1">{String(bar.indexValue)}</div>
+                      <div className="text-ui text-dimmed mb-1">{String(bar.indexValue)}</div>
                       <div className="text-ui text-income">Income: {formatCurrency(data.income)}</div>
                       <div className="text-ui text-expense">Expenses: {formatCurrency(data.expenses)}</div>
-                      <div className="text-ui text-text mt-1">Net: {formatCurrency(net)}</div>
+                      <div className="text-ui text-foreground mt-1">Net: {formatCurrency(net)}</div>
                     </div>
                   );
                 }}
@@ -473,8 +473,8 @@ export function Analytics() {
           </div>
         ) : (
           <div className="card flex flex-col items-center justify-center gap-2 py-12">
-            <p className="text-body text-text">No monthly income or expense data</p>
-            <p className="text-ui text-text-muted">Try a wider date range or switch the data profile in settings.</p>
+            <p className="text-body text-foreground">No monthly income or expense data</p>
+            <p className="text-ui text-dimmed">Try a wider date range or switch the data profile in settings.</p>
           </div>
         )}
       </section>
@@ -505,13 +505,13 @@ export function Analytics() {
       <section className="mt-10">
         <div className="section-header">
           <h2 className="section-title">Goal Savings</h2>
-          <span className="text-ui text-text-muted">Total saved: {formatCurrency(totalGoalSaved)}</span>
+          <span className="text-ui text-dimmed">Total saved: {formatCurrency(totalGoalSaved)}</span>
         </div>
 
         {hasGoalSavedData ? (
           <div className="card" style={{ padding: '16px 20px 16px' }}>
             <div className="relative" style={{ height: Math.max(260, goalSavedSeries.length * 46) }}>
-              <span className="pointer-events-none absolute left-0 top-0 z-10 text-ui text-text-muted">
+              <span className="pointer-events-none absolute left-0 top-0 z-10 text-ui text-dimmed">
                 CHF
               </span>
 
@@ -545,7 +545,7 @@ export function Analytics() {
                   const data = bar.data as GoalSavedPoint;
                   return (
                     <div style={barTooltipStyle}>
-                      <div className="text-ui text-text mb-1">{data.goalLabel}</div>
+                      <div className="text-ui text-foreground mb-1">{data.goalLabel}</div>
                       <div className="text-ui text-goal">Saved: {formatCurrency(data.saved)}</div>
                     </div>
                   );
@@ -557,8 +557,8 @@ export function Analytics() {
           </div>
         ) : (
           <div className="card flex flex-col items-center justify-center gap-2 py-12">
-            <p className="text-body text-text">No saved amount on goals yet</p>
-            <p className="text-ui text-text-muted">Set a goal and link transactions to it to populate this chart.</p>
+            <p className="text-body text-foreground">No saved amount on goals yet</p>
+            <p className="text-ui text-dimmed">Set a goal and link transactions to it to populate this chart.</p>
           </div>
         )}
       </section>
@@ -591,8 +591,8 @@ function PieCard({ title, emptyLabel, data, hasData, formatCurrency }: PieCardPr
   return (
     <div className="card" style={{ padding: '16px 20px 16px' }}>
       <div className="mb-2 flex items-center justify-between">
-        <h3 className="heading-3 text-text">{title}</h3>
-        {hasData && <span className="text-ui text-text-muted">{formatCurrency(total)}</span>}
+        <h3 className="heading-3 text-foreground">{title}</h3>
+        {hasData && <span className="text-ui text-dimmed">{formatCurrency(total)}</span>}
       </div>
 
       {hasData ? (
@@ -640,9 +640,9 @@ function PieCard({ title, emptyLabel, data, hasData, formatCurrency }: PieCardPr
                 const share = total > 0 ? (item.datum.value / total) * 100 : 0;
                 return (
                   <div style={pieTooltipStyle}>
-                      <div className="text-ui text-text mb-1">{item.datum.label}</div>
-                      <div className="text-ui text-text-secondary">{formatCurrency(item.datum.value)}</div>
-                      <div className="text-ui text-text-muted">{share.toFixed(1)}%</div>
+                      <div className="text-ui text-foreground mb-1">{item.datum.label}</div>
+                      <div className="text-ui text-muted-foreground">{formatCurrency(item.datum.value)}</div>
+                      <div className="text-ui text-dimmed">{share.toFixed(1)}%</div>
                     </div>
                   );
                 }}
@@ -659,7 +659,7 @@ function PieCard({ title, emptyLabel, data, hasData, formatCurrency }: PieCardPr
         </div>
       ) : (
         <div className="flex items-center justify-center py-14">
-          <p className="text-ui text-text-muted">{emptyLabel}</p>
+          <p className="text-ui text-dimmed">{emptyLabel}</p>
         </div>
       )}
     </div>
@@ -675,7 +675,7 @@ interface PeriodSelectorProps {
 
 function PeriodSelector({ value, onChange }: PeriodSelectorProps) {
   return (
-    <div className="flex items-center gap-1 bg-surface rounded-md border border-border p-1">
+    <div className="flex items-center gap-1 bg-card rounded-md border border-border p-1">
       {DATE_RANGE_OPTIONS.map((opt) => (
         <button
           key={opt.value}
@@ -683,8 +683,8 @@ function PeriodSelector({ value, onChange }: PeriodSelectorProps) {
           className={cn(
             'px-3 py-1.5 rounded-sm text-ui font-medium transition-all duration-150',
             value === opt.value
-              ? 'bg-surface-active text-text'
-              : 'bg-transparent text-text-muted hover:text-text-secondary',
+              ? 'bg-primary text-foreground'
+              : 'bg-transparent text-dimmed hover:text-muted-foreground',
           )}
         >
           {opt.label}
@@ -722,21 +722,21 @@ function EmptyState({ period, summary, activeProfileLabel }: EmptyStateProps) {
 
   return (
     <div className="card flex flex-col items-center justify-center gap-4 py-20">
-      <div className="w-12 h-12 rounded-full bg-surface-hover flex items-center justify-center">
-        <BarChart3 size={24} className="text-text-muted" />
+      <div className="w-12 h-12 rounded-full bg-secondary flex items-center justify-center">
+        <BarChart3 size={24} className="text-dimmed" />
       </div>
       <div className="text-center">
-        <p className="text-body text-text mb-1">No data for {periodLabel}</p>
-        <p className="text-ui text-text-muted">
+        <p className="text-body text-foreground mb-1">No data for {periodLabel}</p>
+        <p className="text-ui text-dimmed">
           Import transactions to see your money flow visualized here.
         </p>
-        <p className="text-ui text-text-muted mt-2">
+        <p className="text-ui text-dimmed mt-2">
           Active profile: {activeProfileLabel}
         </p>
         {diagnostics.length > 0 && (
           <div className="mt-3 flex flex-col gap-1.5">
             {diagnostics.map((diagnostic) => (
-              <p key={diagnostic} className="text-ui text-text-secondary">
+              <p key={diagnostic} className="text-ui text-muted-foreground">
                 {diagnostic}
               </p>
             ))}

@@ -348,7 +348,7 @@ export function RuleFormModal({
     <Modal onClose={onClose} panelClassName="max-w-3xl p-5">
       <section>
           <div className="section-header mb-4">
-            <h2 id="modal-title" className="heading-3 text-text">
+            <h2 id="modal-title" className="heading-3 text-foreground">
               {editingRuleId ? "Edit Rule" : "Create Rule"}
             </h2>
             <button aria-label="Close modal"
@@ -399,7 +399,7 @@ export function RuleFormModal({
                   return (
                     <div
                       key={action.id}
-                      className="rounded-(--radius-md) border border-border bg-surface p-3 space-y-2"
+                      className="rounded-(--radius-md) border border-border bg-card p-3 space-y-2"
                     >
                       <div className="grid grid-cols-1 md:grid-cols-[minmax(0,1fr)_auto] gap-2">
                         <select
@@ -553,8 +553,8 @@ export function RuleFormModal({
                       className={cn(
                         "flex items-start gap-2 p-3 rounded-(--radius-md) border cursor-pointer transition-colors",
                         isActive
-                          ? "border-accent/40 bg-accent/5"
-                          : "border-border bg-surface hover:border-text-muted",
+                          ? "border-primary/40 bg-primary/5"
+                          : "border-border bg-card hover:border-dimmed",
                       )}
                     >
                       <input
@@ -563,10 +563,10 @@ export function RuleFormModal({
                         onChange={() => toggleTrigger(option.value)}
                       />
                       <span className="flex flex-col gap-0.5">
-                        <span className="text-body text-text">
+                        <span className="text-body text-foreground">
                           {option.label}
                         </span>
-                        <span className="text-ui text-text-muted">
+                        <span className="text-ui text-dimmed">
                           {option.description}
                         </span>
                       </span>
@@ -611,7 +611,7 @@ export function RuleFormModal({
                   return (
                     <div
                       key={condition.id}
-                      className="rounded-(--radius-md) border border-border bg-surface p-3 space-y-2"
+                      className="rounded-(--radius-md) border border-border bg-card p-3 space-y-2"
                     >
                       <div className="grid grid-cols-1 md:grid-cols-[minmax(0,1fr)_minmax(0,1fr)_auto] gap-2">
                         <select
@@ -717,7 +717,7 @@ export function RuleFormModal({
                           rows={1}
                         />
                       ) : (
-                        <div className="input h-auto min-h-10 py-2 flex items-center text-ui text-text-muted">
+                        <div className="input h-auto min-h-10 py-2 flex items-center text-ui text-dimmed">
                           No value needed for this operator
                         </div>
                       )}

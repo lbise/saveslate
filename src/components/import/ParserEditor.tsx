@@ -640,8 +640,8 @@ export function ParserEditor({
             className={cn(
               "w-full px-3 py-2.5 rounded-(--radius-md) border text-sm font-medium transition-colors cursor-pointer",
               hasHeaderRow
-                ? "bg-text/10 text-text border-text/20"
-                : "bg-surface text-text-muted border-border hover:border-text-muted",
+                ? "bg-foreground/10 text-foreground border-foreground/20"
+                : "bg-card text-dimmed border-border hover:border-dimmed",
             )}
           >
             {hasHeaderRow ? "Yes" : "No"}
@@ -756,7 +756,7 @@ export function ParserEditor({
         <div>
           <label className="label">
             Account match
-            <span className="text-text-muted font-normal ml-2">
+            <span className="text-dimmed font-normal ml-2">
               Auto-match imports to an account
             </span>
           </label>
@@ -770,14 +770,14 @@ export function ParserEditor({
             />
 
             {accountPatternPreview ? (
-              <div className="flex items-center gap-1.5 text-ui text-text-muted">
+              <div className="flex items-center gap-1.5 text-ui text-dimmed">
                 <span>Detected:</span>
-                <span className="font-mono text-text-secondary">
+                <span className="font-mono text-muted-foreground">
                   {accountPatternPreview}
                 </span>
               </div>
             ) : accountPattern ? (
-              <div className="flex items-center gap-1.5 text-ui text-text-muted">
+              <div className="flex items-center gap-1.5 text-ui text-dimmed">
                 <span>No match found in skipped rows</span>
               </div>
             ) : null}
@@ -790,7 +790,7 @@ export function ParserEditor({
         <div className="flex items-center justify-between mb-3">
           <label className="label">
             Column mapping
-            <span className="text-text-muted font-normal ml-2">
+            <span className="text-dimmed font-normal ml-2">
               Assign CSV columns to each transaction field
             </span>
           </label>
@@ -799,7 +799,7 @@ export function ParserEditor({
             ([f, indices]) => MULTI_COLUMN_FIELDS.has(f) && indices.length >= 2,
           ) && (
             <div className="flex items-center gap-2">
-              <span className="text-ui text-text-muted shrink-0">
+              <span className="text-ui text-dimmed shrink-0">
                 Merge separator
               </span>
               <select
@@ -819,7 +819,7 @@ export function ParserEditor({
 
         <div className="space-y-2 mb-4">
           {!hasSampleData && (
-            <p className="text-ui text-text-muted">
+            <p className="text-ui text-dimmed">
               No sample CSV loaded. You can still update parser settings, but mapping and preview require a file.
             </p>
           )}
@@ -851,7 +851,7 @@ export function ParserEditor({
         <div className="flex items-center justify-between mb-3">
           <label className="label">
             Metadata fields
-            <span className="text-text-muted font-normal ml-2">
+            <span className="text-dimmed font-normal ml-2">
               Key/value data extracted from selected CSV columns
             </span>
           </label>
@@ -866,7 +866,7 @@ export function ParserEditor({
         </div>
 
         {metadataMappings.length === 0 ? (
-          <p className="text-ui text-text-muted">
+          <p className="text-ui text-dimmed">
             No metadata fields configured. Add a field to map one or more CSV
             columns.
           </p>
@@ -895,7 +895,7 @@ export function ParserEditor({
         <div className="flex items-center justify-between mb-3">
           <label className="label">
             Field transforms
-            <span className="text-text-muted font-normal ml-2">
+            <span className="text-dimmed font-normal ml-2">
               Use transforms when your CSV needs cleanup or custom extraction
             </span>
           </label>
@@ -923,7 +923,7 @@ export function ParserEditor({
         )}
 
         {transforms.length === 0 && (
-          <p className="text-ui text-text-muted">
+          <p className="text-ui text-dimmed">
             No transforms configured yet.
           </p>
         )}
