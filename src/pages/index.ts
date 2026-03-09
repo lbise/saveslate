@@ -8,7 +8,5 @@ export { Rules } from './Rules';
 export { Settings } from './Settings';
 export { Help } from './Help';
 export { Import } from './Import';
-export { TestMockup } from './TestMockup';
-export { TestMockup2 } from './TestMockup2';
 export { Login } from './Login';
 export { Register } from './Register';

@@ -6,6 +6,7 @@ import {
   CircleHelp,
 } from "lucide-react";
 import { cn } from "../../lib/utils";
+import { ScrollArea } from "@/components/ui/scroll-area";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import {
@@ -363,7 +364,7 @@ export function TransformRuleEditor({
       {/* Matched rows preview */}
       {showMatches && matchDetails.items.length > 0 && (
         <div className="rounded-(--radius-sm) border border-border overflow-hidden">
-          <div className="max-h-60 overflow-y-auto">
+          <ScrollArea className="max-h-60">
             {matchDetails.items
               .slice(0, showAllMatches ? undefined : 5)
               .map((item, i) => (
@@ -389,7 +390,7 @@ export function TransformRuleEditor({
                   )}
                 </div>
               ))}
-          </div>
+          </ScrollArea>
           {matchDetails.items.length > 5 && (
             <button
               type="button"

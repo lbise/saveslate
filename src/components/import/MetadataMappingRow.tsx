@@ -1,6 +1,7 @@
 import { useState, useRef, useEffect } from "react";
 import { ChevronDown, X } from "lucide-react";
 import { cn } from "../../lib/utils";
+import { ScrollArea } from "@/components/ui/scroll-area";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import type { MetadataMapping } from "../../types";
@@ -123,7 +124,7 @@ export function MetadataMappingRow({
         </button>
 
         {dropdownOpen && (
-          <div className="absolute top-full left-0 right-0 mt-1 bg-card border border-border rounded-(--radius-md) py-1 z-20 shadow-(--shadow-md) max-h-80 overflow-y-auto">
+            <ScrollArea className="absolute top-full left-0 right-0 mt-1 bg-card border border-border rounded-(--radius-md) py-1 z-20 shadow-(--shadow-md) max-h-80">
             {headers.map((header, columnIndex) => {
               const isSelected = mapping.columnIndices.includes(columnIndex);
               const isMapped = mappedColumnIndices.has(columnIndex);
@@ -173,7 +174,7 @@ export function MetadataMappingRow({
                 </button>
               );
             })}
-          </div>
+          </ScrollArea>
         )}
       </div>
 

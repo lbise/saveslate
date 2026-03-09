@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
+import { toast } from "sonner";
 import { Pencil, Play, Power, Trash2 } from "lucide-react";
 import { useLocation, useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
@@ -80,6 +81,7 @@ export function Rules() {
     onImportSuccess: (parsedRules) => {
       const mergedRules = mergeAutomationRules(parsedRules);
       setRules(mergedRules);
+      toast.success(`${parsedRules.length} rule(s) imported`);
     },
   });
 
@@ -307,6 +309,7 @@ export function Rules() {
 
     const fileDate = new Date().toISOString().split("T")[0];
     exportJsonFile(`saveslate-rules-${fileDate}.json`, exportPayload);
+    toast.success("Rules exported");
   };
 
   const handleToggleRuleEnabled = (rule: AutomationRule) => {
@@ -314,6 +317,7 @@ export function Rules() {
       isEnabled: !rule.isEnabled,
     });
     setRules(loadAutomationRules());
+    toast.success(`Rule ${rule.isEnabled ? "disabled" : "enabled"}`);
   };
 
   const handleConfirmDeleteRule = () => {
@@ -327,6 +331,7 @@ export function Rules() {
       closeRuleModal();
     }
     setRuleToDelete(null);
+    toast.success("Rule deleted");
   };
 
   const handleRunManualRules = () => {
@@ -335,6 +340,9 @@ export function Rules() {
 
     if (runResult.changedCount > 0) {
       saveTransactions(runResult.transactions);
+      toast.success(`Rules applied — ${runResult.changedCount} transactions updated`);
+    } else {
+      toast.info("No transactions matched");
     }
 
     setManualRunSummary({
@@ -361,6 +369,7 @@ export function Rules() {
 
     setRules(loadAutomationRules());
     closeRuleModal();
+    toast.success(editingRuleId ? "Rule updated" : "Rule created");
   };
 
   return (

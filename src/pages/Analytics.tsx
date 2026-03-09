@@ -5,9 +5,9 @@ import { ResponsiveSankey } from '@nivo/sankey';
 import { BarChart3 } from 'lucide-react';
 import { PageHeader } from '../components/layout/PageHeader';
 import { Card } from '@/components/ui/Card';
+import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { StatCard } from '../components/ui';
 import { getGoalProgress, getTransactionsWithDetails } from '../lib/data-service';
-import { cn } from '../lib/utils';
 import { useFormatCurrency } from '../hooks';
 import { getDataProfileLabel, loadActiveDataProfile } from '../lib/data-profile';
 import {
@@ -676,22 +676,19 @@ interface PeriodSelectorProps {
 
 function PeriodSelector({ value, onChange }: PeriodSelectorProps) {
   return (
-    <div className="flex items-center gap-1 bg-card rounded-md border border-border p-1">
-      {DATE_RANGE_OPTIONS.map((opt) => (
-        <button
-          key={opt.value}
-          onClick={() => onChange(opt.value)}
-          className={cn(
-            'px-3 py-1.5 rounded-sm text-sm font-medium transition-all duration-150',
-            value === opt.value
-              ? 'bg-primary text-foreground'
-              : 'bg-transparent text-dimmed hover:text-muted-foreground',
-          )}
-        >
-          {opt.label}
-        </button>
-      ))}
-    </div>
+    <Tabs value={value} onValueChange={(v) => onChange(v as DateRangePeriod)}>
+      <TabsList className="bg-card border border-border">
+        {DATE_RANGE_OPTIONS.map((opt) => (
+          <TabsTrigger
+            key={opt.value}
+            value={opt.value}
+            className="data-[state=active]:bg-primary data-[state=active]:text-foreground dark:data-[state=active]:bg-primary dark:data-[state=active]:border-transparent text-dimmed"
+          >
+            {opt.label}
+          </TabsTrigger>
+        ))}
+      </TabsList>
+    </Tabs>
   );
 }
 

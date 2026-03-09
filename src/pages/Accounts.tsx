@@ -30,6 +30,7 @@ import {
 import { loadTransactions } from '../lib/transaction-storage';
 import { formatRelativeDate, cn } from '../lib/utils';
 import { useFormatCurrency, useImportExport } from '../hooks';
+import { toast } from 'sonner';
 import { getTransactionsByAccount } from '../lib/data-service';
 import { inferTransactionType } from '../lib/transaction-type';
 import type { Account, AccountType } from '../types';
@@ -160,6 +161,7 @@ export function Accounts() {
     onImportSuccess: (importedAccounts) => {
       const mergedAccounts = mergeAccounts(importedAccounts);
       setAccounts(mergedAccounts);
+      toast.success(`${importedAccounts.length} account${importedAccounts.length === 1 ? '' : 's'} imported`);
     },
   });
 
@@ -244,6 +246,7 @@ export function Accounts() {
 
     const fileDate = new Date().toISOString().split('T')[0];
     exportJsonFile(`saveslate-accounts-${fileDate}.json`, exportPayload);
+    toast.success('Accounts exported');
   };
 
   const handleSaveAccount = (accountPayload: AccountFormSubmitPayload) => {
@@ -258,6 +261,7 @@ export function Accounts() {
 
     setAccounts(loadAccounts());
     closeAccountModal();
+    toast.success(editingAccountId ? 'Account updated' : 'Account created');
   };
 
   const handleConfirmDeleteAccount = () => {
@@ -271,6 +275,7 @@ export function Accounts() {
       closeAccountModal();
     }
     setAccountToDelete(null);
+    toast.success('Account deleted');
   };
 
   return (

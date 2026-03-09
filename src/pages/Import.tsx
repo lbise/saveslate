@@ -1,4 +1,5 @@
 import { useState, useMemo, useCallback } from 'react';
+import { toast } from 'sonner';
 import { ArrowLeft, CheckCircle, Upload, FileText } from 'lucide-react';
 import { Link, useNavigate } from 'react-router-dom';
 import { PageHeader } from '../components/layout/PageHeader';
@@ -218,6 +219,7 @@ export function Import() {
       else expense += Math.abs(row.amount);
     }
     setImportResult({ count: selectedRows.length, income, expense });
+    toast.success(`${selectedRows.length} transactions imported`);
     setStep('complete');
   }, [selectedParser, parsedRows, fileName]);
 

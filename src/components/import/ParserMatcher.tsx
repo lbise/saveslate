@@ -3,6 +3,7 @@ import { Check, ChevronDown, Download, Edit, FileQuestion, Plus, Upload, Zap } f
 import { cn } from '../../lib/utils';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/Card';
+import { Separator } from '@/components/ui/separator';
 import { findBestParserFromRaw } from '../../lib/csv';
 import { exportParser, importParserFromFile, loadParsers } from '../../lib/parser-storage';
 import type { CsvParser } from '../../types';
@@ -281,7 +282,7 @@ function ParserDropdown({ parsers, excludeId, onSelect, onCreateNew, onClose }: 
             </Button>
           </div>
         ))}
-        {filtered.length > 0 && <div className="h-px bg-border mx-2 my-1" />}
+        {filtered.length > 0 && <Separator className="mx-2 my-1" />}
         <button
           onClick={onCreateNew}
           className="flex items-center gap-2 w-full px-3 py-2.5 text-left bg-transparent border-none cursor-pointer text-sm text-muted-foreground hover:text-foreground hover:bg-secondary transition-colors"

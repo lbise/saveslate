@@ -4,6 +4,7 @@ import { cn } from "../../lib/utils";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Separator } from "@/components/ui/separator";
+import { ScrollArea } from "@/components/ui/scroll-area";
 import type { ReactNode } from "react";
 
 export interface MultiSelectOption {
@@ -110,7 +111,7 @@ export function MultiSelectDropdown({
 
         <Separator className="mx-1 my-1 w-auto" />
 
-        <div className="max-h-64 overflow-y-auto">
+        <ScrollArea className="max-h-64">
           {hasGroups ? (
             groups.map((group) => (
               <div key={group.key}>
@@ -163,7 +164,7 @@ export function MultiSelectDropdown({
               );
             })
           )}
-        </div>
+        </ScrollArea>
       </PopoverContent>
     </Popover>
   );

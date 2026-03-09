@@ -7,6 +7,7 @@ import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/Card';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import { ScrollArea } from '@/components/ui/scroll-area';
 import {
   Select,
   SelectContent,
@@ -235,7 +236,7 @@ export function AccountFormModal({
                     />
                   </div>
 
-                  <div className="max-h-64 overflow-y-auto rounded-(--radius-md) border border-border">
+                  <ScrollArea className="max-h-64 rounded-(--radius-md) border border-border">
                     {filteredIconNames.map((iconName) => {
                       const isSelected = form.icon === iconName;
                       return (
@@ -265,7 +266,7 @@ export function AccountFormModal({
                         No icons found.
                       </div>
                     )}
-                  </div>
+                  </ScrollArea>
                 </Card>
               )}
             </div>

@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { toast } from "sonner";
 import { Target } from "lucide-react";
 import { PageHeader, PageHeaderActions } from "../components/layout";
 import { DeleteConfirmationModal } from "../components/ui";
@@ -35,6 +36,7 @@ export function Goals() {
         startingAmount: goalProgress.currentAmount,
       })));
       setGoals(getGoalProgress());
+      toast.success(`${importedGoals.length} goal(s) imported`);
     },
   });
 
@@ -70,6 +72,7 @@ export function Goals() {
 
     setGoals(getGoalProgress());
     closeGoalForm();
+    toast.success(editingGoalId ? "Goal updated" : "Goal created");
   };
 
   const handleDeleteGoal = (goalId: string) => {
@@ -100,6 +103,7 @@ export function Goals() {
 
     handleDeleteGoal(goalToDelete.id);
     setGoalToDelete(null);
+    toast.success("Goal deleted");
   };
 
   const handleExportGoals = () => {
@@ -120,6 +124,7 @@ export function Goals() {
 
     const fileDate = new Date().toISOString().split("T")[0];
     exportJsonFile(`saveslate-goals-${fileDate}.json`, exportPayload);
+    toast.success("Goals exported");
   };
 
   return (

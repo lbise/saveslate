@@ -2,6 +2,7 @@ import { useMemo, useRef, useState, type ChangeEvent } from 'react';
 import { Download, Edit, Plus, Upload } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/Card';
+import { ScrollArea } from '@/components/ui/scroll-area';
 import {
   exportParser,
   importParserFromFile,
@@ -110,7 +111,7 @@ export function ParserLibrary({
           No parsers saved yet. Import one now, then pick it after you upload a CSV.
         </p>
       ) : (
-        <div className="space-y-2 max-h-64 overflow-y-auto pr-1">
+        <ScrollArea className="space-y-2 max-h-64 pr-1">
           {sortedParsers.map((parser) => (
             <div
               key={parser.id}
@@ -144,7 +145,7 @@ export function ParserLibrary({
               </div>
             </div>
           ))}
-        </div>
+        </ScrollArea>
       )}
     </Card>
   );

@@ -1,6 +1,7 @@
 import { useState, useRef, useEffect } from "react";
 import { ChevronDown, X, CircleHelp } from "lucide-react";
 import { cn } from "../../lib/utils";
+import { ScrollArea } from "@/components/ui/scroll-area";
 import { TRANSACTION_FIELD_LABELS } from "../../types";
 import type { TransactionField } from "../../types";
 
@@ -162,7 +163,7 @@ export function FieldMappingRow({
 
           {/* Dropdown */}
           {dropdownOpen && (
-            <div className="absolute top-full left-0 right-0 mt-1 bg-card border border-border rounded-(--radius-md) py-1 z-20 shadow-(--shadow-md) max-h-80 overflow-y-auto">
+            <ScrollArea className="absolute top-full left-0 right-0 mt-1 bg-card border border-border rounded-(--radius-md) py-1 z-20 shadow-(--shadow-md) max-h-80">
               {availableColumns.map(
                 ({ idx, header, alreadyAssigned, disabled }) => {
                   const sampleValue = dataRows[0]?.[idx] ?? "";
@@ -204,7 +205,7 @@ export function FieldMappingRow({
                   );
                 },
               )}
-            </div>
+            </ScrollArea>
           )}
         </div>
       </div>

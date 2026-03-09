@@ -1,8 +1,6 @@
-import { useState } from 'react';
 import {
   MessageCircle,
   BookOpen,
-  ChevronDown,
   Keyboard,
   Tag,
   Target,
@@ -10,7 +8,12 @@ import {
   Upload,
 } from 'lucide-react';
 import { PageHeader } from '../components/layout/PageHeader';
-import { cn } from '../lib/utils';
+import {
+  Accordion,
+  AccordionContent,
+  AccordionItem,
+  AccordionTrigger,
+} from '@/components/ui/accordion';
 
 interface FaqItem {
   question: string;
@@ -50,43 +53,6 @@ const FAQ_ITEMS: FaqItem[] = [
     icon: Keyboard,
   },
 ];
-
-function FaqAccordion({ item }: { item: FaqItem }) {
-  const [isOpen, setIsOpen] = useState(false);
-
-  return (
-    <div className="border-b border-border last:border-b-0">
-      <button
-        onClick={() => setIsOpen(!isOpen)}
-        className="flex items-center gap-3 w-full py-4 text-left bg-transparent border-none cursor-pointer group"
-      >
-        <div className="w-8 h-8 bg-card rounded-(--radius-sm) flex items-center justify-center shrink-0 transition-colors duration-150 group-hover:bg-secondary">
-          <item.icon size={14} className="text-muted-foreground" />
-        </div>
-        <span className="flex-1 text-base font-medium text-foreground">
-          {item.question}
-        </span>
-        <ChevronDown
-          size={14}
-          className={cn(
-            'text-dimmed transition-transform duration-200 shrink-0',
-            isOpen && 'rotate-180',
-          )}
-        />
-      </button>
-      <div
-        className={cn(
-          'overflow-hidden transition-all duration-200',
-          isOpen ? 'max-h-40 opacity-100 pb-4' : 'max-h-0 opacity-0',
-        )}
-      >
-        <p className="text-base text-muted-foreground leading-relaxed pl-11">
-          {item.answer}
-        </p>
-      </div>
-    </div>
-  );
-}
 
 export function Help() {
   return (
@@ -128,11 +94,25 @@ export function Help() {
         <div className="flex items-center justify-between mb-3">
           <h2 className="font-display text-base font-medium text-muted-foreground">Frequently Asked Questions</h2>
         </div>
-        <div className="flex flex-col">
+        <Accordion type="single" collapsible>
           {FAQ_ITEMS.map((item) => (
-            <FaqAccordion key={item.question} item={item} />
+            <AccordionItem key={item.question} value={item.question}>
+              <AccordionTrigger className="gap-3 hover:no-underline group">
+                <div className="w-8 h-8 bg-card rounded-(--radius-sm) flex items-center justify-center shrink-0 transition-colors duration-150 group-hover:bg-secondary">
+                  <item.icon size={14} className="text-muted-foreground" />
+                </div>
+                <span className="flex-1 text-base font-medium text-foreground text-left">
+                  {item.question}
+                </span>
+              </AccordionTrigger>
+              <AccordionContent>
+                <p className="text-base text-muted-foreground leading-relaxed pl-11">
+                  {item.answer}
+                </p>
+              </AccordionContent>
+            </AccordionItem>
           ))}
-        </div>
+        </Accordion>
       </section>
 
       {/* Footer */}

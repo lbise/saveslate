@@ -4,6 +4,7 @@ import {
   type ComponentType,
   type ReactNode,
 } from 'react';
+import { toast } from 'sonner';
 import { Globe, DollarSign, Bell, Shield, Download, Trash2, Database } from 'lucide-react';
 import { PageHeader } from '../components/layout/PageHeader';
 import { Badge } from '../components/ui/Badge';
@@ -64,6 +65,7 @@ export function Settings() {
 
   function handleDefaultCurrencyChange(value: string) {
     setDefaultCurrency(value);
+    toast.success("Default currency updated");
   }
 
   function handleDataProfileChange(value: string) {
@@ -74,6 +76,7 @@ export function Settings() {
 
     setDataProfile(nextProfile);
     saveActiveDataProfile(nextProfile);
+    toast.success("Data profile changed");
   }
 
   async function handleConfirmClearAllData() {

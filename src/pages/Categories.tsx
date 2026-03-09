@@ -1,4 +1,5 @@
 import { useMemo, useState, type FormEvent } from 'react';
+import { toast } from 'sonner';
 import { ChevronDown, Pencil, Search, Trash2 } from 'lucide-react';
 import { PageHeader, PageHeaderActions } from '../components/layout';
 import {
@@ -26,6 +27,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
+import { ScrollArea } from '@/components/ui/scroll-area';
 import type { EntityCardTone } from '../components/ui';
 import {
   CATEGORIES as DEFAULT_CATEGORIES,
@@ -230,6 +232,7 @@ export function Categories() {
           return nextGroups;
         });
       }
+      toast.success(`${imported.categories.length} categories imported`);
     },
   });
 
@@ -331,6 +334,7 @@ export function Categories() {
       closeModal();
     }
     setCategoryToDelete(null);
+    toast.success("Category deleted");
   };
 
   const handleCreateCategory = (event: FormEvent<HTMLFormElement>) => {
@@ -350,6 +354,7 @@ export function Categories() {
           : category
       )));
       closeModal();
+      toast.success("Category updated");
       return;
     }
 
@@ -363,6 +368,7 @@ export function Categories() {
 
     setCategories((prev) => [...prev, newCategory]);
     closeModal();
+    toast.success("Category created");
   };
 
   const handleExportCategories = () => {
@@ -381,6 +387,7 @@ export function Categories() {
 
     const fileDate = new Date().toISOString().split('T')[0];
     exportJsonFile(`saveslate-categories-${fileDate}.json`, exportPayload);
+    toast.success("Categories exported");
   };
 
   return (
@@ -493,7 +500,7 @@ export function Categories() {
                         />
                       </div>
 
-                      <div className="max-h-64 overflow-y-auto rounded-(--radius-md) border border-border">
+                      <ScrollArea className="max-h-64 rounded-(--radius-md) border border-border">
                         {iconPicker.filteredIconNames.map((iconName) => {
                           const isSelected = form.icon === iconName;
                           return (
@@ -521,7 +528,7 @@ export function Categories() {
                         {iconPicker.filteredIconNames.length === 0 && (
                           <div className="px-3 py-4 text-sm text-dimmed">No icons found.</div>
                         )}
-                      </div>
+                      </ScrollArea>
                     </Card>
                   )}
                 </div>

@@ -6,6 +6,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Popover, PopoverAnchor, PopoverContent } from '@/components/ui/popover';
 import { Separator } from '@/components/ui/separator';
+import { ScrollArea } from '@/components/ui/scroll-area';
 import type { Tag } from '../../types';
 
 interface TagPickerProps {
@@ -170,7 +171,7 @@ export function TagPicker({
           </div>
         )}
 
-        <div className="max-h-56 overflow-y-auto py-1 px-2 space-y-1">
+        <ScrollArea className="max-h-56 py-1 px-2 space-y-1">
           {filteredTags.length === 0 ? (
             <div className="px-2 py-2 text-sm text-dimmed text-center">
               {tags.length === 0 ? 'No tags yet. Add your first tag below.' : 'No tags found'}
@@ -258,7 +259,7 @@ export function TagPicker({
               );
             })
           )}
-        </div>
+        </ScrollArea>
 
         <Separator className="mx-2 my-1 w-auto" />
 

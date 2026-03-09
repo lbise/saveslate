@@ -3,6 +3,7 @@ import { Link, useNavigate } from 'react-router-dom';
 import { PageHeader } from '../components/layout/PageHeader';
 import { StatCard, TransactionItem, GoalCard, ActionCard, Icon } from '../components/ui';
 import { Button } from '@/components/ui/button';
+import { Progress } from '@/components/ui/progress';
 import {
   getTransactionsWithDetails,
   getMonthlyStats,
@@ -240,12 +241,11 @@ function SpendingRow({ categoryName, categoryIcon, amount, percentage, formatCur
       <div className="flex flex-col flex-1 min-w-0">
         <span className="text-base font-medium text-foreground truncate">{categoryName}</span>
         <div className="flex items-center gap-2 mt-1">
-          <div className="h-1 flex-1 bg-border rounded-full overflow-hidden">
-            <div
-              className="h-full bg-expense rounded-full"
-              style={{ width: `${Math.min(percentage, 100)}%` }}
-            />
-          </div>
+          <Progress
+            value={Math.min(percentage, 100)}
+            className="h-1 flex-1 bg-border"
+            indicatorClassName="bg-expense"
+          />
           <span className="text-sm text-dimmed shrink-0">{percentage.toFixed(0)}%</span>
         </div>
       </div>

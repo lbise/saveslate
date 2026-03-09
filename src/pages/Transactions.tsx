@@ -38,6 +38,11 @@ import {
   DialogTitle,
   DialogFooter,
 } from "@/components/ui/dialog";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { Checkbox } from "@/components/ui/checkbox";
+import { Separator } from "@/components/ui/separator";
+import { ScrollArea } from "@/components/ui/scroll-area";
+import { toast } from "sonner";
 import {
   getAccounts,
   getCategoryById,
@@ -270,6 +275,7 @@ export function Transactions() {
         next.splice(idx + 1, 0, dup);
         return persistTransactions(next);
       });
+      toast.success("Transaction duplicated");
     }
   };
 
@@ -283,6 +289,7 @@ export function Transactions() {
       return persistTransactions(nextTransactions);
     });
     setTransactionToDelete(null);
+    toast.success("Transaction deleted");
   };
 
   const handleSubmitTransactionForm = (payload: TransactionFormSubmitPayload) => {
@@ -320,6 +327,7 @@ export function Transactions() {
     setTransactions(loadTransactionsWithDetails());
     setTags(loadTags());
     closeTransactionForm();
+    toast.success(editingTransactionId ? "Transaction updated" : "Transaction added");
   };
 
   const handleCategoryChange = (txId: string, categoryId: string) => {
@@ -607,6 +615,7 @@ export function Transactions() {
     setImportBatches((prev) =>
       prev.map((batch) => (batch.id === renamedBatch.id ? renamedBatch : batch)),
     );
+    toast.success(`Source renamed to "${sourceRenameValue}"`);
     setSourceToRename(null);
     setSourceRenameValue("");
   };
@@ -625,12 +634,14 @@ export function Transactions() {
     setImportBatches((prev) => prev.filter((batch) => batch.id !== sourceId));
     setSourceFilterIds((prev) => prev.filter((id) => id !== sourceId));
     setTransactions(loadTransactionsWithDetails());
+    toast.success("Source deleted");
     setSourceToDelete(null);
   };
 
   const handleCreateTag = (draft: { name: string; color: string }): TransactionTag => {
     const createdTag = addTag(draft);
     setTags(loadTags());
+    toast.success(`Tag "${createdTag.name}" created`);
     return createdTag;
   };
 
@@ -644,6 +655,7 @@ export function Transactions() {
     }
 
     setTags(loadTags());
+    toast.success(`Tag "${updatedTag.name}" updated`);
     return updatedTag;
   };
 
@@ -660,6 +672,7 @@ export function Transactions() {
       setTransactions(loadTransactionsWithDetails());
     }
 
+    toast.success("Tag deleted");
     return true;
   };
 
@@ -1123,116 +1136,115 @@ export function Transactions() {
             className="w-full lg:flex-1 lg:min-w-0"
           />
 
-          {/* Source filter dropdown (custom — has rename/delete actions) */}
-          <div className="relative w-full lg:flex-1 lg:min-w-0">
-            <button
-              type="button"
-              onClick={() => {
+          {/* Source filter dropdown */}
+          <Popover
+            open={isSourceMenuOpen}
+            onOpenChange={(open) => {
+              if (open) {
                 setOpenActionId(null);
                 setEditingCategoryId(null);
                 setEditingGoalId(null);
                 setEditingTagsId(null);
-                setIsSourceMenuOpen((prev) => !prev);
-              }}
-              className={cn(
-                "select flex items-center gap-2 text-left w-full pr-3",
-                activeSourceFilterIds.length > 0 && "border-primary/40",
-              )}
-            >
-              <span className={cn("shrink-0", activeSourceFilterIds.length > 0 ? "text-primary" : "text-dimmed")}>
-                <Upload size={14} />
-              </span>
-              <span className="flex-1 truncate">{sourceFilterLabel}</span>
-              <ChevronDown
-                size={14}
+              }
+              setIsSourceMenuOpen(open);
+            }}
+          >
+            <PopoverTrigger asChild>
+              <button
+                type="button"
                 className={cn(
-                  "shrink-0 transition-transform duration-150",
-                  isSourceMenuOpen && "rotate-180",
+                  "flex h-10 items-center gap-2 rounded-md border border-border bg-card px-4 text-left text-sm text-foreground transition-colors cursor-pointer",
+                  activeSourceFilterIds.length > 0 && "border-primary/40",
+                  "w-full lg:flex-1 lg:min-w-0",
                 )}
-              />
-            </button>
-
-            {isSourceMenuOpen && (
-              <>
-                <div
-                  className="fixed inset-0 z-10"
-                  onClick={() => setIsSourceMenuOpen(false)}
+              >
+                <span className={cn("shrink-0", activeSourceFilterIds.length > 0 ? "text-primary" : "text-dimmed")}>
+                  <Upload size={14} />
+                </span>
+                <span className="flex-1 truncate">{sourceFilterLabel}</span>
+                <ChevronDown
+                  size={14}
+                  className={cn(
+                    "shrink-0 transition-transform duration-150",
+                    isSourceMenuOpen && "rotate-180",
+                  )}
                 />
-                <div className="absolute top-full left-0 mt-1 w-full min-w-[280px] bg-card border border-border rounded-(--radius-md) p-1 z-20 shadow-(--shadow-md)">
-                  <label
-                    className={cn(
-                      "flex items-center gap-2 px-2 py-2 rounded-(--radius-sm) cursor-pointer transition-colors",
-                      activeSourceFilterIds.length === 0
-                        ? "bg-foreground/10 text-foreground"
-                        : "text-muted-foreground hover:text-foreground hover:bg-secondary",
-                    )}
-                  >
-                    <input
-                      type="checkbox"
-                      checked={activeSourceFilterIds.length === 0}
-                      onChange={() => setSourceFilterIds([])}
-                      className="cursor-pointer accent-text"
-                    />
-                    <span className="text-sm text-muted-foreground flex-1 truncate">Sources</span>
-                  </label>
+              </button>
+            </PopoverTrigger>
 
-                  <div className="h-px bg-border mx-1 my-1" />
+            <PopoverContent
+              align="start"
+              className="w-[var(--radix-popover-trigger-width)] min-w-[280px] p-1"
+            >
+              {/* All option */}
+              <label
+                className={cn(
+                  "flex items-center gap-2 px-2 py-2 rounded-sm cursor-pointer transition-colors",
+                  activeSourceFilterIds.length === 0
+                    ? "bg-foreground/10 text-foreground"
+                    : "text-muted-foreground hover:text-foreground hover:bg-secondary",
+                )}
+              >
+                <Checkbox
+                  checked={activeSourceFilterIds.length === 0}
+                  onCheckedChange={() => setSourceFilterIds([])}
+                />
+                <span className="text-sm text-muted-foreground flex-1 truncate">Sources</span>
+              </label>
 
-                  <div className="max-h-64 overflow-y-auto">
-                    {sourceOptions.length === 0 ? (
-                      <div className="px-2 py-2 text-sm text-dimmed">No sources available</div>
-                    ) : (
-                      sourceOptions.map((source) => {
-                        const isSelected = activeSourceFilterIds.includes(source.id);
-                        return (
-                          <div key={source.id} className="group flex items-center gap-1">
-                            <label
-                              className={cn(
-                                "flex items-center gap-2 flex-1 px-2 py-2 rounded-(--radius-sm) cursor-pointer transition-colors",
-                                isSelected
-                                  ? "bg-foreground/10 text-foreground"
-                                  : "text-muted-foreground hover:text-foreground hover:bg-secondary",
-                              )}
+              <Separator className="mx-1 my-1 w-auto" />
+
+              <ScrollArea className="max-h-64">
+                {sourceOptions.length === 0 ? (
+                  <div className="px-2 py-2 text-sm text-dimmed">No sources available</div>
+                ) : (
+                  sourceOptions.map((source) => {
+                    const isSelected = activeSourceFilterIds.includes(source.id);
+                    return (
+                      <div key={source.id} className="group flex items-center gap-1">
+                        <label
+                          className={cn(
+                            "flex items-center gap-2 flex-1 px-2 py-2 rounded-sm cursor-pointer transition-colors",
+                            isSelected
+                              ? "bg-foreground/10 text-foreground"
+                              : "text-muted-foreground hover:text-foreground hover:bg-secondary",
+                          )}
+                        >
+                          <Checkbox
+                            checked={isSelected}
+                            onCheckedChange={() => toggleSourceFilter(source.id)}
+                          />
+                          <span className="text-sm text-muted-foreground flex-1 truncate">{source.label}</span>
+                          <span className="text-sm text-dimmed">{source.count}</span>
+                        </label>
+
+                        {source.deletable && (
+                          <>
+                            <button
+                              type="button"
+                              onClick={() => requestRenameSource(source.id)}
+                              className="w-7 h-7 flex items-center justify-center rounded bg-transparent border-none cursor-pointer text-dimmed hover:text-foreground transition-colors opacity-60 hover:opacity-100"
+                              title={`Rename source ${source.label}`}
                             >
-                              <input
-                                type="checkbox"
-                                checked={isSelected}
-                                onChange={() => toggleSourceFilter(source.id)}
-                                className="cursor-pointer accent-text"
-                              />
-                              <span className="text-sm text-muted-foreground flex-1 truncate">{source.label}</span>
-                              <span className="text-sm text-dimmed">{source.count}</span>
-                            </label>
-
-                            {source.deletable && (
-                              <>
-                                <button
-                                  type="button"
-                                  onClick={() => requestRenameSource(source.id)}
-                                  className="w-7 h-7 flex items-center justify-center rounded bg-transparent border-none cursor-pointer text-dimmed hover:text-foreground transition-colors opacity-60 hover:opacity-100"
-                                  title={`Rename source ${source.label}`}
-                                >
-                                  <Pencil size={12} />
-                                </button>
-                                <button
-                                  type="button"
-                                  onClick={() => requestDeleteSource(source.id)}
-                                  className="w-7 h-7 flex items-center justify-center rounded bg-transparent border-none cursor-pointer text-dimmed hover:text-expense transition-colors opacity-60 hover:opacity-100"
-                                  title={`Delete source ${source.label}`}
-                                >
-                                  <Trash2 size={12} />
-                                </button>
-                              </>
-                            )}
-                          </div>
-                        );
-                      })
-                    )}
-                  </div>
-                </div>
-              </>
-            )}
-          </div>
+                              <Pencil size={12} />
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => requestDeleteSource(source.id)}
+                              className="w-7 h-7 flex items-center justify-center rounded bg-transparent border-none cursor-pointer text-dimmed hover:text-expense transition-colors opacity-60 hover:opacity-100"
+                              title={`Delete source ${source.label}`}
+                            >
+                              <Trash2 size={12} />
+                            </button>
+                          </>
+                        )}
+                      </div>
+                    );
+                  })
+                )}
+              </ScrollArea>
+            </PopoverContent>
+          </Popover>
 
           {/* Advanced filters toggle */}
           <Button

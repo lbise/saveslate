@@ -2,6 +2,7 @@ import { lazy, Suspense } from "react";
 import { BrowserRouter, Routes, Route } from "react-router-dom";
 import { AppLayout } from "./components/layout";
 import { SettingsProvider, UserProvider } from "./context";
+import { Toaster } from "./components/ui/sonner";
 import { Dashboard } from "./pages";
 
 // Lazy-loaded pages
@@ -16,9 +17,6 @@ const Settings = lazy(() => import("./pages/Settings").then(m => ({ default: m.S
 const Help = lazy(() => import("./pages/Help").then(m => ({ default: m.Help })));
 const Login = lazy(() => import("./pages/Login").then(m => ({ default: m.Login })));
 const Register = lazy(() => import("./pages/Register").then(m => ({ default: m.Register })));
-const TestMockup = lazy(() => import("./pages/TestMockup").then(m => ({ default: m.TestMockup })));
-const TestMockup2 = lazy(() => import("./pages/TestMockup2").then(m => ({ default: m.TestMockup2 })));
-
 // Lazy-loaded design concept pages
 const Design1 = lazy(() => import("./pages/designs/Design1").then(m => ({ default: m.Design1 })));
 const Design2 = lazy(() => import("./pages/designs/Design2").then(m => ({ default: m.Design2 })));
@@ -66,12 +64,11 @@ function App() {
                 <Route path="/rules" element={<Rules />} />
                 <Route path="/settings" element={<Settings />} />
                 <Route path="/help" element={<Help />} />
-                <Route path="/test-mockup" element={<TestMockup />} />
-                <Route path="/test-mockup2" element={<TestMockup2 />} />
               </Route>
             </Routes>
           </Suspense>
         </BrowserRouter>
+        <Toaster position="bottom-right" />
       </UserProvider>
     </SettingsProvider>
   );

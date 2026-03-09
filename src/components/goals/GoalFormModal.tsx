@@ -12,6 +12,7 @@ import {
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { ScrollArea } from "@/components/ui/scroll-area";
 import {
   Select,
   SelectContent,
@@ -234,7 +235,7 @@ export function GoalFormModal({
                     />
                   </div>
 
-                  <div className="max-h-64 overflow-y-auto rounded-(--radius-md) border border-border">
+                  <ScrollArea className="max-h-64 rounded-(--radius-md) border border-border">
                     {iconPicker.filteredIconNames.map((iconName) => {
                       const isSelected = form.icon === iconName;
                       return (
@@ -267,7 +268,7 @@ export function GoalFormModal({
                         No icons found.
                       </div>
                     )}
-                  </div>
+                  </ScrollArea>
                 </Card>
               )}
             </div>
