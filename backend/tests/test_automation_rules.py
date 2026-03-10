@@ -149,3 +149,151 @@ class TestDeleteAutomationRule:
             headers=h,
         )
         assert resp.status_code == 404
+
+
+# ============================================================================
+# Helpers for Phase 4 endpoints
+# ============================================================================
+
+
+async def _create_account(client: AsyncClient, name: str = "Test Account") -> str:
+    h = csrf_headers(client)
+    resp = await client.post(
+        "/api/accounts", json={"name": name, "type": "checking"}, headers=h
+    )
+    assert resp.status_code == 201
+    return resp.json()["id"]
+
+
+async def _create_transaction(
+    client: AsyncClient, account_id: str, *, description: str, amount: str, **extra
+) -> dict:
+    h = csrf_headers(client)
+    payload = {
+        "amount": amount,
+        "currency": "CHF",
+        "description": description,
+        "date": "2026-01-15",
+        "account_id": account_id,
+        **extra,
+    }
+    resp = await client.post("/api/transactions", json=payload, headers=h)
+    assert resp.status_code == 201
+    return resp.json()
+
+
+# ============================================================================
+# Manual run
+# ============================================================================
+
+
+class TestManualRun:
+    """POST /api/automation-rules/run"""
+
+    async def test_run_no_rules(self, authed_client: AsyncClient):
+        h = csrf_headers(authed_client)
+        resp = await authed_client.post("/api/automation-rules/run", headers=h)
+        assert resp.status_code == 200
+        data = resp.json()
+        assert data["evaluated_count"] == 0
+        assert data["matched_count"] == 0
+        assert data["changed_count"] == 0
+
+    async def test_run_matches_and_updates(self, authed_client: AsyncClient):
+        h = csrf_headers(authed_client)
+        acct_id = await _create_account(authed_client)
+
+        # Create transactions
+        await _create_transaction(
+            authed_client, acct_id, description="Grocery Store", amount="-50"
+        )
+        await _create_transaction(
+            authed_client, acct_id, description="Coffee Shop", amount="-5"
+        )
+
+        # Create a category
+        cat_resp = await authed_client.post(
+            "/api/categories", json={"name": "Food", "icon": "Apple"}, headers=h
+        )
+        if cat_resp.status_code == 201:
+            cat_id = cat_resp.json()["id"]
+        else:
+            cats = await authed_client.get("/api/categories")
+            cat_id = next(c["id"] for c in cats.json() if c["name"] == "Food")
+
+        # Create rule with manual-run trigger
+        rule = {
+            "name": "Auto-food",
+            "triggers": ["manual-run"],
+            "match_mode": "all",
+            "conditions": [
+                {"field": "description", "operator": "contains", "value": "grocery"}
+            ],
+            "actions": [{"type": "set-category", "category_id": cat_id}],
+        }
+        await authed_client.post("/api/automation-rules", json=rule, headers=h)
+
+        # Run rules
+        resp = await authed_client.post("/api/automation-rules/run", headers=h)
+        assert resp.status_code == 200
+        data = resp.json()
+        assert data["evaluated_count"] == 2
+        assert data["matched_count"] == 1
+        assert data["changed_count"] == 1
+        assert len(data["rule_stats"]) == 1
+        assert data["rule_stats"][0]["matched_count"] == 1
+
+    async def test_run_requires_csrf(self, authed_client: AsyncClient):
+        resp = await authed_client.post("/api/automation-rules/run")
+        assert resp.status_code == 403
+
+
+# ============================================================================
+# Test rule
+# ============================================================================
+
+
+class TestRuleTest:
+    """POST /api/automation-rules/{rule_id}/test"""
+
+    async def test_rule_matches(self, authed_client: AsyncClient):
+        h = csrf_headers(authed_client)
+        create = await authed_client.post(
+            "/api/automation-rules", json=SAMPLE_RULE, headers=h
+        )
+        rule_id = create.json()["id"]
+
+        resp = await authed_client.post(
+            f"/api/automation-rules/{rule_id}/test",
+            json={"transaction": {"description": "grocery shopping", "amount": -30}},
+        )
+        assert resp.status_code == 200
+        data = resp.json()
+        assert data["matched"] is True
+        assert len(data["condition_results"]) == 1
+        assert data["condition_results"][0]["matched"] is True
+        assert len(data["actions_to_apply"]) == 1
+
+    async def test_rule_no_match(self, authed_client: AsyncClient):
+        h = csrf_headers(authed_client)
+        create = await authed_client.post(
+            "/api/automation-rules", json=SAMPLE_RULE, headers=h
+        )
+        rule_id = create.json()["id"]
+
+        resp = await authed_client.post(
+            f"/api/automation-rules/{rule_id}/test",
+            json={"transaction": {"description": "pharmacy visit", "amount": -15}},
+        )
+        assert resp.status_code == 200
+        data = resp.json()
+        assert data["matched"] is False
+        assert data["condition_results"][0]["matched"] is False
+        assert data["actions_to_apply"] == []
+
+    async def test_rule_not_found(self, authed_client: AsyncClient):
+        resp = await authed_client.post(
+            "/api/automation-rules/00000000-0000-0000-0000-000000000000/test",
+            json={"transaction": {"description": "test"}},
+        )
+        assert resp.status_code == 404

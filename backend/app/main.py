@@ -9,10 +9,12 @@ from fastapi.middleware.cors import CORSMiddleware
 from app.config import settings
 from app.routers import (
     accounts,
+    analytics,
     auth,
     automation_rules,
     categories,
     category_groups,
+    csv_import,
     csv_parsers,
     goals,
     import_batches,
@@ -58,6 +60,8 @@ app.include_router(tags.router)
 app.include_router(automation_rules.router)
 app.include_router(csv_parsers.router)
 app.include_router(import_batches.router)
+app.include_router(analytics.router)
+app.include_router(csv_import.router)
 
 
 @app.get("/api/health")

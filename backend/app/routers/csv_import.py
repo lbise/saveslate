@@ -1,0 +1,283 @@
+"""CSV import router: upload, parse, create transactions, apply rules."""
+
+import uuid
+from datetime import datetime, timezone
+from decimal import Decimal
+
+from fastapi import APIRouter, Depends, HTTPException, Query, UploadFile, status
+from sqlalchemy import func, select
+from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.orm import selectinload
+
+from app.deps import get_current_user, get_db, verify_csrf
+from app.models.account import Account
+from app.models.automation_rule import AutomationRule
+from app.models.category import Category
+from app.models.csv_parser import CsvParser
+from app.models.import_batch import ImportBatch
+from app.models.transaction import Transaction
+from app.models.user import User
+from app.schemas.transaction import TransactionResponse
+from app.services.automation_engine import apply_automation_rules
+from app.services.csv_import import CsvParseResult, parse_csv_file
+from app.services.transfer_pairs import normalize_transfer_pairs
+
+router = APIRouter(prefix="/api/import", tags=["import"])
+
+
+def _transaction_to_response(txn: Transaction) -> TransactionResponse:
+    """Convert ORM transaction to response dict (same helper as transactions router)."""
+    tag_ids = [tag.id for tag in txn.tags] if txn.tags else []
+    return TransactionResponse(
+        id=txn.id,
+        transaction_id=txn.transaction_id,
+        amount=txn.amount,
+        currency=txn.currency,
+        category_id=txn.category_id,
+        description=txn.description,
+        date=txn.date,
+        time=txn.time,
+        account_id=txn.account_id,
+        transfer_pair_id=txn.transfer_pair_id,
+        transfer_pair_role=txn.transfer_pair_role,
+        goal_id=txn.goal_id,
+        import_batch_id=txn.import_batch_id,
+        split_info=txn.split_info,
+        metadata=txn.metadata_,
+        raw_data=txn.raw_data,
+        tag_ids=tag_ids,
+        created_at=txn.created_at,
+        updated_at=txn.updated_at,
+    )
+
+
+# ---------------------------------------------------------------------------
+# Preview: parse CSV without importing
+# ---------------------------------------------------------------------------
+
+
+@router.post("/preview", response_model=CsvParseResult)
+async def preview_csv(
+    file: UploadFile,
+    parser_id: uuid.UUID | None = Query(default=None, alias="parserId"),
+    user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+) -> CsvParseResult:
+    """Parse a CSV file and return preview data without creating transactions."""
+    content = (await file.read()).decode("utf-8-sig")
+
+    parser_config = None
+    if parser_id:
+        result = await db.execute(
+            select(CsvParser).where(CsvParser.id == parser_id, CsvParser.user_id == user.id)
+        )
+        parser = result.scalar_one_or_none()
+        if parser is None:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND, detail="CSV parser not found"
+            )
+        parser_config = parser.config
+
+    return parse_csv_file(content, parser_config)
+
+
+# ---------------------------------------------------------------------------
+# Import: parse CSV, create transactions, apply automation rules
+# ---------------------------------------------------------------------------
+
+
+@router.post(
+    "",
+    response_model=list[TransactionResponse],
+    status_code=status.HTTP_201_CREATED,
+    dependencies=[Depends(verify_csrf)],
+)
+async def import_csv(
+    file: UploadFile,
+    account_id: uuid.UUID = Query(alias="accountId"),
+    parser_id: uuid.UUID | None = Query(default=None, alias="parserId"),
+    apply_rules: bool = Query(default=True, alias="applyRules"),
+    currency: str = Query(default="CHF"),
+    user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+) -> list[TransactionResponse]:
+    """Upload a CSV, parse it, create transactions, and apply automation rules.
+
+    Steps:
+    1. Read and parse CSV with optional parser config.
+    2. Create an ImportBatch record.
+    3. Convert parsed rows to transactions.
+    4. Apply transfer pair normalization.
+    5. Apply automation rules (if enabled).
+    6. Persist all transactions.
+    """
+    # Validate account
+    acct_result = await db.execute(
+        select(Account).where(Account.id == account_id, Account.user_id == user.id)
+    )
+    account = acct_result.scalar_one_or_none()
+    if account is None:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND, detail="Account not found"
+        )
+
+    content = (await file.read()).decode("utf-8-sig")
+
+    # Load parser config
+    parser_config = None
+    parser_name = None
+    if parser_id:
+        result = await db.execute(
+            select(CsvParser).where(CsvParser.id == parser_id, CsvParser.user_id == user.id)
+        )
+        csv_parser = result.scalar_one_or_none()
+        if csv_parser is None:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND, detail="CSV parser not found"
+            )
+        parser_config = csv_parser.config
+        parser_name = csv_parser.name
+
+    # Parse CSV
+    parse_result = parse_csv_file(content, parser_config)
+    if not parse_result.rows:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST, detail="No valid rows parsed from CSV"
+        )
+
+    # Create import batch
+    batch = ImportBatch(
+        user_id=user.id,
+        file_name=file.filename or "import.csv",
+        imported_at=datetime.now(timezone.utc),
+        parser_name=parser_name,
+        parser_id=parser_id,
+        row_count=len(parse_result.rows),
+        account_id=account_id,
+    )
+    db.add(batch)
+    await db.flush()
+
+    # Convert parsed rows to transaction dicts for automation processing
+    txn_dicts: list[dict] = []
+    for row in parse_result.rows:
+        if not row.date or not row.description:
+            continue  # Skip rows without essential data
+
+        from datetime import date as date_type, time as time_type
+
+        parsed_date = date_type.fromisoformat(row.date) if row.date else None
+        if parsed_date is None:
+            continue
+
+        parsed_time = None
+        if row.time:
+            parts = row.time.split(":")
+            try:
+                parsed_time = time_type(
+                    int(parts[0]),
+                    int(parts[1]) if len(parts) > 1 else 0,
+                    int(parts[2]) if len(parts) > 2 else 0,
+                )
+            except (ValueError, IndexError):
+                pass
+
+        # Look up category by name if provided
+        category_id = None
+        if row.category:
+            cat_result = await db.execute(
+                select(Category.id).where(
+                    Category.user_id == user.id,
+                    func.lower(Category.name) == row.category.lower(),
+                )
+            )
+            cat_row = cat_result.scalar_one_or_none()
+            if cat_row:
+                category_id = cat_row
+
+        txn_dict = {
+            "transaction_id": row.transaction_id,
+            "amount": row.amount,
+            "currency": row.currency or currency,
+            "category_id": str(category_id) if category_id else None,
+            "description": row.description,
+            "date": parsed_date,
+            "time": parsed_time,
+            "account_id": str(account_id),
+            "transfer_pair_id": None,
+            "transfer_pair_role": None,
+            "goal_id": None,
+            "import_batch_id": str(batch.id),
+            "metadata": row.metadata,
+            "raw_data": row.raw,
+        }
+        txn_dicts.append(txn_dict)
+
+    if not txn_dicts:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="No valid transactions could be created from the CSV",
+        )
+
+    # Normalize transfer pairs
+    txn_dicts = normalize_transfer_pairs(txn_dicts)
+
+    # Apply automation rules
+    if apply_rules:
+        rules_result = await db.execute(
+            select(AutomationRule).where(AutomationRule.user_id == user.id)
+        )
+        rules = [
+            {
+                "id": str(r.id),
+                "name": r.name,
+                "is_enabled": r.is_enabled,
+                "triggers": r.triggers,
+                "match_mode": r.match_mode,
+                "conditions": r.conditions,
+                "actions": r.actions,
+                "created_at": r.created_at.isoformat() if r.created_at else "",
+            }
+            for r in rules_result.scalars().all()
+        ]
+
+        run_result = apply_automation_rules(txn_dicts, rules, "on-import")
+
+        # Apply updates from automation
+        for idx, updates in run_result.transaction_updates.items():
+            for key, value in updates.items():
+                txn_dicts[idx][key] = value
+
+    # Create transaction ORM objects
+    created_txns: list[Transaction] = []
+    for txn_dict in txn_dicts:
+        txn = Transaction(
+            user_id=user.id,
+            transaction_id=txn_dict.get("transaction_id"),
+            amount=Decimal(str(txn_dict["amount"])),
+            currency=txn_dict["currency"],
+            category_id=uuid.UUID(txn_dict["category_id"]) if txn_dict.get("category_id") else None,
+            description=txn_dict["description"],
+            date=txn_dict["date"],
+            time=txn_dict.get("time"),
+            account_id=uuid.UUID(str(txn_dict["account_id"])),
+            transfer_pair_id=txn_dict.get("transfer_pair_id"),
+            transfer_pair_role=txn_dict.get("transfer_pair_role"),
+            goal_id=uuid.UUID(txn_dict["goal_id"]) if txn_dict.get("goal_id") else None,
+            import_batch_id=batch.id,
+            metadata_=txn_dict.get("metadata"),
+            raw_data=txn_dict.get("raw_data"),
+        )
+        db.add(txn)
+        created_txns.append(txn)
+
+    await db.commit()
+
+    # Reload with tags
+    result = await db.execute(
+        select(Transaction)
+        .options(selectinload(Transaction.tags))
+        .where(Transaction.id.in_([t.id for t in created_txns]))
+    )
+    loaded = list(result.scalars().all())
+    return [_transaction_to_response(t) for t in loaded]
