@@ -7,6 +7,10 @@ export interface User {
   name: string;
   email: string;
   avatarUrl?: string;
+  defaultCurrency?: string;
+  onboardingCompletedAt?: string;
+  categoryPreset?: string;
+  createdAt?: string;
 }
 
 export interface UserSettings {
@@ -42,7 +46,10 @@ export interface Category {
   groupId?: string;
   isDefault?: boolean; // System-provided vs user-created
   hidden?: boolean;
+  isHidden?: boolean; // API field name (alias for hidden)
   source?: CategorySource;
+  createdAt?: string;
+  updatedAt?: string;
 }
 
 export interface CategoryGroup {
@@ -52,7 +59,10 @@ export interface CategoryGroup {
   order: number;
   isDefault?: boolean;
   hidden?: boolean;
+  isHidden?: boolean; // API field name (alias for hidden)
   source?: CategorySource;
+  createdAt?: string;
+  updatedAt?: string;
 }
 
 export interface Tag {
@@ -76,7 +86,8 @@ export interface Goal {
     frequency: ContributionFrequency;
   };
   deadline?: string; // ISO date string
-  createdAt: string;
+  createdAt?: string;
+  updatedAt?: string;
   isArchived?: boolean;
 }
 
@@ -107,9 +118,12 @@ export interface Transaction {
   goalId?: string; // Direct link to a goal this transaction contributes to
   importBatchId?: string; // Links to an ImportBatch if imported from CSV
   split?: SplitInfo;
+  splitInfo?: SplitInfo; // Alias used by API responses
   tagIds?: string[];
   metadata?: TransactionMetadataEntry[]; // Curated key/value metadata shown in-app
   rawData?: Record<string, string>; // Original CSV row data (header -> value)
+  createdAt?: string;
+  updatedAt?: string;
 }
 
 export interface ImportBatch {
@@ -117,10 +131,11 @@ export interface ImportBatch {
   fileName: string;
   name?: string; // Optional custom name for the import
   importedAt: string; // ISO date string
-  parserName: string;
-  parserId: string;
-  rowCount: number;
-  accountId: string;
+  parserName?: string;
+  parserId?: string;
+  rowCount?: number;
+  accountId?: string;
+  createdAt?: string;
 }
 
 export interface Account {
@@ -131,6 +146,8 @@ export interface Account {
   currency: string;
   icon: string; // Lucide icon name
   accountIdentifier?: string; // Optional identifier (e.g. IBAN, account number) for matching imported transactions
+  createdAt?: string;
+  updatedAt?: string;
 }
 
 export type AutomationTrigger = 'on-import' | 'manual-run' | 'on-create';
@@ -338,3 +355,92 @@ export interface ParsedRow {
 }
 
 export type ImportStep = 'upload' | 'parser' | 'preview' | 'complete';
+
+// ─── API Response Types ──────────────────────────────────────
+
+/** Paginated list response from the API */
+export interface PaginatedResponse<T> {
+  items: T[];
+  total: number;
+  page: number;
+  pageSize: number;
+  totalPages: number;
+}
+
+/** GET /api/analytics/summary */
+export interface AnalyticsSummary {
+  totalIncome: number;
+  totalExpenses: number;
+  net: number;
+  averageTransaction: number;
+  transactionCount: number;
+  startDate?: string;
+  endDate?: string;
+}
+
+/** GET /api/analytics/by-category item */
+export interface CategoryBreakdown {
+  categoryId?: string;
+  categoryName?: string;
+  categoryIcon?: string;
+  total: number;
+  count: number;
+  percentage: number;
+}
+
+/** GET /api/analytics/by-month item */
+export interface MonthlyBreakdown {
+  month: string; // "YYYY-MM"
+  income: number;
+  expenses: number;
+  net: number;
+  transactionCount: number;
+}
+
+/** GET /api/analytics/goal-progress item */
+export interface ApiGoalProgress {
+  goalId: string;
+  name: string;
+  icon: string;
+  startingAmount: number;
+  targetAmount: number;
+  currentAmount: number;
+  progressPercentage: number;
+  remainingAmount: number;
+  totalContributions: number;
+  contributionCount: number;
+  hasTarget: boolean;
+  deadline?: string;
+  isArchived: boolean;
+}
+
+/** GET /api/analytics/account-balances item */
+export interface AccountBalance {
+  accountId: string;
+  name: string;
+  computedBalance: number;
+  manualBalance: number;
+  currency: string;
+  transactionCount: number;
+  lastTransactionDate?: string;
+}
+
+/** POST /api/automation-rules/run response */
+export interface AutomationRunResult {
+  evaluatedCount: number;
+  matchedCount: number;
+  changedCount: number;
+  ruleStats: Array<Record<string, unknown>>;
+}
+
+/** POST /api/automation-rules/:id/test response */
+export interface AutomationTestResult {
+  matched: boolean;
+  conditionResults: Array<{
+    field: string;
+    operator: string;
+    value?: string;
+    matched: boolean;
+  }>;
+  actionsToApply: Array<Record<string, unknown>>;
+}

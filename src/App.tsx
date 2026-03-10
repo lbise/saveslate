@@ -1,8 +1,10 @@
 import { lazy, Suspense } from "react";
 import { BrowserRouter, Routes, Route } from "react-router-dom";
+import { QueryClientProvider } from "@tanstack/react-query";
 import { AppLayout } from "./components/layout";
 import { OnboardingProvider, SettingsProvider, UserProvider } from "./context";
 import { Toaster } from "./components/ui/sonner";
+import { queryClient } from "./lib/query-client";
 import { Dashboard } from "./pages";
 
 // Lazy-loaded pages
@@ -31,12 +33,13 @@ const Design10 = lazy(() => import("./pages/designs/Design10").then(m => ({ defa
 
 function App() {
   return (
-    <SettingsProvider>
-      <UserProvider>
-        <OnboardingProvider>
-          <BrowserRouter>
-            <Suspense fallback={null}>
-              <Routes>
+    <QueryClientProvider client={queryClient}>
+      <SettingsProvider>
+        <UserProvider>
+          <OnboardingProvider>
+            <BrowserRouter>
+              <Suspense fallback={null}>
+                <Routes>
                 {/* Design Concepts - standalone pages */}
                 <Route path="/1" element={<Design1 />} />
                 <Route path="/2" element={<Design2 />} />
@@ -69,10 +72,11 @@ function App() {
               </Routes>
             </Suspense>
           </BrowserRouter>
-        </OnboardingProvider>
-        <Toaster position="bottom-right" />
-      </UserProvider>
-    </SettingsProvider>
+          </OnboardingProvider>
+          <Toaster position="bottom-right" />
+        </UserProvider>
+      </SettingsProvider>
+    </QueryClientProvider>
   );
 }
 
