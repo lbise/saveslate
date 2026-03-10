@@ -13,6 +13,18 @@ export interface UserSettings {
   defaultCurrency: string; // ISO 4217 code, e.g. 'CHF', 'EUR'
 }
 
+export type CategorySource = 'system' | 'preset' | 'custom';
+
+export type CategoryPreset = 'custom' | 'minimal' | 'full';
+
+export interface OnboardingState {
+  version: number;
+  isComplete: boolean;
+  defaultCurrency?: string;
+  categoryPreset?: CategoryPreset;
+  completedAt?: string;
+}
+
 // ── Transactions ──────────────────────────────────────────────────────
 
 export type TransactionType = 'income' | 'expense' | 'transfer';
@@ -29,6 +41,8 @@ export interface Category {
   icon: string; // Lucide icon name
   groupId?: string;
   isDefault?: boolean; // System-provided vs user-created
+  hidden?: boolean;
+  source?: CategorySource;
 }
 
 export interface CategoryGroup {
@@ -37,6 +51,8 @@ export interface CategoryGroup {
   icon: string;
   order: number;
   isDefault?: boolean;
+  hidden?: boolean;
+  source?: CategorySource;
 }
 
 export interface Tag {

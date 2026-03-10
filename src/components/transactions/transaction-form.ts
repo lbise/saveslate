@@ -58,11 +58,12 @@ export function createTransactionFormState(params: {
   transaction: Transaction | null;
   accounts: Account[];
   categories: Category[];
+  defaultCurrency?: string;
 }): TransactionFormState {
-  const { transaction, accounts, categories } = params;
+  const { transaction, accounts, categories, defaultCurrency: preferredDefaultCurrency } = params;
   const today = new Date().toISOString().split('T')[0];
   const defaultAccountId = accounts[0]?.id ?? '';
-  const defaultCurrency = accounts[0]?.currency ?? 'CHF';
+  const defaultCurrency = accounts[0]?.currency ?? preferredDefaultCurrency ?? 'CHF';
   const defaultCategoryId = getDefaultCategoryId(categories);
 
   if (!transaction) {
@@ -111,6 +112,7 @@ export function toTransactionFormSubmitPayload(
     categories: Category[];
     goals: Goal[];
     tags: Tag[];
+    defaultCurrency?: string;
   },
 ): TransactionFormSubmitPayload | null {
   const description = form.description.trim();
@@ -167,7 +169,7 @@ export function toTransactionFormSubmitPayload(
   const payload: TransactionFormSubmitPayload = {
     transactionId: form.transactionId.trim() || undefined,
     amount: signedAmount,
-    currency: currency || options.accounts[0]?.currency || 'CHF',
+    currency: currency || options.accounts[0]?.currency || options.defaultCurrency || 'CHF',
     categoryId,
     description,
     date,

@@ -1,5 +1,6 @@
 export { useUser } from './useUser';
 export { useSettings } from './useSettings';
+export { useOnboarding } from './useOnboarding';
 export { useFormatCurrency } from './useFormatCurrency';
 export { useImportExport } from './useImportExport';
 export { useIconPicker } from './useIconPicker';

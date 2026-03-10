@@ -1,5 +1,6 @@
 import { useMemo, useState, type FormEvent } from 'react';
 import { Tag, Users } from 'lucide-react';
+import { useSettings } from '../../hooks';
 import { getCurrencyOptionsWithFallback } from '../../lib/currencies';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/Card';
@@ -38,6 +39,7 @@ interface TransactionFormModalProps {
   transaction: Transaction | null;
   accounts: Account[];
   categories: Category[];
+  allCategories: Category[];
   goals: Goal[];
   tags: TransactionTag[];
   onCancel: () => void;
@@ -72,15 +74,18 @@ export function TransactionFormModal({
   transaction,
   accounts,
   categories,
+  allCategories,
   goals,
   tags,
   onCancel,
   onSubmit,
 }: TransactionFormModalProps) {
+  const { defaultCurrency } = useSettings();
   const [form, setForm] = useState<TransactionFormState>(() => createTransactionFormState({
     transaction,
     accounts,
     categories,
+    defaultCurrency,
   }));
   const [formError, setFormError] = useState<string | null>(null);
 
@@ -169,9 +174,10 @@ export function TransactionFormModal({
     event.preventDefault();
     const payload = toTransactionFormSubmitPayload(form, {
       accounts,
-      categories,
+      categories: allCategories,
       goals,
       tags,
+      defaultCurrency,
     });
 
     if (!payload) {

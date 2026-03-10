@@ -9,12 +9,26 @@ import {
   updateAccount,
 } from '../data/mock/accounts';
 import { getComputedBalances } from './account-storage';
-import { CATEGORIES, getCategoryById, getDefaultCategories } from '../data/mock/categories';
 import {
-  CATEGORY_GROUPS,
-  getCategoryGroupById,
-  getDefaultCategoryGroups,
-} from '../data/mock/category-groups';
+  addCategory as addStoredCategory,
+  deleteCategory as deleteStoredCategory,
+  getCategoryById as getStoredCategoryById,
+  getDefaultCategories as getStoredDefaultCategories,
+  getVisibleCategories as getStoredVisibleCategories,
+  loadCategories,
+  mergeCategories as mergeStoredCategories,
+  updateCategory as updateStoredCategory,
+} from './category-storage';
+import {
+  addCategoryGroup as addStoredCategoryGroup,
+  deleteCategoryGroup as deleteStoredCategoryGroup,
+  getCategoryGroupById as getStoredCategoryGroupById,
+  getDefaultCategoryGroups as getStoredDefaultCategoryGroups,
+  getVisibleCategoryGroups as getStoredVisibleCategoryGroups,
+  loadCategoryGroups,
+  mergeCategoryGroups as mergeStoredCategoryGroups,
+  updateCategoryGroup as updateStoredCategoryGroup,
+} from './category-group-storage';
 import { getActiveGoals, getArchivedGoals, getGoalById, getGoals, GOALS } from '../data/mock/goals';
 import {
   getPendingSplitTransactions,
@@ -58,11 +72,21 @@ export interface DataService {
   getComputedBalances(): Map<string, number>;
 
   getCategories(): Category[];
+  getVisibleCategories(): Category[];
   getCategoryById(id: string): Category | undefined;
   getDefaultCategories(): Category[];
+  addCategory(category: Category): Category;
+  updateCategory(id: string, updates: Partial<Omit<Category, 'id'>>): Category | null;
+  deleteCategory(id: string): boolean;
+  mergeCategories(categories: Category[]): Category[];
   getCategoryGroups(): CategoryGroup[];
+  getVisibleCategoryGroups(): CategoryGroup[];
   getCategoryGroupById(id: string): CategoryGroup | undefined;
   getDefaultCategoryGroups(): CategoryGroup[];
+  addCategoryGroup(group: CategoryGroup): CategoryGroup;
+  updateCategoryGroup(id: string, updates: Partial<Omit<CategoryGroup, 'id'>>): CategoryGroup | null;
+  deleteCategoryGroup(id: string): boolean;
+  mergeCategoryGroups(groups: CategoryGroup[]): CategoryGroup[];
 
   getGoals(): Goal[];
   getGoalById(id: string): Goal | undefined;
@@ -124,27 +148,70 @@ class LocalDataService implements DataService {
   }
 
   public getCategories(): Category[] {
-    return CATEGORIES;
+    return loadCategories();
+  }
+
+  public getVisibleCategories(): Category[] {
+    return getStoredVisibleCategories();
   }
 
   public getCategoryById(id: string): Category | undefined {
-    return getCategoryById(id);
+    return getStoredCategoryById(id);
   }
 
   public getDefaultCategories(): Category[] {
-    return getDefaultCategories();
+    return getStoredDefaultCategories();
+  }
+
+  public addCategory(category: Category): Category {
+    return addStoredCategory(category);
+  }
+
+  public updateCategory(id: string, updates: Partial<Omit<Category, 'id'>>): Category | null {
+    return updateStoredCategory(id, updates);
+  }
+
+  public deleteCategory(id: string): boolean {
+    return deleteStoredCategory(id);
+  }
+
+  public mergeCategories(categories: Category[]): Category[] {
+    return mergeStoredCategories(categories);
   }
 
   public getCategoryGroups(): CategoryGroup[] {
-    return CATEGORY_GROUPS;
+    return loadCategoryGroups();
+  }
+
+  public getVisibleCategoryGroups(): CategoryGroup[] {
+    return getStoredVisibleCategoryGroups();
   }
 
   public getCategoryGroupById(id: string): CategoryGroup | undefined {
-    return getCategoryGroupById(id);
+    return getStoredCategoryGroupById(id);
   }
 
   public getDefaultCategoryGroups(): CategoryGroup[] {
-    return getDefaultCategoryGroups();
+    return getStoredDefaultCategoryGroups();
+  }
+
+  public addCategoryGroup(group: CategoryGroup): CategoryGroup {
+    return addStoredCategoryGroup(group);
+  }
+
+  public updateCategoryGroup(
+    id: string,
+    updates: Partial<Omit<CategoryGroup, 'id'>>,
+  ): CategoryGroup | null {
+    return updateStoredCategoryGroup(id, updates);
+  }
+
+  public deleteCategoryGroup(id: string): boolean {
+    return deleteStoredCategoryGroup(id);
+  }
+
+  public mergeCategoryGroups(groups: CategoryGroup[]): CategoryGroup[] {
+    return mergeStoredCategoryGroups(groups);
   }
 
   public getGoals(): Goal[] {
@@ -249,7 +316,9 @@ export const mergeAccountsData = (accounts: Account[]): Account[] => getDataServ
 export const getComputedBalancesData = (): Map<string, number> => getDataService().getComputedBalances();
 
 export const getCategories = (): Category[] => getDataService().getCategories();
+export const getVisibleCategories = (): Category[] => getDataService().getVisibleCategories();
 export const getCategoryGroups = (): CategoryGroup[] => getDataService().getCategoryGroups();
+export const getVisibleCategoryGroups = (): CategoryGroup[] => getDataService().getVisibleCategoryGroups();
 export const getGoalsData = (): Goal[] => getDataService().getGoals();
 export const getGoalByIdData = (id: string): Goal | undefined => getDataService().getGoalById(id);
 export const getActiveGoalsData = (): Goal[] => getDataService().getActiveGoals();
@@ -274,13 +343,19 @@ export const getPendingSplitTotalData = (): number => getDataService().getPendin
 export const clearAllUserDataData = (): Promise<void> => getDataService().clearAllUserData();
 
 export {
-  CATEGORIES,
-  CATEGORY_GROUPS,
   GOALS,
-  getCategoryById,
-  getDefaultCategories,
-  getCategoryGroupById,
-  getDefaultCategoryGroups,
+  getStoredCategoryById as getCategoryById,
+  getStoredDefaultCategories as getDefaultCategories,
+  addStoredCategory as addCategory,
+  updateStoredCategory as updateCategory,
+  deleteStoredCategory as deleteCategory,
+  mergeStoredCategories as mergeCategories,
+  getStoredCategoryGroupById as getCategoryGroupById,
+  getStoredDefaultCategoryGroups as getDefaultCategoryGroups,
+  addStoredCategoryGroup as addCategoryGroup,
+  updateStoredCategoryGroup as updateCategoryGroup,
+  deleteStoredCategoryGroup as deleteCategoryGroup,
+  mergeStoredCategoryGroups as mergeCategoryGroups,
   getGoalsData as getGoals,
   getGoalByIdData as getGoalById,
   getActiveGoalsData as getActiveGoals,

@@ -12,7 +12,9 @@ import {
   deleteAccountData,
   mergeAccountsData,
   getCategories,
+  getVisibleCategories,
   getCategoryGroups,
+  getVisibleCategoryGroups,
   getGoalsData,
   getGoalByIdData,
   getActiveGoalsData,
@@ -30,8 +32,6 @@ import {
   getGoalProgressData,
   getPendingSplitTotalData,
   clearAllUserDataData,
-  CATEGORIES,
-  CATEGORY_GROUPS,
   GOALS,
   getCategoryById,
   getDefaultCategories,
@@ -53,11 +53,21 @@ function createMockDataService(): DataService {
     mergeAccounts: vi.fn(() => []),
     getComputedBalances: vi.fn(() => new Map()),
     getCategories: vi.fn(() => []),
+    getVisibleCategories: vi.fn(() => []),
     getCategoryById: vi.fn(() => undefined),
     getDefaultCategories: vi.fn(() => []),
     getCategoryGroups: vi.fn(() => []),
+    getVisibleCategoryGroups: vi.fn(() => []),
     getCategoryGroupById: vi.fn(() => undefined),
     getDefaultCategoryGroups: vi.fn(() => []),
+    addCategory: vi.fn((category) => category),
+    updateCategory: vi.fn(() => null),
+    deleteCategory: vi.fn(() => false),
+    mergeCategories: vi.fn(() => []),
+    addCategoryGroup: vi.fn((group) => group),
+    updateCategoryGroup: vi.fn(() => null),
+    deleteCategoryGroup: vi.fn(() => false),
+    mergeCategoryGroups: vi.fn(() => []),
     getGoals: vi.fn(() => []),
     getGoalById: vi.fn(() => undefined),
     getActiveGoals: vi.fn(() => []),
@@ -95,11 +105,21 @@ const ALL_METHOD_NAMES: (keyof DataService)[] = [
   'deleteAccount',
   'mergeAccounts',
   'getCategories',
+  'getVisibleCategories',
   'getCategoryById',
   'getDefaultCategories',
+  'addCategory',
+  'updateCategory',
+  'deleteCategory',
+  'mergeCategories',
   'getCategoryGroups',
+  'getVisibleCategoryGroups',
   'getCategoryGroupById',
   'getDefaultCategoryGroups',
+  'addCategoryGroup',
+  'updateCategoryGroup',
+  'deleteCategoryGroup',
+  'mergeCategoryGroups',
   'getGoals',
   'getGoalById',
   'getActiveGoals',
@@ -222,9 +242,19 @@ describe('data-service', () => {
       expect(mock.getCategories).toHaveBeenCalledOnce();
     });
 
+    it('getVisibleCategories delegates to getVisibleCategories', () => {
+      getVisibleCategories();
+      expect(mock.getVisibleCategories).toHaveBeenCalledOnce();
+    });
+
     it('getCategoryGroups delegates to getCategoryGroups', () => {
       getCategoryGroups();
       expect(mock.getCategoryGroups).toHaveBeenCalledOnce();
+    });
+
+    it('getVisibleCategoryGroups delegates to getVisibleCategoryGroups', () => {
+      getVisibleCategoryGroups();
+      expect(mock.getVisibleCategoryGroups).toHaveBeenCalledOnce();
     });
 
     it('getGoalsData delegates to getGoals', () => {
@@ -314,14 +344,12 @@ describe('data-service', () => {
   });
 
   describe('re-exports', () => {
-    it('CATEGORIES is a non-empty array', () => {
-      expect(Array.isArray(CATEGORIES)).toBe(true);
-      expect(CATEGORIES.length).toBeGreaterThan(0);
+    it('getVisibleCategories is a function', () => {
+      expect(typeof getVisibleCategories).toBe('function');
     });
 
-    it('CATEGORY_GROUPS is a non-empty array', () => {
-      expect(Array.isArray(CATEGORY_GROUPS)).toBe(true);
-      expect(CATEGORY_GROUPS.length).toBeGreaterThan(0);
+    it('getVisibleCategoryGroups is a function', () => {
+      expect(typeof getVisibleCategoryGroups).toBe('function');
     });
 
     it('GOALS is an array', () => {

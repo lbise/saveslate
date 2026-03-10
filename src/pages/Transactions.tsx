@@ -44,11 +44,12 @@ import { Separator } from "@/components/ui/separator";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { toast } from "sonner";
 import {
+  getCategories,
   getAccounts,
   getCategoryById,
   getGoalById,
   getGoals,
-  CATEGORIES,
+  getVisibleCategories,
 } from "../lib/data-service";
 import {
   deleteImportBatch,
@@ -75,7 +76,7 @@ import {
   persistTransactions,
 } from "../lib/transaction-utils";
 import { cn } from "../lib/utils";
-import { useFormatCurrency, useTransactionFilters, usePagination } from "../hooks";
+import { useFormatCurrency, useOnboarding, useTransactionFilters, usePagination } from "../hooks";
 import type {
   Account,
   Goal,
@@ -110,6 +111,7 @@ interface SourceOption {
 
 export function Transactions() {
   const { formatCurrency, formatSignedCurrency } = useFormatCurrency();
+  useOnboarding();
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
 
@@ -194,6 +196,10 @@ export function Transactions() {
 
   const availableGoals = goals;
 
+  const allCategories = getCategories();
+
+  const availableCategories = getVisibleCategories();
+
   const closePopovers = () => {
     setOpenActionId(null);
     setEditingCategoryId(null);
@@ -208,6 +214,12 @@ export function Transactions() {
   };
 
   const openCreateTransactionForm = () => {
+    if (availableCategories.length === 0) {
+      toast.info('Add at least one visible category before creating a manual transaction.');
+      navigate('/categories');
+      return;
+    }
+
     closePopovers();
     setEditingTransactionId(null);
     setIsTransactionFormOpen(true);
@@ -404,7 +416,7 @@ export function Transactions() {
   const openQuickAutoRuleModal = (transaction: TxDetails) => {
     closePopovers();
 
-    const fallbackCategoryId = CATEGORIES[0]?.id ?? UNCATEGORIZED_CATEGORY_ID;
+    const fallbackCategoryId = availableCategories[0]?.id ?? '';
 
     const prefillCategoryId = transaction.categoryId === UNCATEGORIZED_CATEGORY_ID
       ? fallbackCategoryId
@@ -453,19 +465,10 @@ export function Transactions() {
     [transactions],
   );
 
-  // Categories available for filtering — show all categories regardless of type filter
-  const availableCategories = useMemo(() => {
-    return CATEGORIES;
-  }, []);
-
-  const categoryOptions = useMemo(
-    () =>
-      availableCategories.map((c) => ({
-        id: c.id,
-        label: c.name,
-      })),
-    [availableCategories],
-  );
+  const categoryOptions = availableCategories.map((category) => ({
+    id: category.id,
+    label: category.name,
+  }));
 
   const tagsById = useMemo(
     () => new Map(tags.map((tag) => [tag.id, tag] as const)),
@@ -994,7 +997,8 @@ export function Transactions() {
           mode={editingTransaction ? "edit" : "create"}
           transaction={editingTransaction}
           accounts={availableAccounts}
-          categories={CATEGORIES}
+          categories={availableCategories}
+          allCategories={allCategories}
           goals={availableGoals}
           tags={tags}
           onCancel={closeTransactionForm}
@@ -1348,7 +1352,7 @@ export function Transactions() {
               className="flex items-center gap-1 px-2 py-1 rounded-full text-sm bg-primary/10 text-primary border border-primary/20 cursor-pointer transition-opacity hover:opacity-80"
             >
               {categoryFilterIds.length === 1
-                ? (availableCategories.find((c) => c.id === categoryFilterIds[0])?.name ?? "1 category")
+                ? (getCategoryById(categoryFilterIds[0])?.name ?? "1 category")
                 : `${categoryFilterIds.length} categories`}
               <X size={12} />
             </button>
@@ -1543,4 +1547,3 @@ export function Transactions() {
     </div>
   );
 }
-

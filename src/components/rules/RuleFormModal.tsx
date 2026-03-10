@@ -19,7 +19,6 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import {
-  CATEGORIES,
   getAccounts,
   getActiveGoals,
   getGoals,
@@ -45,6 +44,7 @@ import type {
   AutomationConditionOperator,
   AutomationMatchMode,
   AutomationTrigger,
+  Category,
 } from "../../types";
 import type {
   RuleFieldOption,
@@ -52,10 +52,13 @@ import type {
   RuleFormState,
 } from "../../lib/rule-utils";
 
+const EMPTY_CATEGORY_VALUE = '__none__';
+
 export interface RuleFormModalProps {
   editingRuleId: string | null;
   initialForm: RuleFormState;
   defaultCategoryId: string;
+  categories: Category[];
   onClose: () => void;
   onSave: (ruleData: {
     name: string;
@@ -71,6 +74,7 @@ export function RuleFormModal({
   editingRuleId,
   initialForm,
   defaultCategoryId,
+  categories,
   onClose,
   onSave,
 }: RuleFormModalProps) {
@@ -130,13 +134,13 @@ export function RuleFormModal({
 
   const categoryOptions = useMemo(
     () =>
-      [...CATEGORIES]
+      [...categories]
         .sort((left, right) => left.name.localeCompare(right.name))
         .map((category) => ({
           value: category.id,
           label: category.name,
         })),
-    [],
+    [categories],
   );
 
   const importSourceOptions = useMemo(
@@ -446,10 +450,11 @@ export function RuleFormModal({
                       {action.type === "set-category" ? (
                         <>
                           <Select
-                            value={action.categoryId}
+                            value={action.categoryId || EMPTY_CATEGORY_VALUE}
                             onValueChange={(value) =>
                               handleActionChange(action.id, {
-                                categoryId: value,
+                                categoryId:
+                                  value === EMPTY_CATEGORY_VALUE ? '' : value,
                               })
                             }
                           >
@@ -457,7 +462,10 @@ export function RuleFormModal({
                               <SelectValue />
                             </SelectTrigger>
                             <SelectContent>
-                              {CATEGORIES.map((category) => (
+                              <SelectItem value={EMPTY_CATEGORY_VALUE}>
+                                Select category
+                              </SelectItem>
+                              {categories.map((category) => (
                                 <SelectItem key={category.id} value={category.id}>
                                   {category.name}
                                 </SelectItem>

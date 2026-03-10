@@ -1,5 +1,7 @@
 import { useState, useEffect } from 'react';
 import { Outlet } from 'react-router-dom';
+
+import { OnboardingGate } from './OnboardingGate';
 import { Sidebar } from './Sidebar';
 
 export function AppLayout() {
@@ -36,6 +38,8 @@ export function AppLayout() {
           <Outlet />
         </main>
       </div>
+
+      <OnboardingGate />
     </div>
   );
 }

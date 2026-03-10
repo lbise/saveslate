@@ -1,7 +1,7 @@
 import { lazy, Suspense } from "react";
 import { BrowserRouter, Routes, Route } from "react-router-dom";
 import { AppLayout } from "./components/layout";
-import { SettingsProvider, UserProvider } from "./context";
+import { OnboardingProvider, SettingsProvider, UserProvider } from "./context";
 import { Toaster } from "./components/ui/sonner";
 import { Dashboard } from "./pages";
 
@@ -33,41 +33,43 @@ function App() {
   return (
     <SettingsProvider>
       <UserProvider>
-        <BrowserRouter>
-          <Suspense fallback={null}>
-            <Routes>
-              {/* Design Concepts - standalone pages */}
-              <Route path="/1" element={<Design1 />} />
-              <Route path="/2" element={<Design2 />} />
-              <Route path="/3" element={<Design3 />} />
-              <Route path="/4" element={<Design4 />} />
-              <Route path="/5" element={<Design5 />} />
-              <Route path="/6" element={<Design6 />} />
-              <Route path="/7" element={<Design7 />} />
-              <Route path="/8" element={<Design8 />} />
-              <Route path="/9" element={<Design9 />} />
-              <Route path="/10" element={<Design10 />} />
+        <OnboardingProvider>
+          <BrowserRouter>
+            <Suspense fallback={null}>
+              <Routes>
+                {/* Design Concepts - standalone pages */}
+                <Route path="/1" element={<Design1 />} />
+                <Route path="/2" element={<Design2 />} />
+                <Route path="/3" element={<Design3 />} />
+                <Route path="/4" element={<Design4 />} />
+                <Route path="/5" element={<Design5 />} />
+                <Route path="/6" element={<Design6 />} />
+                <Route path="/7" element={<Design7 />} />
+                <Route path="/8" element={<Design8 />} />
+                <Route path="/9" element={<Design9 />} />
+                <Route path="/10" element={<Design10 />} />
 
-              {/* Auth pages without app shell */}
-              <Route path="/login" element={<Login />} />
-              <Route path="/register" element={<Register />} />
+                {/* Auth pages without app shell */}
+                <Route path="/login" element={<Login />} />
+                <Route path="/register" element={<Register />} />
 
-              {/* Main app with layout */}
-              <Route element={<AppLayout />}>
-                <Route path="/" element={<Dashboard />} />
-                <Route path="/transactions" element={<Transactions />} />
-                <Route path="/analytics" element={<Analytics />} />
-                <Route path="/import" element={<Import />} />
-                <Route path="/accounts" element={<Accounts />} />
-                <Route path="/goals" element={<Goals />} />
-                <Route path="/categories" element={<Categories />} />
-                <Route path="/rules" element={<Rules />} />
-                <Route path="/settings" element={<Settings />} />
-                <Route path="/help" element={<Help />} />
-              </Route>
-            </Routes>
-          </Suspense>
-        </BrowserRouter>
+                {/* Main app with layout */}
+                <Route element={<AppLayout />}>
+                  <Route path="/" element={<Dashboard />} />
+                  <Route path="/transactions" element={<Transactions />} />
+                  <Route path="/analytics" element={<Analytics />} />
+                  <Route path="/import" element={<Import />} />
+                  <Route path="/accounts" element={<Accounts />} />
+                  <Route path="/goals" element={<Goals />} />
+                  <Route path="/categories" element={<Categories />} />
+                  <Route path="/rules" element={<Rules />} />
+                  <Route path="/settings" element={<Settings />} />
+                  <Route path="/help" element={<Help />} />
+                </Route>
+              </Routes>
+            </Suspense>
+          </BrowserRouter>
+        </OnboardingProvider>
         <Toaster position="bottom-right" />
       </UserProvider>
     </SettingsProvider>

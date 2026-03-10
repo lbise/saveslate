@@ -2,6 +2,7 @@ import { useMemo, useState, type FormEvent } from 'react';
 import * as LucideIcons from 'lucide-react';
 import { ChevronDown, Search } from 'lucide-react';
 import { getCurrencyOptionsWithFallback } from '../../lib/currencies';
+import { useSettings } from '../../hooks';
 import { Icon } from '../ui';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/Card';
@@ -25,6 +26,7 @@ import {
 import {
   ACCOUNT_TYPE_DEFAULT_ICONS,
   ACCOUNT_TYPE_LABELS,
+  DEFAULT_ACCOUNT_FORM_STATE,
   toAccountFormSubmitPayload,
   type AccountFormState,
   type AccountFormSubmitPayload,
@@ -44,7 +46,14 @@ export function AccountFormModal({
   onCancel,
   onSubmit,
 }: AccountFormModalProps) {
-  const [form, setForm] = useState<AccountFormState>(initialValues);
+  const { defaultCurrency } = useSettings();
+  const [form, setForm] = useState<AccountFormState>(() => ({
+    ...initialValues,
+    currency:
+      mode === 'create' && initialValues.currency === DEFAULT_ACCOUNT_FORM_STATE.currency
+        ? defaultCurrency
+        : initialValues.currency || defaultCurrency,
+  }));
   const [isIconPickerOpen, setIsIconPickerOpen] = useState(false);
   const [iconSearchQuery, setIconSearchQuery] = useState('');
 
@@ -71,7 +80,7 @@ export function AccountFormModal({
   const handleSubmit = (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
 
-    const payload = toAccountFormSubmitPayload(form);
+    const payload = toAccountFormSubmitPayload(form, defaultCurrency);
     if (!payload) {
       return;
     }

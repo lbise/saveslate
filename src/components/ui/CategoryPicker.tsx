@@ -1,7 +1,9 @@
 import { Check } from 'lucide-react';
+
+import { useOnboarding } from '../../hooks';
+import { getVisibleCategories, getVisibleCategoryGroups } from '../../lib/data-service';
 import { Icon } from './Icon';
 import { cn } from '../../lib/utils';
-import { CATEGORIES, CATEGORY_GROUPS } from '../../lib/data-service';
 import { Popover, PopoverAnchor, PopoverContent } from './popover';
 import {
   Command,
@@ -25,13 +27,17 @@ export function CategoryPicker({
   onClose,
   openUpward = false,
 }: CategoryPickerProps) {
-  const knownGroupIds = new Set(CATEGORY_GROUPS.map((group) => group.id));
+  useOnboarding();
+  const categories = getVisibleCategories();
+  const categoryGroups = getVisibleCategoryGroups();
 
-  const sortedGroups = [...CATEGORY_GROUPS].sort(
+  const knownGroupIds = new Set(categoryGroups.map((group) => group.id));
+
+  const sortedGroups = [...categoryGroups].sort(
     (a, b) => a.order - b.order || a.name.localeCompare(b.name),
   );
 
-  const ungroupedCategories = CATEGORIES
+  const ungroupedCategories = categories
     .filter((category) => !category.groupId || !knownGroupIds.has(category.groupId))
     .sort((a, b) => a.name.localeCompare(b.name));
 
@@ -52,25 +58,25 @@ export function CategoryPicker({
         onOpenAutoFocus={(e) => e.preventDefault()}
       >
         <Command filter={(value, search) => {
-          const cat = CATEGORIES.find((c) => c.id === value);
+          const cat = categories.find((category) => category.id === value);
           if (!cat) return 0;
           return cat.name.toLowerCase().includes(search.toLowerCase()) ? 1 : 0;
         }}>
           <CommandInput placeholder="Search..." />
           <CommandList>
             <CommandEmpty className="py-3 text-sm text-dimmed">
-              No categories found
+              {categories.length === 0 ? 'No categories available yet' : 'No categories found'}
             </CommandEmpty>
             {sortedGroups.map((group) => {
-              const categories = CATEGORIES
+              const groupedCategories = categories
                 .filter((category) => category.groupId === group.id)
                 .sort((a, b) => a.name.localeCompare(b.name));
 
-              if (categories.length === 0) return null;
+              if (groupedCategories.length === 0) return null;
 
               return (
                 <CommandGroup key={group.id} heading={group.name}>
-                  {categories.map((cat) => {
+                  {groupedCategories.map((cat) => {
                     const isCurrent = cat.id === currentCategoryId;
                     return (
                       <CommandItem

@@ -58,6 +58,7 @@ export function createAccountFormStateFromAccount(account: Account): AccountForm
 
 export function toAccountFormSubmitPayload(
   form: AccountFormState,
+  fallbackCurrency = 'CHF',
 ): AccountFormSubmitPayload | null {
   const accountName = form.name.trim();
   const startingBalance = Number(form.startingBalance);
@@ -69,7 +70,7 @@ export function toAccountFormSubmitPayload(
     name: accountName,
     type: form.type,
     balance: startingBalance,
-    currency: form.currency.trim().toUpperCase() || 'CHF',
+    currency: form.currency.trim().toUpperCase() || fallbackCurrency,
     icon: form.icon.trim() || ACCOUNT_TYPE_DEFAULT_ICONS[form.type],
     accountIdentifier: form.accountIdentifier.trim() || undefined,
   };

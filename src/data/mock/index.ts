@@ -15,7 +15,7 @@ import type {
   Transaction,
 } from '../../types';
 import { getTransactionsSorted } from './transactions';
-import { getCategoryById, CATEGORIES } from './categories';
+import { getCategoryById } from '../../lib/category-storage';
 import { getAccountById } from './accounts';
 import { getActiveGoals, getGoalById } from './goals';
 import { inferTransactionType, UNCATEGORIZED_CATEGORY_ID } from '../../lib/transaction-type';
@@ -256,5 +256,3 @@ export const getPendingSplitTotal = (): number => {
     0
   );
 };
-
-export { CATEGORIES };

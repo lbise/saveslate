@@ -14,9 +14,9 @@ import {
   EntityCardSection,
 } from "../components/ui";
 import {
-  CATEGORIES,
   getAccounts,
   getGoals,
+  getVisibleCategories,
 } from "../lib/data-service";
 import {
   addAutomationRule,
@@ -34,8 +34,7 @@ import {
   loadTransactions,
   saveTransactions,
 } from "../lib/transaction-storage";
-import { UNCATEGORIZED_CATEGORY_ID } from "../lib/transaction-type";
-import { useImportExport } from "../hooks";
+import { useImportExport, useOnboarding } from "../hooks";
 import {
   createDefaultRuleFormState,
   formatCondition,
@@ -59,7 +58,9 @@ import type {
 export function Rules() {
   const navigate = useNavigate();
   const location = useLocation();
-  const defaultCategoryId = CATEGORIES[0]?.id ?? UNCATEGORIZED_CATEGORY_ID;
+  useOnboarding();
+  const visibleCategories = getVisibleCategories();
+  const defaultCategoryId = visibleCategories[0]?.id ?? '';
 
   const [rules, setRules] = useState<AutomationRule[]>(() =>
     loadAutomationRules(),
@@ -93,13 +94,13 @@ export function Rules() {
 
   const categoryOptions = useMemo(
     () =>
-      [...CATEGORIES]
+      [...visibleCategories]
         .sort((left, right) => left.name.localeCompare(right.name))
         .map((category) => ({
           value: category.id,
           label: category.name,
         })),
-    [],
+    [visibleCategories],
   );
 
   const importSourceOptions = useMemo(
@@ -419,6 +420,7 @@ export function Rules() {
           editingRuleId={editingRuleId}
           initialForm={initialForm}
           defaultCategoryId={defaultCategoryId}
+          categories={visibleCategories}
           onClose={closeRuleModal}
           onSave={handleSaveRule}
         />
