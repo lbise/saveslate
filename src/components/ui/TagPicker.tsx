@@ -1,6 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { Pencil, Plus, Search, Tag as TagIcon, Trash2, X } from 'lucide-react';
-import { DEFAULT_TAG_COLOR, TAG_COLOR_PRESETS } from '../../lib/tag-storage';
 import { cn } from '../../lib/utils';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -8,6 +7,18 @@ import { Popover, PopoverAnchor, PopoverContent } from '@/components/ui/popover'
 import { Separator } from '@/components/ui/separator';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import type { Tag } from '../../types';
+
+const DEFAULT_TAG_COLOR = '#55AEC8';
+
+const TAG_COLOR_PRESETS = [
+  '#55AEC8',
+  '#6AA7FF',
+  '#4FD08A',
+  '#EF6A6A',
+  '#7E9AB3',
+  '#C7A2FF',
+  '#F5BB00',
+] as const;
 
 interface TagPickerProps {
   tags: Tag[];

@@ -86,7 +86,7 @@ export function useSeedCategories() {
   const queryClient = useQueryClient();
 
   return useMutation({
-    mutationFn: (preset: 'minimal' | 'full') =>
+    mutationFn: (preset: 'custom' | 'minimal' | 'full') =>
       api.post<Record<string, unknown>[]>('/api/categories/seed', { preset }),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: categoryKeys.all });

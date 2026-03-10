@@ -5,7 +5,7 @@ import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/Card';
 
 interface FileUploadProps {
-  onFileLoaded: (content: string, fileName: string) => void;
+  onFileLoaded: (content: string, fileName: string, file: File) => void;
 }
 
 export function FileUpload({ onFileLoaded }: FileUploadProps) {
@@ -37,7 +37,7 @@ export function FileUpload({ onFileLoaded }: FileUploadProps) {
           return;
         }
         setFileName(file.name);
-        onFileLoaded(content, file.name);
+        onFileLoaded(content, file.name, file);
       };
       reader.onerror = () => setError('Failed to read file');
       reader.readAsText(file);

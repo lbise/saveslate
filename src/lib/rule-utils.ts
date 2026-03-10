@@ -4,7 +4,6 @@ import {
   automationOperatorNeedsValue,
   createAutomationConditionId,
 } from "./automation-rules";
-import { getCategoryById, getGoalById } from "./data-service";
 import type {
   AutomationAction,
   AutomationCondition,
@@ -13,6 +12,8 @@ import type {
   AutomationRule,
   AutomationRulePrefillDraft,
   AutomationTrigger,
+  Category,
+  Goal,
 } from "../types";
 
 // ─── Shared Types ────────────────────────────────────────────
@@ -153,22 +154,30 @@ export function formatCondition(
   return `${fieldLabel} ${operatorLabel}`;
 }
 
-export function formatRuleAction(action: AutomationAction): string {
+export function formatRuleAction(
+  action: AutomationAction,
+  categories: Category[],
+  goals: Goal[],
+): string {
   if (action.type === "set-category") {
-    const category = getCategoryById(action.categoryId);
+    const category = categories.find((c) => c.id === action.categoryId);
     return `Set category to ${category?.name ?? action.categoryId}${action.overwriteExisting ? " (allow recategorize)" : ""}`;
   }
 
-  const goal = getGoalById(action.goalId);
+  const goal = goals.find((g) => g.id === action.goalId);
   return `Set goal to ${goal?.name ?? action.goalId}${action.overwriteExisting ? " (allow change)" : ""}`;
 }
 
-export function formatRuleActionSummary(actions: AutomationAction[]): string {
+export function formatRuleActionSummary(
+  actions: AutomationAction[],
+  categories: Category[],
+  goals: Goal[],
+): string {
   if (actions.length === 0) {
     return "No actions";
   }
 
-  const firstAction = formatRuleAction(actions[0]);
+  const firstAction = formatRuleAction(actions[0], categories, goals);
   if (actions.length === 1) {
     return firstAction;
   }

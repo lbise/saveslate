@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { Outlet } from 'react-router-dom';
 
+import { ErrorBoundary } from './ErrorBoundary';
 import { OnboardingGate } from './OnboardingGate';
 import { Sidebar } from './Sidebar';
 
@@ -35,7 +36,9 @@ export function AppLayout() {
         }}
       >
         <main className="overflow-auto">
-          <Outlet />
+          <ErrorBoundary>
+            <Outlet />
+          </ErrorBoundary>
         </main>
       </div>
 

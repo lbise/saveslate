@@ -19,6 +19,7 @@ import {
 import { DeleteConfirmationModal } from '../components/ui';
 import { getCurrencyOptionsWithFallback } from '../lib/currencies';
 import { useSettings } from '../hooks';
+import { useClearAllData } from '../hooks/api';
 
 interface SettingRowProps {
   icon: ComponentType<{ size?: number; className?: string }>;
@@ -48,8 +49,8 @@ export function Settings() {
   const { defaultCurrency, setDefaultCurrency } = useSettings();
   const [language, setLanguage] = useState('en');
   const [isClearDataModalOpen, setIsClearDataModalOpen] = useState(false);
-  const [isClearingData, setIsClearingData] = useState(false);
   const [clearDataError, setClearDataError] = useState<string | null>(null);
+  const clearAllData = useClearAllData();
   const currencyOptions = useMemo(
     () => getCurrencyOptionsWithFallback(defaultCurrency),
     [defaultCurrency],
@@ -62,13 +63,11 @@ export function Settings() {
 
   async function handleConfirmClearAllData() {
     try {
-      setIsClearingData(true);
       setClearDataError(null);
-      // TODO: Add API endpoint to delete all user data
-      localStorage.clear();
-      window.location.reload();
+      await clearAllData.mutateAsync();
+      toast.success('All data has been cleared');
+      setIsClearDataModalOpen(false);
     } catch {
-      setIsClearingData(false);
       setClearDataError('Failed to clear your saved data. Please try again.');
     }
   }
@@ -80,19 +79,19 @@ export function Settings() {
       {isClearDataModalOpen && (
         <DeleteConfirmationModal
           title="Clear all data?"
-          description="This will permanently delete all saved financial data on this device."
+          description="This will permanently delete all your financial data."
           details={(
             <p className="text-sm text-dimmed">
               This includes transactions, import batches, accounts, goals, tags, automation rules, and parser presets.
             </p>
           )}
-          note="Your preferences like default currency and data profile will be kept. This action cannot be undone."
-          confirmLabel={isClearingData ? 'Clearing...' : 'Clear all data'}
+          note="Your account and preferences (currency, language) will be kept. This action cannot be undone."
+          confirmLabel={clearAllData.isPending ? 'Clearing...' : 'Clear all data'}
           onConfirm={() => {
             void handleConfirmClearAllData();
           }}
           onClose={() => {
-            if (!isClearingData) {
+            if (!clearAllData.isPending) {
               setIsClearDataModalOpen(false);
             }
           }}

@@ -1,6 +1,6 @@
 import { useMemo } from 'react';
 import { Check, Target } from 'lucide-react';
-import { getActiveGoals } from '../../lib/data-service';
+import { useGoals } from '../../hooks/api';
 import { cn } from '../../lib/utils';
 import { Icon } from './Icon';
 import { Popover, PopoverAnchor, PopoverContent } from './popover';
@@ -25,9 +25,10 @@ export function GoalPicker({
   onSelect,
   onClose,
 }: GoalPickerProps) {
+  const { data: allGoals = [] } = useGoals();
   const goals = useMemo(() => {
-    return getActiveGoals().sort((a, b) => a.name.localeCompare(b.name));
-  }, []);
+    return allGoals.filter((g) => !g.isArchived).sort((a, b) => a.name.localeCompare(b.name));
+  }, [allGoals]);
 
   const handleSelect = (goalId: string) => {
     onSelect(goalId === '__none__' ? null : goalId);

@@ -6,8 +6,12 @@ import type { Transaction, ParsedRow } from '@/types';
 
 export interface CsvPreviewResult {
   rows: ParsedRow[];
-  errors: string[];
-  detectedAccount?: string;
+  headers: string[];
+  totalRows: number;
+  errorCount: number;
+  skippedRows: number;
+  detectedDelimiter: string;
+  accountIdentifier?: string;
 }
 
 // ─── Hooks ───────────────────────────────────────────────────────────

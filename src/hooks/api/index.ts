@@ -4,6 +4,7 @@ export {
   useRegister,
   useLogout,
   useUpdateProfile,
+  useClearAllData,
   authKeys,
 } from './use-auth';
 

@@ -2,7 +2,7 @@ import { lazy, Suspense } from "react";
 import { BrowserRouter, Routes, Route } from "react-router-dom";
 import { QueryClientProvider } from "@tanstack/react-query";
 import { AppLayout, AuthGuard, GuestGuard } from "./components/layout";
-import { OnboardingProvider, SettingsProvider, UserProvider } from "./context";
+import { OnboardingProvider, UserProvider } from "./context";
 import { Toaster } from "./components/ui/sonner";
 import { queryClient } from "./lib/query-client";
 import { Dashboard } from "./pages";
@@ -34,9 +34,8 @@ const Design10 = lazy(() => import("./pages/designs/Design10").then(m => ({ defa
 function App() {
   return (
     <QueryClientProvider client={queryClient}>
-      <SettingsProvider>
-        <UserProvider>
-          <OnboardingProvider>
+      <UserProvider>
+        <OnboardingProvider>
             <BrowserRouter>
               <Suspense fallback={null}>
                 <Routes>
@@ -76,10 +75,9 @@ function App() {
               </Routes>
             </Suspense>
           </BrowserRouter>
-          </OnboardingProvider>
-          <Toaster position="bottom-right" />
-        </UserProvider>
-      </SettingsProvider>
+        </OnboardingProvider>
+        <Toaster position="bottom-right" />
+      </UserProvider>
     </QueryClientProvider>
   );
 }

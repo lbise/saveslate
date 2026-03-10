@@ -19,16 +19,16 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import {
-  getAccounts,
-  getActiveGoals,
-  getGoals,
-} from "../../lib/data-service";
+  useAccounts,
+  useGoals,
+  useTransactions,
+  useImportBatches,
+} from "../../hooks/api";
 import {
   AUTOMATION_OPERATOR_OPTIONS,
   AUTOMATION_TRIGGER_OPTIONS,
   automationOperatorNeedsValue,
 } from "../../lib/automation-rules";
-import { loadImportBatches, loadTransactions } from "../../lib/transaction-storage";
 import { cn } from "../../lib/utils";
 import {
   BASE_RULE_FIELD_OPTIONS,
@@ -83,10 +83,15 @@ export function RuleFormModal({
 
   // ─── Memoized Options ──────────────────────────────────────
 
+  const { data: accountsData = [] } = useAccounts();
+  const { data: goalsData = [] } = useGoals();
+  const { data: transactionsData } = useTransactions({ pageSize: 10000 });
+  const { data: importBatchesData = [] } = useImportBatches();
+
   const conditionFieldOptions = useMemo<RuleFieldOption[]>(() => {
     const metadataFieldOptions = new Set<string>();
 
-    for (const transaction of loadTransactions()) {
+    for (const transaction of transactionsData?.items ?? []) {
       for (const metadataEntry of transaction.metadata ?? []) {
         const normalizedKey = metadataEntry.key.trim();
         if (normalizedKey) {
@@ -125,12 +130,12 @@ export function RuleFormModal({
       }));
 
     return [...baseOptions, ...metadataOptions];
-  }, [form.conditions]);
+  }, [form.conditions, transactionsData]);
 
-  const availableGoals = useMemo(() => getActiveGoals(), []);
-  const availableAccounts = useMemo(() => getAccounts(), []);
-  const allGoals = useMemo(() => getGoals(), []);
-  const importBatches = useMemo(() => loadImportBatches(), []);
+  const availableGoals = useMemo(() => goalsData.filter((g) => !g.isArchived), [goalsData]);
+  const availableAccounts = accountsData;
+  const allGoals = goalsData;
+  const importBatches = importBatchesData;
 
   const categoryOptions = useMemo(
     () =>

@@ -4,6 +4,7 @@ import { ResponsivePie, type PieCustomLayerProps } from '@nivo/pie';
 import { ResponsiveSankey } from '@nivo/sankey';
 import { BarChart3 } from 'lucide-react';
 import { PageHeader } from '../components/layout/PageHeader';
+import { AnalyticsSkeleton, QueryError } from '../components/layout';
 import { Card } from '@/components/ui/Card';
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { StatCard } from '../components/ui';
@@ -269,11 +270,18 @@ export function Analytics() {
   }, [period]);
 
   // ── Backend analytics hooks ──
-  const { data: summaryData } = useAnalyticsSummary(dateFilters);
-  const { data: monthlyData = [] } = useAnalyticsByMonth(dateFilters);
+  const summaryResult = useAnalyticsSummary(dateFilters);
+  const monthlyResult = useAnalyticsByMonth(dateFilters);
   const { data: incomeCategoryData = [] } = useAnalyticsByCategory({ ...dateFilters, type: 'income' });
   const { data: expenseCategoryData = [] } = useAnalyticsByCategory({ ...dateFilters, type: 'expense' });
   const { data: goalProgressData = [] } = useGoalProgress();
+
+  const summaryData = summaryResult.data;
+  const monthlyData = monthlyResult.data ?? [];
+
+  // Show skeleton while primary data is loading
+  if (summaryResult.isLoading || monthlyResult.isLoading) return <AnalyticsSkeleton />;
+  if (summaryResult.isError) return <QueryError message="Failed to load analytics." onRetry={() => summaryResult.refetch()} />;
 
   useEffect(() => {
     const handleResize = () => setViewportWidth(window.innerWidth);

@@ -39,6 +39,7 @@ import {
   toRuleFormStateFromRule,
 } from "../lib/rule-utils";
 import { RuleFormModal } from "../components/rules/RuleFormModal";
+import { EntityListSkeleton, QueryError } from "../components/layout";
 import type {
   AutomationRule,
   RulesRouteState,
@@ -54,14 +55,20 @@ export function Rules() {
   const navigate = useNavigate();
   const location = useLocation();
   useOnboarding();
-  const { data: visibleCategories = [] } = useCategories(true);
+  const categoriesResult = useCategories(true);
+  const visibleCategories = categoriesResult.data ?? [];
   const defaultCategoryId = visibleCategories[0]?.id ?? '';
 
-  const { data: rules = [] } = useAutomationRules();
+  const rulesResult = useAutomationRules();
+  const rules = rulesResult.data ?? [];
   const createRuleMutation = useCreateAutomationRule();
   const updateRuleMutation = useUpdateAutomationRule();
   const deleteRuleMutation = useDeleteAutomationRule();
   const runRulesMutation = useRunAutomationRules();
+
+  // Show skeleton while primary data is loading
+  if (rulesResult.isLoading || categoriesResult.isLoading) return <EntityListSkeleton cardCount={3} />;
+  if (rulesResult.isError) return <QueryError message="Failed to load automation rules." onRetry={() => rulesResult.refetch()} />;
 
   const [isRuleModalOpen, setIsRuleModalOpen] = useState(false);
   const [editingRuleId, setEditingRuleId] = useState<string | null>(null);
@@ -93,6 +100,7 @@ export function Rules() {
   // ─── Lookup data for condition value labels (used in rules list) ───
 
   const { data: availableAccounts = [] } = useAccounts();
+  const { data: allCategories = [] } = useCategories();
   const { data: allGoals = [] } = useGoals();
   const { data: importBatches = [] } = useImportBatches();
 
@@ -507,7 +515,7 @@ export function Rules() {
         ) : (
           <div className="flex flex-col gap-3">
             {rules.map((rule) => {
-              const actionSummary = formatRuleActionSummary(rule.actions);
+              const actionSummary = formatRuleActionSummary(rule.actions, allCategories, allGoals);
               return (
                 <EntityCard
                   key={rule.id}

@@ -76,3 +76,18 @@ export function useUpdateProfile() {
     },
   });
 }
+
+/** Delete all financial data for the current user. Keeps the account. */
+export function useClearAllData() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: () => api.delete('/api/auth/data'),
+    onSuccess: () => {
+      // Invalidate all cached data so pages refetch empty state
+      queryClient.removeQueries({
+        predicate: (query) => query.queryKey[0] !== 'auth',
+      });
+    },
+  });
+}

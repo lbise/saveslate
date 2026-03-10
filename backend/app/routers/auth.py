@@ -1,12 +1,24 @@
-"""Auth router: register, login, logout, get/update profile."""
+"""Auth router: register, login, logout, get/update profile, clear data."""
 
 import secrets
 
 from fastapi import APIRouter, Depends, HTTPException, Response, status
-from sqlalchemy import select
+from sqlalchemy import delete, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.deps import get_current_user, get_db, verify_csrf
+from app.models import (
+    Account,
+    AutomationRule,
+    Category,
+    CategoryGroup,
+    CsvParser,
+    Goal,
+    ImportBatch,
+    Tag,
+    Transaction,
+    TransactionTag,
+)
 from app.models.user import User
 from app.schemas.user import UserLogin, UserRegister, UserResponse, UserUpdate
 from app.services.auth import create_access_token, hash_password, verify_password
@@ -152,3 +164,42 @@ async def update_me(
     await db.commit()
     await db.refresh(user)
     return user
+
+
+@router.delete(
+    "/data",
+    status_code=status.HTTP_204_NO_CONTENT,
+    dependencies=[Depends(verify_csrf)],
+)
+async def clear_all_data(
+    user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+) -> None:
+    """Delete all financial data for the authenticated user.
+
+    Removes transactions, accounts, goals, tags, categories, category groups,
+    automation rules, CSV parsers, and import batches. The user account itself
+    is preserved. System categories (Uncategorized) are re-seeded afterwards.
+    """
+    uid = user.id
+
+    # Order matters: respect foreign key constraints
+    await db.execute(delete(TransactionTag).where(
+        TransactionTag.transaction_id.in_(
+            select(Transaction.id).where(Transaction.user_id == uid)
+        )
+    ))
+    await db.execute(delete(Transaction).where(Transaction.user_id == uid))
+    await db.execute(delete(ImportBatch).where(ImportBatch.user_id == uid))
+    await db.execute(delete(AutomationRule).where(AutomationRule.user_id == uid))
+    await db.execute(delete(CsvParser).where(CsvParser.user_id == uid))
+    await db.execute(delete(Goal).where(Goal.user_id == uid))
+    await db.execute(delete(Tag).where(Tag.user_id == uid))
+    await db.execute(delete(Category).where(Category.user_id == uid))
+    await db.execute(delete(CategoryGroup).where(CategoryGroup.user_id == uid))
+    await db.execute(delete(Account).where(Account.user_id == uid))
+
+    # Re-seed system categories (Uncategorized group + category)
+    await seed_system_categories(db, uid)
+
+    await db.commit()

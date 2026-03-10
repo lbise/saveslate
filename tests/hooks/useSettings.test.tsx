@@ -1,41 +1,81 @@
-import { act, renderHook } from '@testing-library/react';
-import { describe, expect, it } from 'vitest';
+import { renderHook, waitFor } from '@testing-library/react';
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
+import { describe, expect, it, vi, beforeEach } from 'vitest';
 import { useSettings } from '../../src/hooks';
-import { SettingsProvider } from '../../src/context';
 
 import type { ReactNode } from 'react';
+import type { User } from '../../src/types';
 
-function Wrapper({ children }: { children: ReactNode }) {
-  return <SettingsProvider>{children}</SettingsProvider>;
-}
+// Mock the api-client
+vi.mock('../../src/lib/api-client', () => ({
+  api: {
+    get: vi.fn(),
+    put: vi.fn().mockResolvedValue({}),
+  },
+}));
 
-describe('useSettings', () => {
-  it('throws when used outside SettingsProvider', () => {
-    expect(() => renderHook(() => useSettings())).toThrow(
-      'useSettings must be used within a SettingsProvider',
-    );
+function createWrapper(user?: User | null) {
+  const queryClient = new QueryClient({
+    defaultOptions: { queries: { retry: false, staleTime: Infinity } },
   });
 
-  it('returns CHF as default currency', () => {
-    const { result } = renderHook(() => useSettings(), { wrapper: Wrapper });
+  // Pre-populate the auth cache if user provided
+  if (user !== undefined) {
+    queryClient.setQueryData(['auth', 'user'], user);
+  }
+
+  return function Wrapper({ children }: { children: ReactNode }) {
+    return (
+      <QueryClientProvider client={queryClient}>{children}</QueryClientProvider>
+    );
+  };
+}
+
+const mockUser: User = {
+  id: 'test-user-id',
+  name: 'Test User',
+  email: 'test@example.com',
+  defaultCurrency: 'EUR',
+};
+
+describe('useSettings', () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+  });
+
+  it('returns CHF as default currency when no user loaded', () => {
+    const { result } = renderHook(() => useSettings(), {
+      wrapper: createWrapper(null),
+    });
     expect(result.current.defaultCurrency).toBe('CHF');
   });
 
-  it('updates currency and persists to localStorage', () => {
-    const { result } = renderHook(() => useSettings(), { wrapper: Wrapper });
-
-    act(() => {
-      result.current.setDefaultCurrency('EUR');
+  it('returns user defaultCurrency from auth query', () => {
+    const { result } = renderHook(() => useSettings(), {
+      wrapper: createWrapper(mockUser),
     });
-
     expect(result.current.defaultCurrency).toBe('EUR');
-    expect(localStorage.getItem('saveslate:settings:default-currency')).toBe('EUR');
   });
 
-  it('reads persisted currency from localStorage on mount', () => {
-    localStorage.setItem('saveslate:settings:default-currency', 'USD');
+  it('falls back to CHF when user has no defaultCurrency', () => {
+    const userWithoutCurrency: User = { ...mockUser, defaultCurrency: undefined };
+    const { result } = renderHook(() => useSettings(), {
+      wrapper: createWrapper(userWithoutCurrency),
+    });
+    expect(result.current.defaultCurrency).toBe('CHF');
+  });
 
-    const { result } = renderHook(() => useSettings(), { wrapper: Wrapper });
-    expect(result.current.defaultCurrency).toBe('USD');
+  it('setDefaultCurrency optimistically updates the query cache', async () => {
+    const { api } = await import('../../src/lib/api-client');
+    const { result } = renderHook(() => useSettings(), {
+      wrapper: createWrapper(mockUser),
+    });
+
+    result.current.setDefaultCurrency('GBP');
+
+    await waitFor(() => {
+      expect(result.current.defaultCurrency).toBe('GBP');
+    });
+    expect(api.put).toHaveBeenCalledWith('/api/auth/me', { defaultCurrency: 'GBP' });
   });
 });

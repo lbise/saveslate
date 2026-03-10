@@ -31,6 +31,7 @@ import { ScrollArea } from '@/components/ui/scroll-area';
 import type { EntityCardTone } from '../components/ui';
 import { cn } from '../lib/utils';
 import { useImportExport, useIconPicker, useOnboarding } from '../hooks';
+import { EntityListSkeleton, QueryError } from '../components/layout';
 import {
   useCategories,
   useCreateCategory,
@@ -168,12 +169,20 @@ function parseImportedCategories(rawContent: string): {
 
 export function Categories() {
   useOnboarding();
-  const { data: allCategories = [] } = useCategories();
-  const { data: allCategoryGroups = [] } = useCategoryGroups();
+  const categoriesResult = useCategories();
+  const categoryGroupsResult = useCategoryGroups();
   const createCategoryMutation = useCreateCategory();
   const updateCategoryMutation = useUpdateCategory();
   const deleteCategoryMutation = useDeleteCategory();
   const createCategoryGroupMutation = useCreateCategoryGroup();
+
+  const allCategories = categoriesResult.data ?? [];
+  const allCategoryGroups = categoryGroupsResult.data ?? [];
+
+  // Show skeleton while primary data is loading
+  const isPageLoading = categoriesResult.isLoading || categoryGroupsResult.isLoading;
+  if (isPageLoading) return <EntityListSkeleton cardCount={4} />;
+  if (categoriesResult.isError) return <QueryError message="Failed to load categories." onRetry={() => categoriesResult.refetch()} />;
 
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
   const [editingCategoryId, setEditingCategoryId] = useState<string | null>(null);

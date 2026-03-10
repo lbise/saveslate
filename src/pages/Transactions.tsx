@@ -21,6 +21,7 @@ import { Badge } from "@/components/ui/Badge";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { PageHeader, PageHeaderActions } from "../components/layout";
+import { TransactionsSkeleton, QueryError } from "../components/layout";
 import {
   TransactionFormModal,
   TransactionRow,
@@ -113,12 +114,21 @@ export function Transactions() {
   const initialTagFilterIds = parseFilterIdsFromQuery(searchParams, "tag");
 
   // Data from API
-  const { data: rawTransactionsData } = useTransactionsQuery({ pageSize: 10000 });
-  const { data: allCategories = [] } = useCategories();
+  const transactionsResult = useTransactionsQuery({ pageSize: 10000 });
+  const categoriesResult = useCategories();
   const { data: accounts = [] } = useAccounts();
   const { data: goals = [] } = useGoals();
   const { data: tags = [] } = useTags();
   const { data: importBatches = [] } = useImportBatches();
+
+  const rawTransactionsData = transactionsResult.data;
+  const allCategories = categoriesResult.data ?? [];
+
+  // Show skeleton while primary data is loading
+  const isLoading = transactionsResult.isLoading || categoriesResult.isLoading;
+  if (isLoading) return <TransactionsSkeleton />;
+  if (transactionsResult.isError) return <QueryError message="Failed to load transactions." onRetry={() => transactionsResult.refetch()} />;
+  if (categoriesResult.isError) return <QueryError message="Failed to load categories." onRetry={() => categoriesResult.refetch()} />;
 
   // Mutation hooks
   const createTransactionMutation = useCreateTransaction();

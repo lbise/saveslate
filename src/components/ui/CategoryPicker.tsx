@@ -1,7 +1,7 @@
 import { Check } from 'lucide-react';
 
 import { useOnboarding } from '../../hooks';
-import { getVisibleCategories, getVisibleCategoryGroups } from '../../lib/data-service';
+import { useCategories, useCategoryGroups } from '../../hooks/api';
 import { Icon } from './Icon';
 import { cn } from '../../lib/utils';
 import { Popover, PopoverAnchor, PopoverContent } from './popover';
@@ -28,8 +28,9 @@ export function CategoryPicker({
   openUpward = false,
 }: CategoryPickerProps) {
   useOnboarding();
-  const categories = getVisibleCategories();
-  const categoryGroups = getVisibleCategoryGroups();
+  const { data: categories = [] } = useCategories(true);
+  const { data: allCategoryGroups = [] } = useCategoryGroups();
+  const categoryGroups = allCategoryGroups.filter((g) => !g.hidden);
 
   const knownGroupIds = new Set(categoryGroups.map((group) => group.id));
 

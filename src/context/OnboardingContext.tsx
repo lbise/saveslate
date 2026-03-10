@@ -1,46 +1,57 @@
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useMemo } from 'react';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 
-import { useSettings } from '../hooks/useSettings';
-import {
-  completeOnboarding as completeStoredOnboarding,
-  loadOnboardingState,
-  resetOnboardingState,
-} from '../lib/onboarding-storage';
+import { api } from '../lib/api-client';
+import { authKeys } from '../hooks/api/use-auth';
+import { useSeedCategories } from '../hooks/api/use-categories';
 import { OnboardingContext } from './onboarding-context';
 
 import type { ReactNode } from 'react';
-import type { CategoryPreset, OnboardingState } from '../types';
+import type { CategoryPreset, OnboardingState, User } from '../types';
 
 interface OnboardingProviderProps {
   children: ReactNode;
 }
 
 export function OnboardingProvider({ children }: OnboardingProviderProps) {
-  const { defaultCurrency, setDefaultCurrency } = useSettings();
-  const [onboardingState, setOnboardingState] = useState<OnboardingState>(loadOnboardingState);
+  const queryClient = useQueryClient();
+  const seedCategories = useSeedCategories();
 
-  useEffect(() => {
-    if (
-      onboardingState.isComplete
-      && onboardingState.defaultCurrency
-      && onboardingState.defaultCurrency !== defaultCurrency
-    ) {
-      setDefaultCurrency(onboardingState.defaultCurrency);
-    }
-  }, [defaultCurrency, onboardingState, setDefaultCurrency]);
+  // Subscribe to the auth user query (shared with UserProvider + useSettings)
+  const { data: user } = useQuery({
+    queryKey: authKeys.user,
+    queryFn: () => api.get<User>('/api/auth/me'),
+    retry: false,
+    staleTime: 5 * 60 * 1000,
+  });
+
+  const onboardingState: OnboardingState = useMemo(() => ({
+    version: 1,
+    isComplete: !!user?.onboardingCompletedAt,
+    defaultCurrency: user?.defaultCurrency,
+    categoryPreset: (user?.categoryPreset as CategoryPreset) ?? undefined,
+    completedAt: user?.onboardingCompletedAt ?? undefined,
+  }), [user?.onboardingCompletedAt, user?.defaultCurrency, user?.categoryPreset]);
 
   const completeOnboarding = useCallback((options: {
     defaultCurrency: string;
     categoryPreset: CategoryPreset;
   }) => {
-    setDefaultCurrency(options.defaultCurrency);
-    const nextState = completeStoredOnboarding(options);
-    setOnboardingState(nextState);
-  }, [setDefaultCurrency]);
+    // Update default currency optimistically
+    queryClient.setQueryData<User | null>(authKeys.user, (old) =>
+      old ? { ...old, defaultCurrency: options.defaultCurrency } : old,
+    );
+    api.put('/api/auth/me', { defaultCurrency: options.defaultCurrency }).catch(() => {
+      queryClient.invalidateQueries({ queryKey: authKeys.user });
+    });
+
+    // Seed categories (also marks onboarding complete on the backend)
+    seedCategories.mutate(options.categoryPreset);
+  }, [queryClient, seedCategories]);
 
   const resetOnboarding = useCallback(() => {
-    resetOnboardingState();
-    setOnboardingState(loadOnboardingState());
+    // No-op for now — resetting onboarding is a debug-only feature
+    // Would need a backend endpoint to clear onboarding_completed_at
   }, []);
 
   const value = useMemo(() => ({

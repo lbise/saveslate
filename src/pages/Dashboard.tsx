@@ -2,6 +2,7 @@ import { useMemo } from 'react';
 import { Upload, Target, Wallet, ArrowUpRight } from 'lucide-react';
 import { Link, useNavigate } from 'react-router-dom';
 import { PageHeader } from '../components/layout/PageHeader';
+import { DashboardSkeleton, QueryError } from '../components/layout';
 import { StatCard, TransactionItem, GoalCard, ActionCard, Icon } from '../components/ui';
 import { Button } from '@/components/ui/button';
 import { Progress } from '@/components/ui/progress';
@@ -36,14 +37,23 @@ export function Dashboard() {
   const { startDate, endDate } = useMemo(() => getCurrentMonthRange(), []);
 
   // Data queries
-  const { data: accounts = [] } = useAccounts();
-  const { data: accountBalances = [] } = useAccountBalances();
+  const accountsQuery = useAccounts();
+  const balancesQuery = useAccountBalances();
   const { data: goalProgress = [] } = useGoalProgress(false);
   const { data: summary } = useAnalyticsSummary({ startDate, endDate });
   const { data: categorySpending = [] } = useAnalyticsByCategory({ startDate, endDate, type: 'expense' });
   const { data: recentTxData } = useTransactions({ pageSize: MAX_RECENT_TRANSACTIONS, sortBy: 'date', sortOrder: 'desc' });
   const { data: categories = [] } = useCategories();
   const { data: goals = [] } = useGoals();
+
+  const accounts = accountsQuery.data ?? [];
+  const accountBalances = balancesQuery.data ?? [];
+
+  // Show skeleton while primary data is loading
+  const isLoading = accountsQuery.isLoading || balancesQuery.isLoading;
+  if (isLoading) return <DashboardSkeleton />;
+  if (accountsQuery.isError) return <QueryError message="Failed to load accounts." onRetry={() => accountsQuery.refetch()} />;
+  if (balancesQuery.isError) return <QueryError message="Failed to load account balances." onRetry={() => balancesQuery.refetch()} />;
 
   // Net worth from account balances
   const netWorth = useMemo(

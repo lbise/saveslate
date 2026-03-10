@@ -169,7 +169,7 @@ export function OnboardingGate() {
 
         <CardFooter className="justify-between gap-4 border-t border-border/80 bg-card/95">
           <p className="text-sm text-muted-foreground">
-            This is a local-first setup. Nothing leaves the browser, and you can revise the category structure later.
+            You can revise the category structure later in Settings.
           </p>
           <Button
             onClick={() => completeOnboarding({

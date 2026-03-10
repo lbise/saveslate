@@ -8,7 +8,7 @@ from pydantic import BaseModel, Field
 
 
 CategorySource = Literal["system", "preset", "custom"]
-CategoryPreset = Literal["minimal", "full"]
+CategoryPreset = Literal["custom", "minimal", "full"]
 
 
 class CategoryCreate(BaseModel):

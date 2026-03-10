@@ -12,6 +12,7 @@ import {
   type AccountFormSubmitPayload,
 } from '../components/accounts';
 import { PageHeader, PageHeaderActions } from '../components/layout';
+import { EntityListSkeleton, QueryError } from '../components/layout';
 import {
   Badge,
   EntityCard,
@@ -150,11 +151,20 @@ function parseImportedAccounts(rawContent: string): Account[] {
 
 export function Accounts() {
   const { formatCurrency } = useFormatCurrency();
-  const { data: accounts = [] } = useAccounts();
-  const { data: accountBalances = [] } = useAccountBalances();
+  const accountsResult = useAccounts();
+  const balancesResult = useAccountBalances();
   const createAccount = useCreateAccount();
   const updateAccountMutation = useUpdateAccount();
   const deleteAccountMutation = useDeleteAccount();
+
+  const accounts = accountsResult.data ?? [];
+  const accountBalances = balancesResult.data ?? [];
+
+  // Show skeleton while primary data is loading
+  const isLoading = accountsResult.isLoading || balancesResult.isLoading;
+  if (isLoading) return <EntityListSkeleton cardCount={3} />;
+  if (accountsResult.isError) return <QueryError message="Failed to load accounts." onRetry={() => accountsResult.refetch()} />;
+  if (balancesResult.isError) return <QueryError message="Failed to load balances." onRetry={() => balancesResult.refetch()} />;
 
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
   const [editingAccountId, setEditingAccountId] = useState<string | null>(null);

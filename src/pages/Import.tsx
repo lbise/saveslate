@@ -1,6 +1,6 @@
 import { useState, useMemo, useCallback } from 'react';
 import { toast } from 'sonner';
-import { ArrowLeft, CheckCircle, Upload, FileText } from 'lucide-react';
+import { ArrowLeft, CheckCircle, Upload, FileText, Loader2 } from 'lucide-react';
 import { Link, useNavigate } from 'react-router-dom';
 import { PageHeader } from '../components/layout/PageHeader';
 import { Button } from '@/components/ui/button';
@@ -16,10 +16,8 @@ import {
   detectDelimiter,
   parseRawCsv,
   extractHeadersAndData,
-  applyParser,
-  extractAccountIdentifier,
 } from '../lib/csv';
-import { useAccounts, useCreateImportBatch, useBulkCreateTransactions, useUpdateTransaction } from '../hooks/api';
+import { useAccounts, useCreateImportBatch, useBulkCreateTransactions, useUpdateTransaction, useCsvPreview } from '../hooks/api';
 import { useFormatCurrency } from '../hooks';
 import type { CsvParser, ImportStep, ParsedRow } from '../types';
 
@@ -30,55 +28,55 @@ export function Import() {
   const createImportBatchMutation = useCreateImportBatch();
   const bulkCreateTransactionsMutation = useBulkCreateTransactions();
   const updateTransactionMutation = useUpdateTransaction();
+  const csvPreviewMutation = useCsvPreview();
 
   // ─── Wizard state ──────────────────────────────────────────
   const [step, setStep] = useState<ImportStep>('upload');
   const [rawContent, setRawContent] = useState('');
+  const [file, setFile] = useState<File | null>(null);
   const [fileName, setFileName] = useState('');
   const [selectedParser, setSelectedParser] = useState<CsvParser | null>(null);
   const [isCreatingParser, setIsCreatingParser] = useState(false);
   const [parserToEdit, setParserToEdit] = useState<CsvParser | null>(null);
   const [importResult, setImportResult] = useState<{ count: number; income: number; expense: number } | null>(null);
 
-  // ─── Derived CSV data ──────────────────────────────────────
-  const { headers, dataRows, skippedRows } = useMemo(() => {
-    if (!rawContent) return { headers: [] as string[], dataRows: [] as string[][], skippedRows: [] as string[][] };
+  // ─── Derived CSV data (client-side, for parser matching step) ──
+  const { dataRows } = useMemo(() => {
+    if (!rawContent) return { dataRows: [] as string[][] };
 
     const delimiter = selectedParser?.delimiter ?? detectDelimiter(rawContent);
     const rawRows = parseRawCsv(rawContent, delimiter);
     const hasHeader = selectedParser?.hasHeaderRow ?? true;
     const skip = selectedParser?.skipRows ?? 0;
 
-    return extractHeadersAndData(rawRows, hasHeader, skip);
+    const result = extractHeadersAndData(rawRows, hasHeader, skip);
+    return { headers: result.headers, dataRows: result.dataRows };
   }, [rawContent, selectedParser]);
 
-  // ─── Detected account identifier from skipped header rows ───
-  const detectedIdentifier = useMemo(() => {
-    if (!selectedParser?.accountPattern || skippedRows.length === 0) return undefined;
-    return extractAccountIdentifier(skippedRows, selectedParser.accountPattern) ?? undefined;
-  }, [skippedRows, selectedParser]);
-
-  // ─── Parsed rows (only when parser is selected) ────────────
-  const parsedRows: ParsedRow[] = useMemo(() => {
-    if (!selectedParser || dataRows.length === 0) return [];
-    return applyParser(dataRows, headers, selectedParser);
-  }, [selectedParser, dataRows, headers]);
+  // ─── Server-parsed preview data ────────────────────────────
+  const previewRows: ParsedRow[] = csvPreviewMutation.data?.rows ?? [];
+  const detectedIdentifier = csvPreviewMutation.data?.accountIdentifier;
 
   // ─── Step 1: File loaded ───────────────────────────────────
-  const handleFileLoaded = useCallback((content: string, name: string) => {
+  const handleFileLoaded = useCallback((content: string, name: string, fileObj: File) => {
     setRawContent(content);
     setFileName(name);
+    setFile(fileObj);
     setSelectedParser(null);
     setIsCreatingParser(false);
+    csvPreviewMutation.reset();
     setStep('parser');
-  }, []);
+  }, [csvPreviewMutation.reset]);
 
   // ─── Step 2: Parser selected ───────────────────────────────
   const handleSelectParser = useCallback((parser: CsvParser) => {
     setSelectedParser(parser);
     setIsCreatingParser(false);
     setStep('preview');
-  }, []);
+    if (file) {
+      csvPreviewMutation.mutate({ file, parserId: parser.id });
+    }
+  }, [file, csvPreviewMutation.mutate]);
 
   const handleCreateNew = useCallback(() => {
     setParserToEdit(null);
@@ -95,14 +93,15 @@ export function Import() {
   const handleParserSaved = useCallback((parser: CsvParser) => {
     setParserToEdit(null);
     setIsCreatingParser(false);
-    if (rawContent) {
+    if (file) {
       setSelectedParser(parser);
       setStep('preview');
+      csvPreviewMutation.mutate({ file, parserId: parser.id });
       return;
     }
 
     setStep('upload');
-  }, [rawContent]);
+  }, [file, csvPreviewMutation.mutate]);
 
   const handleCancelCreate = useCallback(() => {
     setIsCreatingParser(false);
@@ -120,7 +119,7 @@ export function Import() {
     if (!selectedParser) return;
 
     const selectedRows = selectedRowIndexes
-      .map((index) => parsedRows[index])
+      .map((index) => previewRows[index])
       .filter((row): row is ParsedRow => row !== undefined);
 
     // Resolve the account's currency for fallback
@@ -144,7 +143,7 @@ export function Import() {
       const matchedTransactionUpdates = new Map<string, { transferPairId: string; transferPairRole: 'source' | 'destination' }>();
 
       transferLinks.forEach((link, index) => {
-        const row = parsedRows[link.rowIndex];
+        const row = previewRows[link.rowIndex];
         if (!row) return;
 
         const pairId = `transfer-pair-${Date.now()}-${index}-${Math.random().toString(36).slice(2, 8)}`;
@@ -161,7 +160,7 @@ export function Import() {
       // 3. Build transaction payloads
       const transactionPayloads = selectedRowIndexes
         .map((rowIndex) => {
-          const row = parsedRows[rowIndex];
+          const row = previewRows[rowIndex];
           if (!row) return null;
 
           const transferLink = transferLinkByRowIndex.get(rowIndex);
@@ -206,34 +205,39 @@ export function Import() {
       console.error('Import failed:', error);
       toast.error('Failed to import transactions');
     }
-  }, [selectedParser, parsedRows, fileName, accounts, createImportBatchMutation, bulkCreateTransactionsMutation, updateTransactionMutation]);
+  }, [selectedParser, previewRows, fileName, accounts, createImportBatchMutation, bulkCreateTransactionsMutation, updateTransactionMutation]);
 
   // ─── Navigation helpers ────────────────────────────────────
   const handleBackToUpload = useCallback(() => {
     setStep('upload');
     setRawContent('');
     setFileName('');
+    setFile(null);
     setSelectedParser(null);
     setParserToEdit(null);
     setIsCreatingParser(false);
-  }, []);
+    csvPreviewMutation.reset();
+  }, [csvPreviewMutation.reset]);
 
   const handleBackToParser = useCallback(() => {
     setStep('parser');
     setSelectedParser(null);
     setParserToEdit(null);
     setIsCreatingParser(false);
-  }, []);
+    csvPreviewMutation.reset();
+  }, [csvPreviewMutation.reset]);
 
   const handleStartOver = useCallback(() => {
     setStep('upload');
     setRawContent('');
     setFileName('');
+    setFile(null);
     setSelectedParser(null);
     setParserToEdit(null);
     setIsCreatingParser(false);
     setImportResult(null);
-  }, []);
+    csvPreviewMutation.reset();
+  }, [csvPreviewMutation.reset]);
 
   return (
     <div className="space-y-6 max-w-[1000px] mx-auto px-[18px] pt-[30px] pb-9 lg:px-8 lg:py-11 xl:px-10 xl:py-12">
@@ -323,13 +327,28 @@ export function Import() {
             </button>
           </div>
 
-          <TransactionPreview
-            rows={parsedRows}
-            onConfirm={handleConfirmImport}
-            onBack={handleBackToParser}
-            detectedIdentifier={detectedIdentifier}
-            fileName={fileName}
-          />
+          {csvPreviewMutation.isPending ? (
+            <div className="flex items-center justify-center gap-3 py-16">
+              <Loader2 size={20} className="animate-spin text-muted-foreground" />
+              <span className="text-sm text-muted-foreground">Parsing CSV&hellip;</span>
+            </div>
+          ) : csvPreviewMutation.isError ? (
+            <div className="flex flex-col items-center justify-center gap-4 py-16 text-center">
+              <p className="text-sm text-expense">Failed to parse CSV file</p>
+              <Button variant="outline" size="sm" onClick={handleBackToParser}>
+                <ArrowLeft size={14} />
+                Back to Parser
+              </Button>
+            </div>
+          ) : (
+            <TransactionPreview
+              rows={previewRows}
+              onConfirm={handleConfirmImport}
+              onBack={handleBackToParser}
+              detectedIdentifier={detectedIdentifier}
+              fileName={fileName}
+            />
+          )}
         </div>
       )}
 

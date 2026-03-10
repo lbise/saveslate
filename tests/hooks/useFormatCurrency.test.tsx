@@ -1,19 +1,44 @@
 import { renderHook } from '@testing-library/react';
-import { describe, expect, it } from 'vitest';
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
+import { describe, expect, it, vi } from 'vitest';
 import { useFormatCurrency } from '../../src/hooks';
-import { SettingsProvider } from '../../src/context';
 
 import type { ReactNode } from 'react';
+import type { User } from '../../src/types';
 
-function Wrapper({ children }: { children: ReactNode }) {
-  return <SettingsProvider>{children}</SettingsProvider>;
+// Mock the api-client
+vi.mock('../../src/lib/api-client', () => ({
+  api: {
+    get: vi.fn(),
+    put: vi.fn().mockResolvedValue({}),
+  },
+}));
+
+function createWrapper(currency = 'CHF') {
+  const queryClient = new QueryClient({
+    defaultOptions: { queries: { retry: false, staleTime: Infinity } },
+  });
+
+  const user: User = {
+    id: 'test-user',
+    name: 'Test',
+    email: 'test@test.com',
+    defaultCurrency: currency,
+  };
+  queryClient.setQueryData(['auth', 'user'], user);
+
+  return function Wrapper({ children }: { children: ReactNode }) {
+    return (
+      <QueryClientProvider client={queryClient}>{children}</QueryClientProvider>
+    );
+  };
 }
 
 describe('useFormatCurrency', () => {
   it('formats using the default currency from settings', () => {
-    localStorage.setItem('saveslate:settings:default-currency', 'CHF');
-
-    const { result } = renderHook(() => useFormatCurrency(), { wrapper: Wrapper });
+    const { result } = renderHook(() => useFormatCurrency(), {
+      wrapper: createWrapper('CHF'),
+    });
     const formatted = result.current.formatCurrency(1234.56);
 
     expect(formatted).toContain('CHF');
@@ -21,9 +46,9 @@ describe('useFormatCurrency', () => {
   });
 
   it('allows explicit currency override', () => {
-    localStorage.setItem('saveslate:settings:default-currency', 'CHF');
-
-    const { result } = renderHook(() => useFormatCurrency(), { wrapper: Wrapper });
+    const { result } = renderHook(() => useFormatCurrency(), {
+      wrapper: createWrapper('CHF'),
+    });
     const formatted = result.current.formatCurrency(100, 'EUR');
 
     expect(formatted).toContain('EUR');
@@ -31,9 +56,9 @@ describe('useFormatCurrency', () => {
   });
 
   it('formatSignedCurrency adds + for positive amounts', () => {
-    localStorage.setItem('saveslate:settings:default-currency', 'CHF');
-
-    const { result } = renderHook(() => useFormatCurrency(), { wrapper: Wrapper });
+    const { result } = renderHook(() => useFormatCurrency(), {
+      wrapper: createWrapper('CHF'),
+    });
     const formatted = result.current.formatSignedCurrency(50);
 
     expect(formatted).toMatch(/^\+/);
@@ -41,9 +66,9 @@ describe('useFormatCurrency', () => {
   });
 
   it('formatSignedCurrency adds - for negative amounts', () => {
-    localStorage.setItem('saveslate:settings:default-currency', 'CHF');
-
-    const { result } = renderHook(() => useFormatCurrency(), { wrapper: Wrapper });
+    const { result } = renderHook(() => useFormatCurrency(), {
+      wrapper: createWrapper('CHF'),
+    });
     const formatted = result.current.formatSignedCurrency(-50);
 
     expect(formatted).toMatch(/^-/);
@@ -51,9 +76,9 @@ describe('useFormatCurrency', () => {
   });
 
   it('uses non-default currency from settings', () => {
-    localStorage.setItem('saveslate:settings:default-currency', 'EUR');
-
-    const { result } = renderHook(() => useFormatCurrency(), { wrapper: Wrapper });
+    const { result } = renderHook(() => useFormatCurrency(), {
+      wrapper: createWrapper('EUR'),
+    });
     const formatted = result.current.formatCurrency(100);
 
     expect(formatted).toContain('EUR');

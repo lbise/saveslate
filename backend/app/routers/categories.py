@@ -149,7 +149,11 @@ async def seed_categories(
             detail="Categories already seeded from a preset",
         )
 
-    _groups, categories = await seed_preset_categories(db, user.id, body.preset)
+    # "custom" = no preset categories, just mark onboarding complete
+    if body.preset == "custom":
+        categories = []
+    else:
+        _groups, categories = await seed_preset_categories(db, user.id, body.preset)
 
     # Mark onboarding complete
     user.category_preset = body.preset

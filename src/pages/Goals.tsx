@@ -2,6 +2,7 @@ import { useMemo, useState } from "react";
 import { toast } from "sonner";
 import { Target } from "lucide-react";
 import { PageHeader, PageHeaderActions } from "../components/layout";
+import { EntityListSkeleton, QueryError } from "../components/layout";
 import { DeleteConfirmationModal } from "../components/ui";
 import { GoalDetailCard, GoalFormModal } from "../components/goals";
 import { useGoals, useCreateGoal, useUpdateGoal, useDeleteGoal } from "../hooks/api";
@@ -18,11 +19,18 @@ import type { ExportedGoalsFile, GoalFormState } from "../lib/goal-utils";
 
 export function Goals() {
   const { formatCurrency } = useFormatCurrency();
-  const { data: rawGoals = [] } = useGoals();
-  const { data: goalProgressData = [] } = useGoalProgress();
+  const goalsResult = useGoals();
+  const progressResult = useGoalProgress();
   const createGoalMutation = useCreateGoal();
   const updateGoalMutation = useUpdateGoal();
   const deleteGoalMutation = useDeleteGoal();
+
+  const rawGoals = goalsResult.data ?? [];
+  const goalProgressData = progressResult.data ?? [];
+
+  // Show skeleton while primary data is loading
+  if (goalsResult.isLoading) return <EntityListSkeleton cardCount={3} />;
+  if (goalsResult.isError) return <QueryError message="Failed to load goals." onRetry={() => goalsResult.refetch()} />;
 
   const goals = useMemo<GoalProgress[]>(() => {
     return rawGoals.map((goal) => {

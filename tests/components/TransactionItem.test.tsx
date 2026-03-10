@@ -1,12 +1,37 @@
 import { render, screen } from '@testing-library/react';
-import { describe, expect, it } from 'vitest';
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
+import { describe, expect, it, vi } from 'vitest';
 import { TransactionItem } from '../../src/components/ui/TransactionItem';
-import { SettingsProvider } from '../../src/context';
 
 import type { ReactNode } from 'react';
+import type { User } from '../../src/types';
 
-function Wrapper({ children }: { children: ReactNode }) {
-  return <SettingsProvider>{children}</SettingsProvider>;
+// Mock the api-client
+vi.mock('../../src/lib/api-client', () => ({
+  api: {
+    get: vi.fn(),
+    put: vi.fn().mockResolvedValue({}),
+  },
+}));
+
+function createWrapper() {
+  const queryClient = new QueryClient({
+    defaultOptions: { queries: { retry: false, staleTime: Infinity } },
+  });
+
+  const user: User = {
+    id: 'test-user',
+    name: 'Test',
+    email: 'test@test.com',
+    defaultCurrency: 'CHF',
+  };
+  queryClient.setQueryData(['auth', 'user'], user);
+
+  return function Wrapper({ children }: { children: ReactNode }) {
+    return (
+      <QueryClientProvider client={queryClient}>{children}</QueryClientProvider>
+    );
+  };
 }
 
 describe('TransactionItem', () => {
@@ -22,7 +47,7 @@ describe('TransactionItem', () => {
         destinationAccountName="Checking"
         transferPairRole="destination"
       />,
-      { wrapper: Wrapper },
+      { wrapper: createWrapper() },
     );
 
     expect(screen.getByText(/Checking.*Savings/)).toBeInTheDocument();
@@ -40,7 +65,7 @@ describe('TransactionItem', () => {
         destinationAccountName="Cash"
         transferPairRole="source"
       />,
-      { wrapper: Wrapper },
+      { wrapper: createWrapper() },
     );
 
     const amountElement = screen.getByText((text) => text.includes('987'));
