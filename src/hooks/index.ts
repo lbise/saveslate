@@ -1,4 +1,4 @@
-export { useUser } from './useUser';
+export { useAuth, useUser } from './useUser';
 export { useSettings } from './useSettings';
 export { useOnboarding } from './useOnboarding';
 export { useFormatCurrency } from './useFormatCurrency';

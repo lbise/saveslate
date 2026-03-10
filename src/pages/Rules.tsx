@@ -14,26 +14,21 @@ import {
   EntityCardSection,
 } from "../components/ui";
 import {
-  getAccounts,
-  getGoals,
-  getVisibleCategories,
-} from "../lib/data-service";
+  useAccounts,
+  useGoals,
+  useCategories,
+  useAutomationRules,
+  useCreateAutomationRule,
+  useUpdateAutomationRule,
+  useDeleteAutomationRule,
+  useRunAutomationRules,
+  useImportBatches,
+} from "../hooks/api";
 import {
-  addAutomationRule,
-  applyAutomationRules,
   AUTOMATION_RULES_EXPORT_SCHEMA_VERSION,
   createAutomationConditionId,
-  deleteAutomationRule,
-  loadAutomationRules,
-  mergeAutomationRules,
   parseAutomationRulesFile,
-  updateAutomationRule,
 } from "../lib/automation-rules";
-import {
-  loadImportBatches,
-  loadTransactions,
-  saveTransactions,
-} from "../lib/transaction-storage";
 import { useImportExport, useOnboarding } from "../hooks";
 import {
   createDefaultRuleFormState,
@@ -59,12 +54,15 @@ export function Rules() {
   const navigate = useNavigate();
   const location = useLocation();
   useOnboarding();
-  const visibleCategories = getVisibleCategories();
+  const { data: visibleCategories = [] } = useCategories(true);
   const defaultCategoryId = visibleCategories[0]?.id ?? '';
 
-  const [rules, setRules] = useState<AutomationRule[]>(() =>
-    loadAutomationRules(),
-  );
+  const { data: rules = [] } = useAutomationRules();
+  const createRuleMutation = useCreateAutomationRule();
+  const updateRuleMutation = useUpdateAutomationRule();
+  const deleteRuleMutation = useDeleteAutomationRule();
+  const runRulesMutation = useRunAutomationRules();
+
   const [isRuleModalOpen, setIsRuleModalOpen] = useState(false);
   const [editingRuleId, setEditingRuleId] = useState<string | null>(null);
   const [ruleToDelete, setRuleToDelete] = useState<AutomationRule | null>(null);
@@ -79,18 +77,24 @@ export function Rules() {
 
   const { importError, isImporting, importInputRef, openFilePicker, handleFileChange, exportJsonFile } = useImportExport<AutomationRule[]>({
     parseFile: parseAutomationRulesFile,
-    onImportSuccess: (parsedRules) => {
-      const mergedRules = mergeAutomationRules(parsedRules);
-      setRules(mergedRules);
-      toast.success(`${parsedRules.length} rule(s) imported`);
+    onImportSuccess: async (parsedRules) => {
+      try {
+        for (const rule of parsedRules) {
+          const { id: _id, createdAt: _c, updatedAt: _u, ...ruleData } = rule as AutomationRule & { createdAt?: string; updatedAt?: string };
+          await createRuleMutation.mutateAsync(ruleData);
+        }
+        toast.success(`${parsedRules.length} rule(s) imported`);
+      } catch {
+        toast.error("Failed to import some rules");
+      }
     },
   });
 
   // ─── Lookup data for condition value labels (used in rules list) ───
 
-  const availableAccounts = useMemo(() => getAccounts(), []);
-  const allGoals = useMemo(() => getGoals(), []);
-  const importBatches = useMemo(() => loadImportBatches(), []);
+  const { data: availableAccounts = [] } = useAccounts();
+  const { data: allGoals = [] } = useGoals();
+  const { data: importBatches = [] } = useImportBatches();
 
   const categoryOptions = useMemo(
     () =>
@@ -314,11 +318,17 @@ export function Rules() {
   };
 
   const handleToggleRuleEnabled = (rule: AutomationRule) => {
-    updateAutomationRule(rule.id, {
-      isEnabled: !rule.isEnabled,
-    });
-    setRules(loadAutomationRules());
-    toast.success(`Rule ${rule.isEnabled ? "disabled" : "enabled"}`);
+    updateRuleMutation.mutate(
+      { id: rule.id, isEnabled: !rule.isEnabled },
+      {
+        onSuccess: () => {
+          toast.success(`Rule ${rule.isEnabled ? "disabled" : "enabled"}`);
+        },
+        onError: () => {
+          toast.error("Failed to update rule");
+        },
+      },
+    );
   };
 
   const handleConfirmDeleteRule = () => {
@@ -326,31 +336,39 @@ export function Rules() {
       return;
     }
 
-    deleteAutomationRule(ruleToDelete.id);
-    setRules(loadAutomationRules());
-    if (editingRuleId === ruleToDelete.id) {
-      closeRuleModal();
-    }
-    setRuleToDelete(null);
-    toast.success("Rule deleted");
+    deleteRuleMutation.mutate(ruleToDelete.id, {
+      onSuccess: () => {
+        if (editingRuleId === ruleToDelete.id) {
+          closeRuleModal();
+        }
+        setRuleToDelete(null);
+        toast.success("Rule deleted");
+      },
+      onError: () => {
+        toast.error("Failed to delete rule");
+      },
+    });
   };
 
   const handleRunManualRules = () => {
-    const transactions = loadTransactions();
-    const runResult = applyAutomationRules(transactions, rules, "manual-run");
+    runRulesMutation.mutate(undefined, {
+      onSuccess: (result) => {
+        if (result.changedCount > 0) {
+          toast.success(`Rules applied — ${result.changedCount} transactions updated`);
+        } else {
+          toast.info("No transactions matched");
+        }
 
-    if (runResult.changedCount > 0) {
-      saveTransactions(runResult.transactions);
-      toast.success(`Rules applied — ${runResult.changedCount} transactions updated`);
-    } else {
-      toast.info("No transactions matched");
-    }
-
-    setManualRunSummary({
-      evaluatedCount: runResult.evaluatedCount,
-      matchedCount: runResult.matchedCount,
-      changedCount: runResult.changedCount,
-      ranAt: new Date().toISOString(),
+        setManualRunSummary({
+          evaluatedCount: result.evaluatedCount,
+          matchedCount: result.matchedCount,
+          changedCount: result.changedCount,
+          ranAt: new Date().toISOString(),
+        });
+      },
+      onError: () => {
+        toast.error("Failed to run rules");
+      },
     });
   };
 
@@ -363,14 +381,29 @@ export function Rules() {
     actions: AutomationRule["actions"];
   }) => {
     if (editingRuleId) {
-      updateAutomationRule(editingRuleId, ruleData);
+      updateRuleMutation.mutate(
+        { id: editingRuleId, ...ruleData },
+        {
+          onSuccess: () => {
+            closeRuleModal();
+            toast.success("Rule updated");
+          },
+          onError: () => {
+            toast.error("Failed to update rule");
+          },
+        },
+      );
     } else {
-      addAutomationRule(ruleData);
+      createRuleMutation.mutate(ruleData, {
+        onSuccess: () => {
+          closeRuleModal();
+          toast.success("Rule created");
+        },
+        onError: () => {
+          toast.error("Failed to create rule");
+        },
+      });
     }
-
-    setRules(loadAutomationRules());
-    closeRuleModal();
-    toast.success(editingRuleId ? "Rule updated" : "Rule created");
   };
 
   return (

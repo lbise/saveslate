@@ -1,4 +1,4 @@
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { api } from '@/lib/api-client';
 import type { User } from '@/types';
 
@@ -10,16 +10,10 @@ export const authKeys = {
 
 // ─── Hooks ───────────────────────────────────────────────────────────
 
-/** Fetch the currently authenticated user. Returns null when not logged in. */
-export function useCurrentUser() {
-  return useQuery({
-    queryKey: authKeys.user,
-    queryFn: () => api.get<User>('/api/auth/me'),
-    retry: false, // Don't retry on 401
-  });
-}
-
-/** Login with email/password. Sets auth cookies on success. */
+/**
+ * Login with email/password. Sets auth cookies on success.
+ * Note: useCurrentUser() lives in UserProvider, not here, to avoid circular deps.
+ */
 export function useLogin() {
   const queryClient = useQueryClient();
 
@@ -56,8 +50,12 @@ export function useLogout() {
   return useMutation({
     mutationFn: () => api.post<void>('/api/auth/logout'),
     onSuccess: () => {
+      // Set user to null first — AuthGuard will redirect to /login
       queryClient.setQueryData(authKeys.user, null);
-      queryClient.clear(); // Clear all cached data
+      // Remove all non-auth cached data to prevent stale data on re-login
+      queryClient.removeQueries({
+        predicate: (query) => query.queryKey[0] !== 'auth',
+      });
     },
   });
 }

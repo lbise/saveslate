@@ -37,9 +37,9 @@ export interface TransactionRowProps {
   onCategoryChange: (categoryId: string) => void;
   onGoalChange: (goalId: string | null) => void;
   onTagsChange: (tagIds: string[]) => void;
-  onCreateTag: (draft: { name: string; color: string }) => TransactionTag;
-  onUpdateTag: (tagId: string, updates: { name: string; color: string }) => TransactionTag;
-  onDeleteTag: (tagId: string) => boolean;
+  onCreateTag: (draft: { name: string; color: string }) => TransactionTag | Promise<TransactionTag>;
+  onUpdateTag: (tagId: string, updates: { name: string; color: string }) => TransactionTag | void | Promise<TransactionTag | void>;
+  onDeleteTag: (tagId: string) => boolean | Promise<boolean>;
   onCreateRule: () => void;
   onAction: (action: "edit" | "duplicate" | "delete") => void;
 }

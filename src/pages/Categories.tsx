@@ -1,4 +1,4 @@
-import { useMemo, useReducer, useState, type FormEvent } from 'react';
+import { useMemo, useState, type FormEvent } from 'react';
 import { toast } from 'sonner';
 import { ChevronDown, Pencil, Search, Trash2 } from 'lucide-react';
 import { PageHeader, PageHeaderActions } from '../components/layout';
@@ -29,21 +29,16 @@ import {
 } from '@/components/ui/select';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import type { EntityCardTone } from '../components/ui';
-import {
-  addCategory,
-  createUniqueCategoryId,
-  deleteCategory,
-  loadCategories,
-  saveCategories,
-  updateCategory,
-} from '../lib/category-storage';
-import {
-  createUniqueCategoryGroupId,
-  loadCategoryGroups,
-  saveCategoryGroups,
-} from '../lib/category-group-storage';
 import { cn } from '../lib/utils';
 import { useImportExport, useIconPicker, useOnboarding } from '../hooks';
+import {
+  useCategories,
+  useCreateCategory,
+  useUpdateCategory,
+  useDeleteCategory,
+  useCategoryGroups,
+  useCreateCategoryGroup,
+} from '../hooks/api';
 import type { Category, CategoryGroup } from '../types';
 
 const LOCKED_CATEGORY_IDS = new Set(['transfer']);
@@ -173,7 +168,13 @@ function parseImportedCategories(rawContent: string): {
 
 export function Categories() {
   useOnboarding();
-  const [, refreshStoredCategories] = useReducer((count: number) => count + 1, 0);
+  const { data: allCategories = [] } = useCategories();
+  const { data: allCategoryGroups = [] } = useCategoryGroups();
+  const createCategoryMutation = useCreateCategory();
+  const updateCategoryMutation = useUpdateCategory();
+  const deleteCategoryMutation = useDeleteCategory();
+  const createCategoryGroupMutation = useCreateCategoryGroup();
+
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
   const [editingCategoryId, setEditingCategoryId] = useState<string | null>(null);
   const [categoryToDelete, setCategoryToDelete] = useState<Category | null>(null);
@@ -182,9 +183,6 @@ export function Categories() {
     icon: 'CircleDot',
     groupId: UNGROUPED_CATEGORY_GROUP_ID,
   });
-
-  const allCategories = loadCategories();
-  const allCategoryGroups = loadCategoryGroups();
 
   const categories = useMemo(
     () => allCategories.filter((category) => !category.hidden),
@@ -198,63 +196,51 @@ export function Categories() {
   const iconPicker = useIconPicker();
   const { importError, isImporting, importInputRef, openFilePicker, handleFileChange, exportJsonFile } = useImportExport<{ categories: Category[]; categoryGroups: CategoryGroup[] }>({
     parseFile: parseImportedCategories,
-    onImportSuccess: (imported) => {
-      const existingGroups = loadCategoryGroups();
-      const nextGroups = [...existingGroups];
-      const existingGroupIds = new Set(existingGroups.map((group) => group.id));
-      let nextGroupOrder =
-        nextGroups.reduce((maxOrder, group) => Math.max(maxOrder, group.order), 0) + 1;
+    onImportSuccess: async (imported) => {
+      let groupsCreated = 0;
+      let categoriesCreated = 0;
+
+      // Import category groups first
       const importedGroupIdMap = new Map<string, string>();
+      for (const group of imported.categoryGroups) {
+        try {
+          const result = await createCategoryGroupMutation.mutateAsync({
+            name: group.name,
+            icon: group.icon,
+            order: group.order,
+            isDefault: false,
+          });
+          // Map old group ID to newly created server ID
+          const newId = (result as Record<string, unknown>).id as string;
+          importedGroupIdMap.set(group.id, newId);
+          groupsCreated++;
+        } catch {
+          // Skip groups that fail (e.g. duplicates)
+        }
+      }
 
-      imported.categoryGroups.forEach((group) => {
-        const originalId = group.id;
-        const nextId = originalId && !existingGroupIds.has(originalId)
-          ? originalId
-          : createUniqueCategoryGroupId(existingGroupIds);
-
-        existingGroupIds.add(nextId);
-        importedGroupIdMap.set(originalId, nextId);
-        nextGroups.push({
-          ...group,
-          id: nextId,
-          order: nextGroupOrder,
-          isDefault: false,
-          source: 'custom',
-        });
-        nextGroupOrder += 1;
-      });
-
-      const existingCategories = loadCategories();
-      const nextCategories = [...existingCategories];
-      const existingCategoryIds = new Set(
-        existingCategories.map((category) => category.id),
-      );
-      const availableGroupIds = new Set(nextGroups.map((group) => group.id));
-
-      imported.categories.forEach((category) => {
-        const nextId = category.id && !existingCategoryIds.has(category.id)
-          ? category.id
-          : createUniqueCategoryId(existingCategoryIds);
-
-        existingCategoryIds.add(nextId);
-        const nextGroupId = category.groupId
+      // Import categories, remapping group IDs
+      const existingGroupIds = new Set(categoryGroups.map((g) => g.id));
+      for (const category of imported.categories) {
+        const remappedGroupId = category.groupId
           ? importedGroupIdMap.get(category.groupId)
-            ?? (availableGroupIds.has(category.groupId) ? category.groupId : undefined)
+            ?? (existingGroupIds.has(category.groupId) ? category.groupId : undefined)
           : undefined;
 
-        nextCategories.push({
-          ...category,
-          id: nextId,
-          groupId: nextGroupId,
-          isDefault: false,
-          source: 'custom',
-        });
-      });
+        try {
+          await createCategoryMutation.mutateAsync({
+            name: category.name,
+            icon: category.icon,
+            groupId: remappedGroupId,
+            isDefault: false,
+          });
+          categoriesCreated++;
+        } catch {
+          // Skip categories that fail
+        }
+      }
 
-      saveCategoryGroups(nextGroups);
-      saveCategories(nextCategories);
-      refreshStoredCategories();
-      toast.success(`${imported.categories.length} categories imported`);
+      toast.success(`${categoriesCreated} categories imported`);
     },
   });
 
@@ -330,18 +316,6 @@ export function Categories() {
     iconPicker.setIsIconPickerOpen(false);
   };
 
-  const handleDelete = (categoryId: string) => {
-    if (LOCKED_CATEGORY_IDS.has(categoryId)) {
-      return;
-    }
-
-    if (!deleteCategory(categoryId)) {
-      return;
-    }
-
-    refreshStoredCategories();
-  };
-
   const requestDeleteCategory = (category: Category) => {
     if (LOCKED_CATEGORY_IDS.has(category.id)) {
       return;
@@ -355,12 +329,20 @@ export function Categories() {
       return;
     }
 
-    handleDelete(categoryToDelete.id);
-    if (editingCategoryId === categoryToDelete.id) {
-      closeModal();
+    if (LOCKED_CATEGORY_IDS.has(categoryToDelete.id)) {
+      return;
     }
-    setCategoryToDelete(null);
-    toast.success("Category deleted");
+
+    deleteCategoryMutation.mutate(categoryToDelete.id, {
+      onSuccess: () => {
+        if (editingCategoryId === categoryToDelete.id) {
+          closeModal();
+        }
+        setCategoryToDelete(null);
+        toast.success("Category deleted");
+      },
+      onError: (err) => toast.error(err instanceof Error ? err.message : 'Failed to delete category'),
+    });
   };
 
   const handleCreateCategory = (event: FormEvent<HTMLFormElement>) => {
@@ -368,31 +350,42 @@ export function Categories() {
     const categoryName = form.name.trim();
     if (!categoryName) return;
 
+    const groupId = form.groupId === UNGROUPED_CATEGORY_GROUP_ID ? undefined : form.groupId;
+
     if (editingCategoryId) {
-      updateCategory(editingCategoryId, {
-        name: categoryName,
-        icon: form.icon,
-        groupId:
-          form.groupId === UNGROUPED_CATEGORY_GROUP_ID ? undefined : form.groupId,
-      });
-      refreshStoredCategories();
-      closeModal();
-      toast.success("Category updated");
+      updateCategoryMutation.mutate(
+        {
+          id: editingCategoryId,
+          name: categoryName,
+          icon: form.icon,
+          groupId,
+        },
+        {
+          onSuccess: () => {
+            closeModal();
+            toast.success("Category updated");
+          },
+          onError: (err) => toast.error(err instanceof Error ? err.message : 'Failed to update category'),
+        },
+      );
       return;
     }
 
-    addCategory({
-      id: '',
-      name: categoryName,
-      icon: form.icon,
-      groupId:
-        form.groupId === UNGROUPED_CATEGORY_GROUP_ID ? undefined : form.groupId,
-      isDefault: false,
-      source: 'custom',
-    });
-    refreshStoredCategories();
-    closeModal();
-    toast.success("Category created");
+    createCategoryMutation.mutate(
+      {
+        name: categoryName,
+        icon: form.icon,
+        groupId,
+        isDefault: false,
+      },
+      {
+        onSuccess: () => {
+          closeModal();
+          toast.success("Category created");
+        },
+        onError: (err) => toast.error(err instanceof Error ? err.message : 'Failed to create category'),
+      },
+    );
   };
 
   const handleExportCategories = () => {

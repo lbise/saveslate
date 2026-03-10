@@ -5,7 +5,7 @@ import {
   type ReactNode,
 } from 'react';
 import { toast } from 'sonner';
-import { Globe, DollarSign, Bell, Shield, Download, Trash2, Database } from 'lucide-react';
+import { Globe, DollarSign, Bell, Shield, Download, Trash2 } from 'lucide-react';
 import { PageHeader } from '../components/layout/PageHeader';
 import { Badge } from '../components/ui/Badge';
 import { Button } from '../components/ui/button';
@@ -19,13 +19,6 @@ import {
 import { DeleteConfirmationModal } from '../components/ui';
 import { getCurrencyOptionsWithFallback } from '../lib/currencies';
 import { useSettings } from '../hooks';
-import { clearAllUserData } from '../lib/data-service';
-import {
-  DATA_PROFILE_OPTIONS,
-  isDataProfile,
-  loadActiveDataProfile,
-  saveActiveDataProfile,
-} from '../lib/data-profile';
 
 interface SettingRowProps {
   icon: ComponentType<{ size?: number; className?: string }>;
@@ -54,7 +47,6 @@ function SettingRow({ icon: IconComp, label, description, children }: SettingRow
 export function Settings() {
   const { defaultCurrency, setDefaultCurrency } = useSettings();
   const [language, setLanguage] = useState('en');
-  const [dataProfile, setDataProfile] = useState(loadActiveDataProfile);
   const [isClearDataModalOpen, setIsClearDataModalOpen] = useState(false);
   const [isClearingData, setIsClearingData] = useState(false);
   const [clearDataError, setClearDataError] = useState<string | null>(null);
@@ -68,22 +60,12 @@ export function Settings() {
     toast.success("Default currency updated");
   }
 
-  function handleDataProfileChange(value: string) {
-    const nextProfile = value;
-    if (!isDataProfile(nextProfile)) {
-      return;
-    }
-
-    setDataProfile(nextProfile);
-    saveActiveDataProfile(nextProfile);
-    toast.success("Data profile changed");
-  }
-
   async function handleConfirmClearAllData() {
     try {
       setIsClearingData(true);
       setClearDataError(null);
-      await clearAllUserData();
+      // TODO: Add API endpoint to delete all user data
+      localStorage.clear();
       window.location.reload();
     } catch {
       setIsClearingData(false);
@@ -166,24 +148,6 @@ export function Settings() {
               Enabled
             </Button>
           </SettingRow>
-          <SettingRow
-            icon={Database}
-            label="Data Profile"
-            description="Choose between personal local data and deterministic demo datasets"
-          >
-            <Select value={dataProfile} onValueChange={handleDataProfileChange}>
-              <SelectTrigger className="w-auto text-sm py-2 px-3">
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                {DATA_PROFILE_OPTIONS.map((profileOption) => (
-                  <SelectItem key={profileOption.value} value={profileOption.value}>
-                    {profileOption.label}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </SettingRow>
         </div>
       </section>
 
@@ -196,9 +160,9 @@ export function Settings() {
           <SettingRow
             icon={Shield}
             label="Data Privacy"
-            description="All data is stored locally on your device"
+            description="Your data is stored securely on the server"
           >
-            <Badge variant="income">Local Only</Badge>
+            <Badge variant="income">Encrypted</Badge>
           </SettingRow>
         </div>
       </section>

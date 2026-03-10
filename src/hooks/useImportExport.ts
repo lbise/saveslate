@@ -2,7 +2,7 @@ import { useRef, useState, type ChangeEvent } from 'react';
 
 interface UseImportExportOptions<TImported> {
   parseFile: (content: string) => TImported;
-  onImportSuccess: (data: TImported) => void;
+  onImportSuccess: (data: TImported) => void | Promise<void>;
 }
 
 interface UseImportExportReturn {
@@ -40,7 +40,7 @@ export function useImportExport<TImported>({
     try {
       const fileContent = await file.text();
       const parsed = parseFile(fileContent);
-      onImportSuccess(parsed);
+      await onImportSuccess(parsed);
       setImportError(null);
     } catch (error) {
       setImportError(

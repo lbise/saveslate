@@ -5,7 +5,8 @@ import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/Card';
 import { Separator } from '@/components/ui/separator';
 import { findBestParserFromRaw } from '../../lib/csv';
-import { exportParser, importParserFromFile, loadParsers } from '../../lib/parser-storage';
+import { useCsvParsers, useCreateCsvParser, toCsvParserConfig } from '../../hooks/api';
+import { exportParser, getParserDraftFromImport } from '../../lib/parser-storage';
 import type { CsvParser } from '../../types';
 
 interface ParserMatcherProps {
@@ -20,6 +21,8 @@ export function ParserMatcher({ rawContent, onSelectParser, onEditParser, onCrea
   const [isImporting, setIsImporting] = useState(false);
   const [importError, setImportError] = useState<string | null>(null);
   const parserFileInputRef = useRef<HTMLInputElement>(null);
+  const { data: allParsers = [] } = useCsvParsers();
+  const createParserMutation = useCreateCsvParser();
 
   const handleOpenImportPicker = () => {
     setImportError(null);
@@ -36,7 +39,14 @@ export function ParserMatcher({ rawContent, onSelectParser, onEditParser, onCrea
     setShowDropdown(false);
 
     try {
-      const importedParser = await importParserFromFile(file);
+      const text = await file.text();
+      const parsed: unknown = JSON.parse(text);
+      const draft = getParserDraftFromImport(parsed);
+      const config = toCsvParserConfig(draft as CsvParser);
+      const importedParser = await createParserMutation.mutateAsync({
+        name: draft.name,
+        config,
+      });
       onSelectParser(importedParser);
     } catch (error) {
       setImportError(error instanceof Error ? error.message : 'Failed to import parser file.');
@@ -46,20 +56,19 @@ export function ParserMatcher({ rawContent, onSelectParser, onEditParser, onCrea
   };
 
   const { parsers, matchedParser, matchScore } = useMemo(() => {
-    const saved = loadParsers();
     let matched: CsvParser | null = null;
     let score = 0;
 
-    if (saved.length > 0) {
-      const result = findBestParserFromRaw(saved, rawContent);
+    if (allParsers.length > 0) {
+      const result = findBestParserFromRaw(allParsers, rawContent);
       if (result) {
         matched = result.parser;
         score = Math.round(result.score * 100);
       }
     }
 
-    return { parsers: saved, matchedParser: matched, matchScore: score };
-  }, [rawContent]);
+    return { parsers: allParsers, matchedParser: matched, matchScore: score };
+  }, [rawContent, allParsers]);
 
   const hasExistingParsers = parsers.length > 0;
 

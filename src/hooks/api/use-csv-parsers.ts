@@ -9,13 +9,49 @@ export const csvParserKeys = {
   detail: (id: string) => ['csvParsers', id] as const,
 };
 
+// ─── Transformers ────────────────────────────────────────────────────
+// Backend stores parser settings in a nested `config` JSONB column.
+// Frontend CsvParser type has those fields at the top level.
+
+/** Top-level (non-config) fields on the API response. */
+const META_FIELDS = new Set(['id', 'name', 'createdAt', 'updatedAt']);
+
+/** API response shape after camelCase key conversion. */
+interface ApiCsvParser {
+  id: string;
+  name: string;
+  config: Record<string, unknown>;
+  createdAt: string;
+  updatedAt: string;
+}
+
+/** Flatten API response: spread config fields to top level. */
+function transformCsvParser(raw: ApiCsvParser): CsvParser {
+  const { config, ...meta } = raw;
+  return { ...meta, ...config } as CsvParser;
+}
+
+/** Extract config fields from a flat CsvParser for API write. */
+export function toCsvParserConfig(parser: Partial<CsvParser>): Record<string, unknown> {
+  const config: Record<string, unknown> = {};
+  for (const [key, value] of Object.entries(parser)) {
+    if (!META_FIELDS.has(key) && value !== undefined) {
+      config[key] = value;
+    }
+  }
+  return config;
+}
+
 // ─── Hooks ───────────────────────────────────────────────────────────
 
 /** List all CSV parsers. */
 export function useCsvParsers() {
   return useQuery({
     queryKey: csvParserKeys.all,
-    queryFn: () => api.get<CsvParser[]>('/api/csv-parsers'),
+    queryFn: async () => {
+      const raw = await api.get<ApiCsvParser[]>('/api/csv-parsers');
+      return raw.map(transformCsvParser);
+    },
   });
 }
 
@@ -23,7 +59,10 @@ export function useCsvParsers() {
 export function useCsvParser(id: string | undefined) {
   return useQuery({
     queryKey: csvParserKeys.detail(id!),
-    queryFn: () => api.get<CsvParser>(`/api/csv-parsers/${id}`),
+    queryFn: async () => {
+      const raw = await api.get<ApiCsvParser>(`/api/csv-parsers/${id}`);
+      return transformCsvParser(raw);
+    },
     enabled: !!id,
   });
 }
@@ -34,7 +73,7 @@ export function useCreateCsvParser() {
 
   return useMutation({
     mutationFn: (data: { name: string; config: Record<string, unknown> }) =>
-      api.post<CsvParser>('/api/csv-parsers', data),
+      api.post<ApiCsvParser>('/api/csv-parsers', data).then(transformCsvParser),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: csvParserKeys.all });
     },
@@ -47,7 +86,7 @@ export function useUpdateCsvParser() {
 
   return useMutation({
     mutationFn: ({ id, ...data }: { id: string; name?: string; config?: Record<string, unknown> }) =>
-      api.put<CsvParser>(`/api/csv-parsers/${id}`, data),
+      api.put<ApiCsvParser>(`/api/csv-parsers/${id}`, data).then(transformCsvParser),
     onSuccess: (_, variables) => {
       queryClient.invalidateQueries({ queryKey: csvParserKeys.all });
       queryClient.invalidateQueries({ queryKey: csvParserKeys.detail(variables.id) });

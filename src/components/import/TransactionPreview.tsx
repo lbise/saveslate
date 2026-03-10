@@ -8,6 +8,7 @@ import {
   Filter,
   X,
 } from "lucide-react";
+import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -23,8 +24,7 @@ import {
   DEFAULT_ACCOUNT_FORM_STATE,
   type AccountFormSubmitPayload,
 } from "../accounts";
-import { addAccount, loadAccounts } from "../../lib/account-storage";
-import { loadTransactions } from "../../lib/transaction-storage";
+import { useAccounts, useCreateAccount, useTransactions } from "../../hooks/api";
 import { cn, formatDate } from "../../lib/utils";
 import { useFormatCurrency } from "../../hooks";
 import { Card } from "../ui/Card";
@@ -103,10 +103,15 @@ export function TransactionPreview({
   fileName,
 }: TransactionPreviewProps) {
   const { formatCurrency, formatSignedCurrency } = useFormatCurrency();
-  const [accounts, setAccounts] = useState(() => loadAccounts());
+  const { data: accounts = [] } = useAccounts();
+  const createAccountMutation = useCreateAccount();
   const [isCreateAccountModalOpen, setIsCreateAccountModalOpen] =
     useState(false);
-  const existingTransactions = useMemo(() => loadTransactions(), []);
+  const { data: existingTransactionsData } = useTransactions({ pageSize: 10000 });
+  const existingTransactions = useMemo(
+    () => existingTransactionsData?.items ?? [],
+    [existingTransactionsData],
+  );
   const [selected, setSelected] = useState<Set<number>>(() => {
     // Pre-select all rows without errors
     const set = new Set<number>();
@@ -496,15 +501,16 @@ export function TransactionPreview({
     onConfirm(selectedRowIndexes, effectiveAccountId, importName, transferLinks);
   };
 
-  const handleCreateAccount = (accountPayload: AccountFormSubmitPayload) => {
-    const createdAccount = addAccount({
-      id: `account-${Date.now()}`,
-      ...accountPayload,
-    });
-
-    setAccounts(loadAccounts());
-    setAccountId(createdAccount.id);
-    setIsCreateAccountModalOpen(false);
+  const handleCreateAccount = async (accountPayload: AccountFormSubmitPayload) => {
+    try {
+      const result = await createAccountMutation.mutateAsync(accountPayload);
+      const createdAccount = result as { id: string; name: string };
+      setAccountId(createdAccount.id);
+      setIsCreateAccountModalOpen(false);
+      toast.success(`Account "${createdAccount.name}" created`);
+    } catch {
+      toast.error("Failed to create account");
+    }
   };
 
   return (

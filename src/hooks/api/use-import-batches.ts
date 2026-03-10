@@ -18,6 +18,27 @@ export function useImportBatches() {
   });
 }
 
+/** Create a new import batch. */
+export function useCreateImportBatch() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: (data: {
+      fileName: string;
+      name?: string;
+      importedAt: string;
+      parserName?: string;
+      parserId?: string;
+      rowCount?: number;
+      accountId?: string;
+    }) =>
+      api.post<ImportBatch>('/api/import-batches', data),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: importBatchKeys.all });
+    },
+  });
+}
+
 /** Rename an import batch. */
 export function useUpdateImportBatch() {
   const queryClient = useQueryClient();

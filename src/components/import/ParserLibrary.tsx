@@ -1,13 +1,10 @@
-import { useMemo, useRef, useState, type ChangeEvent } from 'react';
+import { useRef, useState, type ChangeEvent } from 'react';
 import { Download, Edit, Plus, Upload } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/Card';
 import { ScrollArea } from '@/components/ui/scroll-area';
-import {
-  exportParser,
-  importParserFromFile,
-  loadParsers,
-} from '../../lib/parser-storage';
+import { useCsvParsers, useCreateCsvParser, toCsvParserConfig } from '../../hooks/api';
+import { exportParser, getParserDraftFromImport } from '../../lib/parser-storage';
 import type { CsvParser } from '../../types';
 
 interface ParserLibraryProps {
@@ -22,14 +19,12 @@ export function ParserLibrary({
   onCreateParser,
 }: ParserLibraryProps) {
   const parserFileInputRef = useRef<HTMLInputElement>(null);
-  const [parsers, setParsers] = useState<CsvParser[]>(() => loadParsers());
+  const { data: parsers = [] } = useCsvParsers();
+  const createParserMutation = useCreateCsvParser();
   const [isImporting, setIsImporting] = useState(false);
   const [importError, setImportError] = useState<string | null>(null);
 
-  const sortedParsers = useMemo(
-    () => [...parsers].sort((left, right) => left.name.localeCompare(right.name)),
-    [parsers],
-  );
+  const sortedParsers = [...parsers].sort((left, right) => left.name.localeCompare(right.name));
 
   const handleOpenImportPicker = () => {
     setImportError(null);
@@ -47,8 +42,14 @@ export function ParserLibrary({
     setImportError(null);
 
     try {
-      const importedParser = await importParserFromFile(file);
-      setParsers(loadParsers());
+      const text = await file.text();
+      const parsed: unknown = JSON.parse(text);
+      const draft = getParserDraftFromImport(parsed);
+      const config = toCsvParserConfig(draft as CsvParser);
+      const importedParser = await createParserMutation.mutateAsync({
+        name: draft.name,
+        config,
+      });
       onParserImported?.(importedParser);
     } catch (error) {
       setImportError(

@@ -7,16 +7,19 @@ import { PageHeader } from '../components/layout/PageHeader';
 import { Card } from '@/components/ui/Card';
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { StatCard } from '../components/ui';
-import { getGoalProgress, getTransactionsWithDetails } from '../lib/data-service';
+import {
+  useAnalyticsSummary,
+  useAnalyticsByMonth,
+  useAnalyticsByCategory,
+  useGoalProgress,
+} from '../hooks/api';
 import { useFormatCurrency } from '../hooks';
-import { getDataProfileLabel, loadActiveDataProfile } from '../lib/data-profile';
 import {
   ANALYTICS_COLORS,
-  buildGoalSavedSeries,
-  buildCategoryPieSeries,
-  buildMonthlyIncomeExpenseSeries,
-  buildSankeyData,
   DATE_RANGE_OPTIONS,
+  EXPENSE_PIE_COLORS,
+  getDateRange,
+  INCOME_PIE_COLORS,
 } from '../lib/analytics';
 import type {
   AnalyticsPieDatum,
@@ -244,15 +247,33 @@ function makePieCenterMetricLayer({ total, activeSliceId }: PieCenterMetricLayer
   };
 }
 
+// ── Helpers: map backend data → chart formats ─────────────────
+
+function formatBackendMonth(monthStr: string): string {
+  const [year, month] = monthStr.split('-');
+  const date = new Date(Number(year), Number(month) - 1, 1);
+  return date.toLocaleDateString('en-US', { month: 'short', year: '2-digit' });
+}
+
 // ── Component ─────────────────────────────────────────────────
 
 export function Analytics() {
   const { formatCurrency } = useFormatCurrency();
   const [period, setPeriod] = useState<DateRangePeriod>('this-month');
-  const [activeProfileLabel] = useState(() => getDataProfileLabel(loadActiveDataProfile()));
   const [viewportWidth, setViewportWidth] = useState(() => window.innerWidth);
-  const transactions = useMemo(() => getTransactionsWithDetails(), []);
-  const goalProgress = useMemo(() => getGoalProgress(), []);
+
+  // ── Compute date filters from period ──
+  const dateFilters = useMemo(() => {
+    const { start, end } = getDateRange(period);
+    return { startDate: start, endDate: end };
+  }, [period]);
+
+  // ── Backend analytics hooks ──
+  const { data: summaryData } = useAnalyticsSummary(dateFilters);
+  const { data: monthlyData = [] } = useAnalyticsByMonth(dateFilters);
+  const { data: incomeCategoryData = [] } = useAnalyticsByCategory({ ...dateFilters, type: 'income' });
+  const { data: expenseCategoryData = [] } = useAnalyticsByCategory({ ...dateFilters, type: 'expense' });
+  const { data: goalProgressData = [] } = useGoalProgress();
 
   useEffect(() => {
     const handleResize = () => setViewportWidth(window.innerWidth);
@@ -260,30 +281,113 @@ export function Analytics() {
     return () => window.removeEventListener('resize', handleResize);
   }, []);
 
-  const { nodes, links, summary } = useMemo(
-    () => buildSankeyData(transactions, period),
-    [transactions, period],
-  );
+  // ── Summary stats ──
+  const summary: PeriodSummary = useMemo(() => ({
+    totalIncome: summaryData?.totalIncome ?? 0,
+    totalExpenses: summaryData?.totalExpenses ?? 0,
+    totalTransfers: 0, // Backend summary does not track transfer volume
+    netSavings: summaryData?.net ?? 0,
+  }), [summaryData]);
 
-  const monthlySeries = useMemo(
-    () => buildMonthlyIncomeExpenseSeries(transactions, period),
-    [transactions, period],
-  );
+  // ── Sankey: build from category breakdown + summary ──
+  const { nodes, links } = useMemo(() => {
+    const totalIncome = summary.totalIncome;
+    const totalExpenses = summary.totalExpenses;
+    const netSavings = summary.netSavings;
 
-  const incomePieSeries = useMemo(
-    () => buildCategoryPieSeries(transactions, period, 'income'),
-    [transactions, period],
-  );
+    if (totalIncome === 0 && totalExpenses === 0) {
+      return { nodes: [] as SankeyNodeInput[], links: [] as DefaultLink[] };
+    }
 
-  const expensePieSeries = useMemo(
-    () => buildCategoryPieSeries(transactions, period, 'expense'),
-    [transactions, period],
-  );
+    const sankeyNodes: SankeyNodeInput[] = [];
+    const sankeyLinks: DefaultLink[] = [];
 
-  const goalSavedSeries = useMemo(
-    () => buildGoalSavedSeries(goalProgress),
-    [goalProgress],
-  );
+    // Income category nodes → Gross Income
+    for (const cat of incomeCategoryData) {
+      if (cat.total <= 0 || !cat.categoryId) continue;
+      const id = `income:${cat.categoryId}`;
+      sankeyNodes.push({ id, nodeLabel: cat.categoryName ?? 'Unknown', nodeColor: ANALYTICS_COLORS.income });
+      sankeyLinks.push({ source: id, target: 'hub:gross-income', value: cat.total });
+    }
+
+    // Shortfall (if expenses exceed income)
+    if (netSavings < 0) {
+      sankeyNodes.push({ id: 'special:shortfall', nodeLabel: 'Shortfall', nodeColor: ANALYTICS_COLORS.warning });
+      sankeyLinks.push({ source: 'special:shortfall', target: 'hub:gross-income', value: Math.abs(netSavings) });
+    }
+
+    // Gross income hub
+    sankeyNodes.push({ id: 'hub:gross-income', nodeLabel: 'Gross Income', nodeColor: ANALYTICS_COLORS.income });
+
+    // Total expenses node
+    if (totalExpenses > 0) {
+      sankeyNodes.push({ id: 'expense:total', nodeLabel: 'Total Expenses', nodeColor: ANALYTICS_COLORS.expense });
+      sankeyLinks.push({ source: 'hub:gross-income', target: 'expense:total', value: totalExpenses });
+    }
+
+    // Individual expense categories
+    const sortedExpenses = [...expenseCategoryData].filter((c) => c.total > 0 && c.categoryId).sort((a, b) => b.total - a.total);
+    for (const cat of sortedExpenses) {
+      const id = `expense:${cat.categoryId}`;
+      sankeyNodes.push({ id, nodeLabel: cat.categoryName ?? 'Unknown', nodeColor: ANALYTICS_COLORS.expense });
+      sankeyLinks.push({ source: 'expense:total', target: id, value: cat.total });
+    }
+
+    // Savings (surplus)
+    if (netSavings > 0) {
+      sankeyNodes.push({ id: 'special:savings', nodeLabel: 'Savings', nodeColor: ANALYTICS_COLORS.goal });
+      sankeyLinks.push({ source: 'hub:gross-income', target: 'special:savings', value: netSavings });
+    }
+
+    return { nodes: sankeyNodes, links: sankeyLinks };
+  }, [summary, incomeCategoryData, expenseCategoryData]);
+
+  // ── Monthly income/expense series ──
+  const monthlySeries: MonthlyIncomeExpensePoint[] = useMemo(() => {
+    return monthlyData.map((m) => ({
+      monthKey: m.month,
+      monthLabel: formatBackendMonth(m.month),
+      income: m.income,
+      expenses: m.expenses,
+      net: m.net,
+    }));
+  }, [monthlyData]);
+
+  // ── Category pie series ──
+  const incomePieSeries: AnalyticsPieDatum[] = useMemo(() => {
+    return incomeCategoryData
+      .filter((c) => c.total > 0)
+      .sort((a, b) => b.total - a.total)
+      .map((c, i) => ({
+        id: c.categoryId ?? `unknown-${i}`,
+        label: c.categoryName ?? 'Unknown',
+        value: Number(c.total.toFixed(2)),
+        color: INCOME_PIE_COLORS[i % INCOME_PIE_COLORS.length],
+      }));
+  }, [incomeCategoryData]);
+
+  const expensePieSeries: AnalyticsPieDatum[] = useMemo(() => {
+    return expenseCategoryData
+      .filter((c) => c.total > 0)
+      .sort((a, b) => b.total - a.total)
+      .map((c, i) => ({
+        id: c.categoryId ?? `unknown-${i}`,
+        label: c.categoryName ?? 'Unknown',
+        value: Number(c.total.toFixed(2)),
+        color: EXPENSE_PIE_COLORS[i % EXPENSE_PIE_COLORS.length],
+      }));
+  }, [expenseCategoryData]);
+
+  // ── Goal saved series ──
+  const goalSavedSeries: GoalSavedPoint[] = useMemo(() => {
+    return goalProgressData
+      .map((gp) => ({
+        goalId: gp.goalId,
+        goalLabel: gp.name,
+        saved: Math.max(0, Number(gp.currentAmount.toFixed(2))),
+      }))
+      .sort((a, b) => b.saved - a.saved);
+  }, [goalProgressData]);
 
   const monthlyYAxisTicks = useMemo(
     () => buildYAxisTicks(monthlySeries),
@@ -344,9 +448,6 @@ export function Analytics() {
           </div>
           <div className="shrink-0">
             <StatCard label="Expenses" value={formatCurrency(summary.totalExpenses)} dotColor="expense" />
-          </div>
-          <div className="shrink-0">
-            <StatCard label="Transfers" value={formatCurrency(summary.totalTransfers)} dotColor="transfer" />
           </div>
           <div className="shrink-0">
             <StatCard
@@ -414,7 +515,7 @@ export function Analytics() {
             </div>
           </Card>
         ) : (
-          <EmptyState period={period} summary={summary} activeProfileLabel={activeProfileLabel} />
+          <EmptyState period={period} summary={summary} />
         )}
       </section>
 
@@ -697,11 +798,7 @@ function PeriodSelector({ value, onChange }: PeriodSelectorProps) {
 function buildEmptyDiagnostics(summary: PeriodSummary): string[] {
   const diagnostics: string[] = [];
 
-  if (summary.totalIncome === 0 && summary.totalExpenses === 0 && summary.totalTransfers > 0) {
-    diagnostics.push('Only transfer activity exists in this range. Sankey currently visualizes income and expense flow.');
-  }
-
-  if (summary.totalIncome === 0 && summary.totalExpenses === 0 && summary.totalTransfers === 0) {
+  if (summary.totalIncome === 0 && summary.totalExpenses === 0) {
     diagnostics.push('No transactions were found for this date range.');
   }
 
@@ -711,10 +808,9 @@ function buildEmptyDiagnostics(summary: PeriodSummary): string[] {
 interface EmptyStateProps {
   period: DateRangePeriod;
   summary: PeriodSummary;
-  activeProfileLabel: string;
 }
 
-function EmptyState({ period, summary, activeProfileLabel }: EmptyStateProps) {
+function EmptyState({ period, summary }: EmptyStateProps) {
   const periodLabel = DATE_RANGE_OPTIONS.find((o) => o.value === period)?.label ?? period;
   const diagnostics = buildEmptyDiagnostics(summary);
 
@@ -727,9 +823,6 @@ function EmptyState({ period, summary, activeProfileLabel }: EmptyStateProps) {
         <p className="text-base text-foreground mb-1">No data for {periodLabel}</p>
         <p className="text-sm text-dimmed">
           Import transactions to see your money flow visualized here.
-        </p>
-        <p className="text-sm text-dimmed mt-2">
-          Active profile: {activeProfileLabel}
         </p>
         {diagnostics.length > 0 && (
           <div className="mt-3 flex flex-col gap-1.5">

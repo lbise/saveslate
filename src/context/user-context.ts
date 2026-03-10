@@ -2,12 +2,23 @@ import { createContext } from 'react';
 
 import type { User } from '../types';
 
+export interface AuthContextValue {
+  user: User | null;
+  isLoading: boolean;
+  isAuthenticated: boolean;
+  logout: () => void;
+}
+
+/**
+ * Narrowed view of auth context used inside protected routes.
+ * AuthGuard guarantees `user` is non-null.
+ */
 export interface UserContextValue {
   user: User;
   logout: () => void;
 }
 
-export const UserContext = createContext<UserContextValue | undefined>(undefined);
+export const UserContext = createContext<AuthContextValue | undefined>(undefined);
 
 /**
  * Derive display initials from a full name.

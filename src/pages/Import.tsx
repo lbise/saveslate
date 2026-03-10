@@ -19,15 +19,17 @@ import {
   applyParser,
   extractAccountIdentifier,
 } from '../lib/csv';
-import { getAccountById } from '../lib/account-storage';
-import { applyAutomationRules, loadAutomationRules } from '../lib/automation-rules';
-import { loadTransactions, saveImportBatch, saveTransactions } from '../lib/transaction-storage';
+import { useAccounts, useCreateImportBatch, useBulkCreateTransactions, useUpdateTransaction } from '../hooks/api';
 import { useFormatCurrency } from '../hooks';
-import type { CsvParser, ImportStep, ParsedRow, Transaction } from '../types';
+import type { CsvParser, ImportStep, ParsedRow } from '../types';
 
 export function Import() {
   const { formatCurrency } = useFormatCurrency();
   const navigate = useNavigate();
+  const { data: accounts = [] } = useAccounts();
+  const createImportBatchMutation = useCreateImportBatch();
+  const bulkCreateTransactionsMutation = useBulkCreateTransactions();
+  const updateTransactionMutation = useUpdateTransaction();
 
   // ─── Wizard state ──────────────────────────────────────────
   const [step, setStep] = useState<ImportStep>('upload');
@@ -109,7 +111,7 @@ export function Import() {
   }, [rawContent]);
 
   // ─── Step 3: Import confirmed ──────────────────────────────
-  const handleConfirmImport = useCallback((
+  const handleConfirmImport = useCallback(async (
     selectedRowIndexes: number[],
     accountId: string,
     importName: string,
@@ -117,111 +119,94 @@ export function Import() {
   ) => {
     if (!selectedParser) return;
 
-    const existingTransactions = loadTransactions();
-    const existingById = new Map(existingTransactions.map((transaction) => [transaction.id, transaction] as const));
-
     const selectedRows = selectedRowIndexes
       .map((index) => parsedRows[index])
       .filter((row): row is ParsedRow => row !== undefined);
 
     // Resolve the account's currency for fallback
-    const account = getAccountById(accountId);
+    const account = accounts.find((a) => a.id === accountId);
     const fallbackCurrency = account?.currency ?? 'CHF';
 
-    // Create an import batch record
-    const batch = saveImportBatch({
-      fileName,
-      name: importName || fileName, // Use importName if provided, otherwise fileName
-      importedAt: new Date().toISOString(),
-      parserName: selectedParser.name,
-      parserId: selectedParser.id,
-      rowCount: selectedRows.length,
-      accountId,
-    });
-
-    const pairIdByMatchedTransactionId = new Map<string, string>();
-    const transferLinkByRowIndex = new Map<number, { pairId: string; role: 'source' | 'destination' }>();
-    transferLinks.forEach((link, index) => {
-      const row = parsedRows[link.rowIndex];
-      if (!row) {
-        return;
-      }
-
-      const matchedTransaction = existingById.get(link.matchedTransactionId);
-      const matchedPairId = matchedTransaction?.transferPairId?.trim();
-
-      const pairId = pairIdByMatchedTransactionId.get(link.matchedTransactionId)
-        ?? matchedPairId
-        ?? `transfer-pair-${Date.now()}-${index}-${Math.random().toString(36).slice(2, 8)}`;
-      pairIdByMatchedTransactionId.set(link.matchedTransactionId, pairId);
-
-      transferLinkByRowIndex.set(link.rowIndex, {
-        pairId,
-        role: row.amount < 0 ? 'source' : 'destination',
-      });
-    });
-
-    // Convert parsed rows to Transaction objects
-    const now = Date.now();
-    const transactions: Transaction[] = [];
-    selectedRowIndexes.forEach((rowIndex, idx) => {
-      const row = parsedRows[rowIndex];
-      if (!row) {
-        return;
-      }
-
-      const transferLink = transferLinkByRowIndex.get(rowIndex);
-      transactions.push({
-        id: `txn-${now}-${idx}-${Math.random().toString(36).slice(2, 8)}`,
-        transactionId: row.transactionId,
-        amount: row.amount,
-        currency: row.currency || fallbackCurrency,
-        categoryId: 'uncategorized',
-        description: row.description,
-        date: row.date,
-        time: row.time,
+    try {
+      // 1. Create an import batch record
+      const batch = await createImportBatchMutation.mutateAsync({
+        fileName,
+        name: importName || fileName,
+        importedAt: new Date().toISOString(),
+        parserName: selectedParser.name,
+        parserId: selectedParser.id,
+        rowCount: selectedRows.length,
         accountId,
-        ...(transferLink && {
-          transferPairId: transferLink.pairId,
-          transferPairRole: transferLink.role,
-        }),
-        importBatchId: batch.id,
-        metadata: row.metadata && row.metadata.length > 0 ? row.metadata : undefined,
-        rawData: row.raw,
       });
-    });
 
-    // Apply automation rules (if configured) before persisting
-    const automationRules = loadAutomationRules();
-    const automationResult = applyAutomationRules(transactions, automationRules, 'on-import');
+      // 2. Build transfer pair mappings
+      const transferLinkByRowIndex = new Map<number, { pairId: string; role: 'source' | 'destination' }>();
+      const matchedTransactionUpdates = new Map<string, { transferPairId: string; transferPairRole: 'source' | 'destination' }>();
 
-    // Persist to localStorage
-    const updatedExistingTransactions = existingTransactions.map((transaction) => {
-      const pairId = pairIdByMatchedTransactionId.get(transaction.id);
-      if (!pairId) {
-        return transaction;
+      transferLinks.forEach((link, index) => {
+        const row = parsedRows[link.rowIndex];
+        if (!row) return;
+
+        const pairId = `transfer-pair-${Date.now()}-${index}-${Math.random().toString(36).slice(2, 8)}`;
+        const newRole: 'source' | 'destination' = row.amount < 0 ? 'source' : 'destination';
+        const matchedRole: 'source' | 'destination' = newRole === 'source' ? 'destination' : 'source';
+
+        transferLinkByRowIndex.set(link.rowIndex, { pairId, role: newRole });
+        matchedTransactionUpdates.set(link.matchedTransactionId, {
+          transferPairId: pairId,
+          transferPairRole: matchedRole,
+        });
+      });
+
+      // 3. Build transaction payloads
+      const transactionPayloads = selectedRowIndexes
+        .map((rowIndex) => {
+          const row = parsedRows[rowIndex];
+          if (!row) return null;
+
+          const transferLink = transferLinkByRowIndex.get(rowIndex);
+          return {
+            transactionId: row.transactionId,
+            amount: row.amount,
+            currency: row.currency || fallbackCurrency,
+            description: row.description,
+            date: row.date,
+            time: row.time,
+            accountId,
+            importBatchId: batch.id,
+            metadata: row.metadata && row.metadata.length > 0 ? row.metadata : undefined,
+            rawData: row.raw,
+            ...(transferLink && {
+              transferPairId: transferLink.pairId,
+              transferPairRole: transferLink.role,
+            }),
+          };
+        })
+        .filter((p): p is NonNullable<typeof p> => p !== null);
+
+      // 4. Bulk create transactions (backend applies automation rules)
+      await bulkCreateTransactionsMutation.mutateAsync(transactionPayloads);
+
+      // 5. Update matched existing transactions with transfer pair IDs
+      for (const [txId, pairInfo] of matchedTransactionUpdates) {
+        await updateTransactionMutation.mutateAsync({ id: txId, ...pairInfo });
       }
 
-      const role: 'source' | 'destination' = transaction.amount < 0 ? 'source' : 'destination';
-      return {
-        ...transaction,
-        transferPairId: pairId,
-        transferPairRole: role,
-      };
-    });
-    saveTransactions([...updatedExistingTransactions, ...automationResult.transactions]);
-
-    // Calculate stats for the success screen
-    let income = 0;
-    let expense = 0;
-    for (const row of selectedRows) {
-      if (row.amount >= 0) income += row.amount;
-      else expense += Math.abs(row.amount);
+      // 6. Calculate stats for the success screen
+      let income = 0;
+      let expense = 0;
+      for (const row of selectedRows) {
+        if (row.amount >= 0) income += row.amount;
+        else expense += Math.abs(row.amount);
+      }
+      setImportResult({ count: selectedRows.length, income, expense });
+      toast.success(`${selectedRows.length} transactions imported`);
+      setStep('complete');
+    } catch (error) {
+      console.error('Import failed:', error);
+      toast.error('Failed to import transactions');
     }
-    setImportResult({ count: selectedRows.length, income, expense });
-    toast.success(`${selectedRows.length} transactions imported`);
-    setStep('complete');
-  }, [selectedParser, parsedRows, fileName]);
+  }, [selectedParser, parsedRows, fileName, accounts, createImportBatchMutation, bulkCreateTransactionsMutation, updateTransactionMutation]);
 
   // ─── Navigation helpers ────────────────────────────────────
   const handleBackToUpload = useCallback(() => {

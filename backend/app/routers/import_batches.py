@@ -10,9 +10,35 @@ from app.deps import get_current_user, get_db, verify_csrf
 from app.models.import_batch import ImportBatch
 from app.models.transaction import Transaction
 from app.models.user import User
-from app.schemas.import_batch import ImportBatchResponse, ImportBatchUpdate
+from app.schemas.import_batch import (
+    ImportBatchCreate,
+    ImportBatchResponse,
+    ImportBatchUpdate,
+)
 
 router = APIRouter(prefix="/api/import-batches", tags=["import-batches"])
+
+
+@router.post(
+    "",
+    response_model=ImportBatchResponse,
+    status_code=status.HTTP_201_CREATED,
+    dependencies=[Depends(verify_csrf)],
+)
+async def create_import_batch(
+    body: ImportBatchCreate,
+    user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+) -> ImportBatch:
+    """Create a new import batch record."""
+    batch = ImportBatch(
+        user_id=user.id,
+        **body.model_dump(),
+    )
+    db.add(batch)
+    await db.commit()
+    await db.refresh(batch)
+    return batch
 
 
 @router.get("", response_model=list[ImportBatchResponse])

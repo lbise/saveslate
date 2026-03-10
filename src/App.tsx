@@ -1,7 +1,7 @@
 import { lazy, Suspense } from "react";
 import { BrowserRouter, Routes, Route } from "react-router-dom";
 import { QueryClientProvider } from "@tanstack/react-query";
-import { AppLayout } from "./components/layout";
+import { AppLayout, AuthGuard, GuestGuard } from "./components/layout";
 import { OnboardingProvider, SettingsProvider, UserProvider } from "./context";
 import { Toaster } from "./components/ui/sonner";
 import { queryClient } from "./lib/query-client";
@@ -40,7 +40,7 @@ function App() {
             <BrowserRouter>
               <Suspense fallback={null}>
                 <Routes>
-                {/* Design Concepts - standalone pages */}
+                {/* Design Concepts - standalone pages (no auth) */}
                 <Route path="/1" element={<Design1 />} />
                 <Route path="/2" element={<Design2 />} />
                 <Route path="/3" element={<Design3 />} />
@@ -52,22 +52,26 @@ function App() {
                 <Route path="/9" element={<Design9 />} />
                 <Route path="/10" element={<Design10 />} />
 
-                {/* Auth pages without app shell */}
-                <Route path="/login" element={<Login />} />
-                <Route path="/register" element={<Register />} />
+                {/* Auth pages - guest only (redirect to / if logged in) */}
+                <Route element={<GuestGuard />}>
+                  <Route path="/login" element={<Login />} />
+                  <Route path="/register" element={<Register />} />
+                </Route>
 
-                {/* Main app with layout */}
-                <Route element={<AppLayout />}>
-                  <Route path="/" element={<Dashboard />} />
-                  <Route path="/transactions" element={<Transactions />} />
-                  <Route path="/analytics" element={<Analytics />} />
-                  <Route path="/import" element={<Import />} />
-                  <Route path="/accounts" element={<Accounts />} />
-                  <Route path="/goals" element={<Goals />} />
-                  <Route path="/categories" element={<Categories />} />
-                  <Route path="/rules" element={<Rules />} />
-                  <Route path="/settings" element={<Settings />} />
-                  <Route path="/help" element={<Help />} />
+                {/* Protected app routes (redirect to /login if not logged in) */}
+                <Route element={<AuthGuard />}>
+                  <Route element={<AppLayout />}>
+                    <Route path="/" element={<Dashboard />} />
+                    <Route path="/transactions" element={<Transactions />} />
+                    <Route path="/analytics" element={<Analytics />} />
+                    <Route path="/import" element={<Import />} />
+                    <Route path="/accounts" element={<Accounts />} />
+                    <Route path="/goals" element={<Goals />} />
+                    <Route path="/categories" element={<Categories />} />
+                    <Route path="/rules" element={<Rules />} />
+                    <Route path="/settings" element={<Settings />} />
+                    <Route path="/help" element={<Help />} />
+                  </Route>
                 </Route>
               </Routes>
             </Suspense>

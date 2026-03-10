@@ -1,5 +1,6 @@
 import { useState, useMemo, useCallback } from "react";
 import { Save, RotateCcw, Plus, Pencil } from "lucide-react";
+import { toast } from "sonner";
 import { cn } from "../../lib/utils";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -22,7 +23,7 @@ import {
   DATE_TIME_FORMAT_PRESETS,
   TIME_FORMAT_PRESETS,
 } from "../../lib/csv";
-import { saveParser, updateParser } from "../../lib/parser-storage";
+import { useCreateCsvParser, useUpdateCsvParser, toCsvParserConfig } from "../../hooks/api";
 import { CsvPreviewTable } from "./CsvPreviewTable";
 import { MetadataMappingRow } from "./MetadataMappingRow";
 import { FieldMappingRow } from "./FieldMappingRow";
@@ -112,6 +113,10 @@ export function ParserEditor({
   onCancel,
 }: ParserEditorProps) {
   const hasSampleData = rawContent.trim().length > 0;
+
+  // ─── Mutations ─────────────────────────────────────────────
+  const createParserMutation = useCreateCsvParser();
+  const updateParserMutation = useUpdateCsvParser();
 
   // ─── Parser configuration state ────────────────────────────
   const detectedDelimiter = useMemo(
@@ -556,7 +561,7 @@ export function ParserEditor({
   ]);
 
   // ─── Save handler ──────────────────────────────────────────
-  const handleSave = () => {
+  const handleSave = async () => {
     if (hasValidationErrors || nameError) return;
 
     // Build header patterns from current headers + mapped columns
@@ -568,8 +573,7 @@ export function ParserEditor({
       .filter((_, i) => mappedColIndices.has(i))
       .map((h) => h.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")); // escape for regex
 
-    const parserData = {
-      name: name.trim(),
+    const parserFields: Partial<CsvParser> = {
       delimiter,
       hasHeaderRow,
       skipRows,
@@ -589,12 +593,28 @@ export function ParserEditor({
       accountPattern: accountPattern.trim() || undefined,
     };
 
-    const parser = existingParser
-      ? updateParser(existingParser.id, parserData)
-      : saveParser(parserData);
+    const config = toCsvParserConfig(parserFields);
 
-    if (!parser) return;
-    onSave(parser);
+    try {
+      if (existingParser) {
+        const updated = await updateParserMutation.mutateAsync({
+          id: existingParser.id,
+          name: name.trim(),
+          config,
+        });
+        toast.success("Parser updated");
+        onSave(updated);
+      } else {
+        const created = await createParserMutation.mutateAsync({
+          name: name.trim(),
+          config,
+        });
+        toast.success("Parser created");
+        onSave(created);
+      }
+    } catch {
+      toast.error("Failed to save parser");
+    }
   };
 
   return (

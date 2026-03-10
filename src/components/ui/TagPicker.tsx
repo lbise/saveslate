@@ -13,9 +13,9 @@ interface TagPickerProps {
   tags: Tag[];
   selectedTagIds: string[];
   onChange: (tagIds: string[]) => void;
-  onCreateTag: (draft: { name: string; color: string }) => Tag;
-  onUpdateTag: (tagId: string, updates: { name: string; color: string }) => Tag;
-  onDeleteTag: (tagId: string) => boolean;
+  onCreateTag: (draft: { name: string; color: string }) => Tag | Promise<Tag>;
+  onUpdateTag: (tagId: string, updates: { name: string; color: string }) => Tag | void | Promise<Tag | void>;
+  onDeleteTag: (tagId: string) => boolean | Promise<boolean>;
   tagUsageCountById?: Map<string, number>;
   onClose: () => void;
 }
@@ -87,7 +87,7 @@ export function TagPicker({
     setPendingDeleteTagId(null);
   };
 
-  const submitTagForm = () => {
+  const submitTagForm = async () => {
     const normalizedName = normalizeTagName(formName);
     if (!normalizedName) {
       setFormError('Tag name is required.');
@@ -96,12 +96,12 @@ export function TagPicker({
 
     try {
       if (editingTagId) {
-        onUpdateTag(editingTagId, {
+        await onUpdateTag(editingTagId, {
           name: normalizedName,
           color: formColor,
         });
       } else {
-        const createdTag = onCreateTag({
+        const createdTag = await onCreateTag({
           name: normalizedName,
           color: formColor,
         });
@@ -117,8 +117,8 @@ export function TagPicker({
     }
   };
 
-  const confirmTagDelete = (tagId: string) => {
-    const deleted = onDeleteTag(tagId);
+  const confirmTagDelete = async (tagId: string) => {
+    const deleted = await onDeleteTag(tagId);
     if (!deleted) {
       setFormError('Unable to delete tag.');
       return;

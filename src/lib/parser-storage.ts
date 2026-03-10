@@ -15,7 +15,7 @@ interface ExportedParserFile {
   parser: CsvParser;
 }
 
-type ParserDraft = Omit<CsvParser, 'id' | 'createdAt' | 'updatedAt'>;
+export type ParserDraft = Omit<CsvParser, 'id' | 'createdAt' | 'updatedAt'>;
 
 function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === 'object' && value !== null;
@@ -157,7 +157,7 @@ function parseLegacyMetadataColumnIndices(value: unknown): number[] | undefined 
   return uniqueIndices.length > 0 ? uniqueIndices : undefined;
 }
 
-function getParserDraftFromImport(value: unknown): ParserDraft {
+export function getParserDraftFromImport(value: unknown): ParserDraft {
   if (!isRecord(value)) {
     throw new Error('Invalid parser file format.');
   }

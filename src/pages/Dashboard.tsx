@@ -1,3 +1,4 @@
+import { useMemo } from 'react';
 import { Upload, Target, Wallet, ArrowUpRight } from 'lucide-react';
 import { Link, useNavigate } from 'react-router-dom';
 import { PageHeader } from '../components/layout/PageHeader';
@@ -5,37 +6,109 @@ import { StatCard, TransactionItem, GoalCard, ActionCard, Icon } from '../compon
 import { Button } from '@/components/ui/button';
 import { Progress } from '@/components/ui/progress';
 import {
-  getTransactionsWithDetails,
-  getMonthlyStats,
-  getGoalProgress,
-  getNetWorth,
-  getAccounts,
-  getComputedBalances,
-  getCategorySpending,
-} from '../lib/data-service';
+  useAccounts,
+  useAccountBalances,
+  useGoalProgress,
+  useAnalyticsSummary,
+  useAnalyticsByCategory,
+  useTransactions,
+  useCategories,
+  useGoals,
+} from '../hooks/api';
 import { useFormatCurrency } from '../hooks';
+import { inferTransactionType } from '../lib/transaction-type';
 import type { Account } from '../types';
 
 const MAX_GOALS = 3;
 const MAX_SPENDING_CATEGORIES = 5;
 const MAX_RECENT_TRANSACTIONS = 6;
 
+function getCurrentMonthRange() {
+  const now = new Date();
+  const startDate = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-01`;
+  const endDate = now.toISOString().split('T')[0];
+  return { startDate, endDate };
+}
+
 export function Dashboard() {
   const { formatCurrency } = useFormatCurrency();
   const navigate = useNavigate();
+  const { startDate, endDate } = useMemo(() => getCurrentMonthRange(), []);
 
-  const transactions = getTransactionsWithDetails().slice(0, MAX_RECENT_TRANSACTIONS);
-  const stats = getMonthlyStats();
-  const allGoals = getGoalProgress();
-  const netWorth = getNetWorth();
-  const accounts = getAccounts();
-  const computedBalances = getComputedBalances();
-  const categorySpending = getCategorySpending().slice(0, MAX_SPENDING_CATEGORIES);
+  // Data queries
+  const { data: accounts = [] } = useAccounts();
+  const { data: accountBalances = [] } = useAccountBalances();
+  const { data: goalProgress = [] } = useGoalProgress(false);
+  const { data: summary } = useAnalyticsSummary({ startDate, endDate });
+  const { data: categorySpending = [] } = useAnalyticsByCategory({ startDate, endDate, type: 'expense' });
+  const { data: recentTxData } = useTransactions({ pageSize: MAX_RECENT_TRANSACTIONS, sortBy: 'date', sortOrder: 'desc' });
+  const { data: categories = [] } = useCategories();
+  const { data: goals = [] } = useGoals();
 
-  // Top 3 goals sorted by progress (closest to completion first)
-  const topGoals = [...allGoals]
-    .sort((a, b) => b.percentage - a.percentage)
-    .slice(0, MAX_GOALS);
+  // Net worth from account balances
+  const netWorth = useMemo(
+    () => accountBalances.reduce((sum, ab) => sum + ab.computedBalance, 0),
+    [accountBalances],
+  );
+
+  // Computed balances map for AccountRow
+  const computedBalancesMap = useMemo(() => {
+    const map = new Map<string, number>();
+    for (const ab of accountBalances) {
+      map.set(ab.accountId, ab.computedBalance);
+    }
+    return map;
+  }, [accountBalances]);
+
+  // Monthly stats from analytics summary
+  const stats = useMemo(() => ({
+    totalIncome: summary?.totalIncome ?? 0,
+    totalExpenses: Math.abs(summary?.totalExpenses ?? 0),
+    net: summary?.net ?? 0,
+    savingsRate: summary && summary.totalIncome > 0
+      ? (summary.net / summary.totalIncome) * 100
+      : 0,
+  }), [summary]);
+
+  // Top goals sorted by progress (closest to completion first)
+  const topGoals = useMemo(
+    () => [...goalProgress]
+      .sort((a, b) => b.progressPercentage - a.progressPercentage)
+      .slice(0, MAX_GOALS),
+    [goalProgress],
+  );
+
+  // Enrich recent transactions with category/account/goal names
+  const transactions = useMemo(() => {
+    if (!recentTxData?.items) return [];
+    const categoryMap = new Map(categories.map(c => [c.id, c]));
+    const accountMap = new Map(accounts.map(a => [a.id, a]));
+    const goalMap = new Map(goals.map(g => [g.id, g]));
+
+    return recentTxData.items.map(tx => {
+      const category = categoryMap.get(tx.categoryId ?? '');
+      const account = accountMap.get(tx.accountId);
+      const goal = tx.goalId ? goalMap.get(tx.goalId) : undefined;
+      return {
+        id: tx.id,
+        description: tx.description,
+        type: inferTransactionType(tx),
+        amount: tx.amount,
+        currency: tx.currency,
+        categoryName: category?.name ?? 'Uncategorized',
+        accountName: account?.name ?? 'Unknown',
+        transferPairRole: tx.transferPairRole,
+        goalName: goal?.name,
+        isSplit: !!(tx.split || tx.splitInfo),
+      };
+    });
+  }, [recentTxData, categories, accounts, goals]);
+
+  // Top spending categories
+  const topSpending = useMemo(
+    () => categorySpending.slice(0, MAX_SPENDING_CATEGORIES),
+    [categorySpending],
+  );
 
   return (
     <div className="space-y-6 max-w-[1000px] mx-auto px-[18px] pt-[30px] pb-9 lg:px-8 lg:py-11 xl:px-10 xl:py-12">
@@ -68,7 +141,7 @@ export function Dashboard() {
         <div className="flex flex-wrap gap-10">
           <StatCard label="Income" value={formatCurrency(stats.totalIncome)} dotColor="income" />
           <StatCard label="Expenses" value={formatCurrency(stats.totalExpenses)} dotColor="expense" />
-          <StatCard label="Transferred" value={formatCurrency(stats.totalTransfers)} dotColor="transfer" />
+          <StatCard label="Net" value={formatCurrency(stats.net)} dotColor="transfer" />
           <StatCard label="Savings Rate" value={`${stats.savingsRate.toFixed(1)}%`} dotColor="muted" />
         </div>
       </section>
@@ -91,7 +164,7 @@ export function Dashboard() {
                   <AccountRow
                     key={account.id}
                     account={account}
-                    balance={computedBalances.get(account.id) ?? account.balance}
+                    balance={computedBalancesMap.get(account.id) ?? account.balance}
                     formatCurrency={formatCurrency}
                   />
                 ))}
@@ -100,7 +173,7 @@ export function Dashboard() {
           )}
 
           {/* Top Spending */}
-          {categorySpending.length > 0 && (
+          {topSpending.length > 0 && (
             <section>
               <div className="flex items-center justify-between mb-3">
                 <h2 className="font-display text-base font-medium text-muted-foreground">Top Spending</h2>
@@ -109,12 +182,12 @@ export function Dashboard() {
                 </Link>
               </div>
               <div className="flex flex-col gap-1">
-                {categorySpending.map((cs) => (
+                {topSpending.map((cs) => (
                   <SpendingRow
-                    key={cs.category.id}
-                    categoryName={cs.category.name}
-                    categoryIcon={cs.category.icon}
-                    amount={cs.amount}
+                    key={cs.categoryId ?? 'uncategorized'}
+                    categoryName={cs.categoryName ?? 'Uncategorized'}
+                    categoryIcon={cs.categoryIcon ?? 'Tag'}
+                    amount={Math.abs(cs.total)}
                     percentage={cs.percentage}
                     formatCurrency={formatCurrency}
                   />
@@ -139,12 +212,11 @@ export function Dashboard() {
                   type={tx.type}
                   amount={tx.amount}
                   currency={tx.currency}
-                  categoryName={tx.category.name}
-                  accountName={tx.account.name}
-                  destinationAccountName={tx.destinationAccount?.name}
+                  categoryName={tx.categoryName}
+                  accountName={tx.accountName}
                   transferPairRole={tx.transferPairRole}
-                  goalName={tx.goal?.name}
-                  isSplit={!!tx.split}
+                  goalName={tx.goalName}
+                  isSplit={tx.isSplit}
                 />
               ))}
             </div>
@@ -156,9 +228,9 @@ export function Dashboard() {
           {/* Goals */}
           <div className="flex items-center justify-between mb-3">
             <h2 className="font-display text-base font-medium text-muted-foreground">Goals</h2>
-            {allGoals.length > MAX_GOALS ? (
+            {goalProgress.length > MAX_GOALS ? (
               <Link to="/goals" className="text-sm text-dimmed hover:text-foreground inline-flex items-center gap-1 transition-colors duration-150">
-                View all {allGoals.length} goals <ArrowUpRight size={12} />
+                View all {goalProgress.length} goals <ArrowUpRight size={12} />
               </Link>
             ) : (
               <Link to="/goals" className="text-sm text-dimmed hover:text-foreground inline-flex items-center gap-1 transition-colors duration-150">
@@ -169,11 +241,11 @@ export function Dashboard() {
           <div className="flex flex-col gap-3">
             {topGoals.map((g) => (
               <GoalCard
-                key={g.goal.id}
-                name={g.goal.name}
-                percentage={g.percentage}
+                key={g.goalId}
+                name={g.name}
+                percentage={g.progressPercentage}
                 currentAmount={g.currentAmount}
-                targetAmount={g.goal.targetAmount}
+                targetAmount={g.targetAmount}
               />
             ))}
             {topGoals.length === 0 && (

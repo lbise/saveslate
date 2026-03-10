@@ -1,4 +1,4 @@
-import { useState, useMemo, useEffect, useCallback } from "react";
+import { useState, useMemo, useEffect } from "react";
 import {
   Search,
   AlertTriangle,
@@ -44,43 +44,33 @@ import { Separator } from "@/components/ui/separator";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { toast } from "sonner";
 import {
-  getCategories,
-  getAccounts,
-  getCategoryById,
-  getGoalById,
-  getGoals,
-  getVisibleCategories,
-} from "../lib/data-service";
-import {
-  deleteImportBatch,
-  loadImportBatches,
-  loadTransactions,
-  pruneEmptyImportBatches,
-  renameImportBatch,
-  saveTransactions,
-} from "../lib/transaction-storage";
-import {
-  addTag,
-  deleteTag,
-  loadTags,
-  updateTag,
-} from "../lib/tag-storage";
+  useAccounts,
+  useCategories,
+  useGoals,
+  useTransactions as useTransactionsQuery,
+  useCreateTransaction,
+  useUpdateTransaction,
+  useDeleteTransaction,
+  useTags,
+  useCreateTag,
+  useUpdateTag,
+  useDeleteTag,
+  useImportBatches,
+  useUpdateImportBatch,
+  useDeleteImportBatch,
+} from "../hooks/api";
 import {
   inferTransactionType,
   UNCATEGORIZED_CATEGORY_ID,
 } from "../lib/transaction-type";
 import {
-  loadTransactionsWithDetails,
+  createTransferCounterpartyMap,
   parseFilterIdsFromQuery,
   parseTypeFilterFromQuery,
-  persistTransactions,
 } from "../lib/transaction-utils";
 import { cn } from "../lib/utils";
 import { useFormatCurrency, useOnboarding, useTransactionFilters, usePagination } from "../hooks";
 import type {
-  Account,
-  Goal,
-  ImportBatch,
   AutomationRulePrefillDraft,
   Tag as TransactionTag,
   TransactionType,
@@ -122,21 +112,61 @@ export function Transactions() {
   const initialAccountFilterIds = parseFilterIdsFromQuery(searchParams, "account");
   const initialTagFilterIds = parseFilterIdsFromQuery(searchParams, "tag");
 
-  // Mutable local state so inline actions (delete, duplicate) work
-  const [transactions, setTransactionsRaw] = useState(() =>
-    loadTransactionsWithDetails(),
-  );
+  // Data from API
+  const { data: rawTransactionsData } = useTransactionsQuery({ pageSize: 10000 });
+  const { data: allCategories = [] } = useCategories();
+  const { data: accounts = [] } = useAccounts();
+  const { data: goals = [] } = useGoals();
+  const { data: tags = [] } = useTags();
+  const { data: importBatches = [] } = useImportBatches();
 
-  // Accounts and goals as state — refreshed whenever transactions change
-  const [accounts, setAccounts] = useState<Account[]>(() => getAccounts());
-  const [goals, setGoals] = useState<Goal[]>(() => getGoals());
+  // Mutation hooks
+  const createTransactionMutation = useCreateTransaction();
+  const updateTransactionMutation = useUpdateTransaction();
+  const deleteTransactionMutation = useDeleteTransaction();
+  const createTagMutation = useCreateTag();
+  const updateTagMutation = useUpdateTag();
+  const deleteTagMutation = useDeleteTag();
+  const updateImportBatchMutation = useUpdateImportBatch();
+  const deleteImportBatchMutation = useDeleteImportBatch();
 
-  // Wrapped setter that also refreshes related data
-  const setTransactions: typeof setTransactionsRaw = useCallback((action) => {
-    setTransactionsRaw(action);
-    setAccounts(getAccounts());
-    setGoals(getGoals());
-  }, []);
+  // Enrich transactions with category/account/goal objects
+  const transactions = useMemo<TxDetails[]>(() => {
+    const items = rawTransactionsData?.items ?? [];
+    if (items.length === 0) return [];
+
+    const categoriesById = new Map(allCategories.map(c => [c.id, c]));
+    const accountsById = new Map(accounts.map(a => [a.id, a]));
+    const goalsById = new Map(goals.map(g => [g.id, g]));
+    const counterpartyMap = createTransferCounterpartyMap(items);
+
+    return items.map(tx => {
+      const category = categoriesById.get(tx.categoryId) ?? {
+        id: tx.categoryId,
+        name: tx.categoryId === UNCATEGORIZED_CATEGORY_ID ? "Uncategorized" : "Unknown Category",
+        icon: "CircleHelp",
+      };
+      const account = accountsById.get(tx.accountId) ?? {
+        id: tx.accountId, name: "Unknown Account", type: "checking" as const, balance: 0, currency: tx.currency || "CHF", icon: "Wallet",
+      };
+      const goal = tx.goalId ? goalsById.get(tx.goalId) : undefined;
+      const counterpartyAccountId = counterpartyMap.get(tx.id);
+      const destinationAccount = counterpartyAccountId
+        ? (accountsById.get(counterpartyAccountId) ?? {
+            id: counterpartyAccountId, name: "Unknown Account", type: "checking" as const, balance: 0, currency: tx.currency || "CHF", icon: "Wallet",
+          })
+        : undefined;
+
+      return {
+        ...tx,
+        type: inferTransactionType(tx),
+        category,
+        account,
+        destinationAccount,
+        goal,
+      } as TxDetails;
+    });
+  }, [rawTransactionsData, allCategories, accounts, goals]);
 
   // Filters (extracted to hook)
   const filters = useTransactionFilters({
@@ -166,8 +196,6 @@ export function Transactions() {
     advancedFilterCount, hasAnyFilter, clearAllFilters, toggleSort,
   } = filters;
 
-  // Tags state
-  const [tags, setTags] = useState<TransactionTag[]>(() => loadTags());
   const [isTransactionFormOpen, setIsTransactionFormOpen] = useState(false);
   const [editingTransactionId, setEditingTransactionId] = useState<string | null>(null);
 
@@ -196,9 +224,15 @@ export function Transactions() {
 
   const availableGoals = goals;
 
-  const allCategories = getCategories();
+  const availableCategories = useMemo(
+    () => allCategories.filter(c => !c.hidden && !c.isHidden),
+    [allCategories],
+  );
 
-  const availableCategories = getVisibleCategories();
+  const allCategoriesById = useMemo(
+    () => new Map(allCategories.map(c => [c.id, c])),
+    [allCategories],
+  );
 
   const closePopovers = () => {
     setOpenActionId(null);
@@ -278,16 +312,13 @@ export function Transactions() {
     }
 
     if (action === "duplicate") {
-      setTransactions((prev) => {
-        const tx = prev.find((t) => t.id === txId);
-        if (!tx) return prev;
-        const dup = { ...tx, id: `${tx.id}-dup-${Date.now()}` };
-        const idx = prev.findIndex((t) => t.id === txId);
-        const next = [...prev];
-        next.splice(idx + 1, 0, dup);
-        return persistTransactions(next);
+      const tx = transactions.find((t) => t.id === txId);
+      if (!tx) return;
+      const { id, createdAt, updatedAt, type, category, account, destinationAccount, goal, ...txData } = tx;
+      createTransactionMutation.mutate(txData, {
+        onSuccess: () => toast.success("Transaction duplicated"),
+        onError: () => toast.error("Failed to duplicate transaction"),
       });
-      toast.success("Transaction duplicated");
     }
   };
 
@@ -296,93 +327,53 @@ export function Transactions() {
       return;
     }
 
-    setTransactions((prev) => {
-      const nextTransactions = prev.filter((tx) => tx.id !== transactionToDelete.id);
-      return persistTransactions(nextTransactions);
+    deleteTransactionMutation.mutate(transactionToDelete.id, {
+      onSuccess: () => toast.success("Transaction deleted"),
+      onError: () => toast.error("Failed to delete transaction"),
     });
     setTransactionToDelete(null);
-    toast.success("Transaction deleted");
   };
 
   const handleSubmitTransactionForm = (payload: TransactionFormSubmitPayload) => {
-    const storedTransactions = loadTransactions();
-
     if (editingTransactionId) {
-      const targetIndex = storedTransactions.findIndex(
-        (transaction) => transaction.id === editingTransactionId,
+      updateTransactionMutation.mutate(
+        { id: editingTransactionId, ...payload },
+        {
+          onSuccess: () => {
+            closeTransactionForm();
+            toast.success("Transaction updated");
+          },
+          onError: () => toast.error("Failed to update transaction"),
+        },
       );
-
-      if (targetIndex === -1) {
-        closeTransactionForm();
-        setTransactions(loadTransactionsWithDetails());
-        return;
-      }
-
-      const currentTransaction = storedTransactions[targetIndex];
-      storedTransactions[targetIndex] = {
-        ...currentTransaction,
-        ...payload,
-        transactionId: payload.transactionId,
-        time: payload.time,
-        goalId: payload.goalId,
-        split: payload.split,
-        tagIds: payload.tagIds,
-      };
     } else {
-      storedTransactions.push({
-        id: `txn-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
-        ...payload,
+      createTransactionMutation.mutate(payload, {
+        onSuccess: () => {
+          closeTransactionForm();
+          toast.success("Transaction added");
+        },
+        onError: () => toast.error("Failed to add transaction"),
       });
     }
-
-    saveTransactions(storedTransactions);
-    setTransactions(loadTransactionsWithDetails());
-    setTags(loadTags());
-    closeTransactionForm();
-    toast.success(editingTransactionId ? "Transaction updated" : "Transaction added");
   };
 
   const handleCategoryChange = (txId: string, categoryId: string) => {
-    const category = getCategoryById(categoryId);
-    if (!category) return;
-    setTransactions((prev) => {
-      const nextTransactions = prev.map((tx) => {
-        if (tx.id !== txId) return tx;
-
-        return {
-          ...tx,
-          categoryId,
-          category,
-          type: inferTransactionType(tx),
-        };
-      });
-
-      return persistTransactions(nextTransactions);
-    });
-
+    updateTransactionMutation.mutate(
+      { id: txId, categoryId },
+      {
+        onError: () => toast.error("Failed to update category"),
+      },
+    );
     setEditingCategoryId(null);
   };
 
   const handleGoalChange = (txId: string, goalId: string | null) => {
-    const goal = goalId ? getGoalById(goalId) : undefined;
-    if (goalId && !goal) {
-      return;
-    }
-
-    setTransactions((prev) => {
-      const nextTransactions = prev.map((tx) => {
-        if (tx.id !== txId) return tx;
-
-        return {
-          ...tx,
-          goalId: goalId ?? undefined,
-          goal,
-        };
-      });
-
-      return persistTransactions(nextTransactions);
-    });
-
+    updateTransactionMutation.mutate(
+      { id: txId, goalId: goalId ?? undefined },
+      {
+        onError: () => toast.error("Failed to update goal"),
+      },
+    );
     setEditingGoalId(null);
     setOpenActionId(null);
   };
@@ -397,20 +388,12 @@ export function Transactions() {
       ),
     );
 
-    setTransactions((prev) => {
-      const nextTransactions = prev.map((tx) => {
-        if (tx.id !== txId) {
-          return tx;
-        }
-
-        return {
-          ...tx,
-          tagIds: normalizedTagIds.length > 0 ? normalizedTagIds : undefined,
-        };
-      });
-
-      return persistTransactions(nextTransactions);
-    });
+    updateTransactionMutation.mutate(
+      { id: txId, tagIds: normalizedTagIds.length > 0 ? normalizedTagIds : [] },
+      {
+        onError: () => toast.error("Failed to update tags"),
+      },
+    );
   };
 
   const openQuickAutoRuleModal = (transaction: TxDetails) => {
@@ -506,11 +489,7 @@ export function Transactions() {
     [accounts],
   );
 
-  // Import batches for source filtering
-  const [importBatches, setImportBatches] = useState<ImportBatch[]>(() => {
-    pruneEmptyImportBatches();
-    return loadImportBatches();
-  });
+  // Import batches for source filtering (from API)
 
   const sourceOptions = useMemo<SourceOption[]>(() => {
     const sourceCounts = new Map<string, number>();
@@ -608,19 +587,21 @@ export function Transactions() {
       return;
     }
 
-    const renamedBatch = renameImportBatch(sourceToRename.id, sourceRenameValue);
-    if (!renamedBatch) {
-      setSourceToRename(null);
-      setSourceRenameValue("");
-      return;
-    }
-
-    setImportBatches((prev) =>
-      prev.map((batch) => (batch.id === renamedBatch.id ? renamedBatch : batch)),
+    updateImportBatchMutation.mutate(
+      { id: sourceToRename.id, name: sourceRenameValue },
+      {
+        onSuccess: () => {
+          toast.success(`Source renamed to "${sourceRenameValue}"`);
+          setSourceToRename(null);
+          setSourceRenameValue("");
+        },
+        onError: () => {
+          toast.error("Failed to rename source");
+          setSourceToRename(null);
+          setSourceRenameValue("");
+        },
+      },
     );
-    toast.success(`Source renamed to "${sourceRenameValue}"`);
-    setSourceToRename(null);
-    setSourceRenameValue("");
   };
 
   const handleConfirmDeleteSource = () => {
@@ -632,51 +613,44 @@ export function Transactions() {
       return;
     }
 
-    deleteImportBatch(sourceId);
-
-    setImportBatches((prev) => prev.filter((batch) => batch.id !== sourceId));
-    setSourceFilterIds((prev) => prev.filter((id) => id !== sourceId));
-    setTransactions(loadTransactionsWithDetails());
-    toast.success("Source deleted");
-    setSourceToDelete(null);
+    deleteImportBatchMutation.mutate(sourceId, {
+      onSuccess: () => {
+        setSourceFilterIds((prev) => prev.filter((id) => id !== sourceId));
+        toast.success("Source deleted");
+        setSourceToDelete(null);
+      },
+      onError: () => {
+        toast.error("Failed to delete source");
+        setSourceToDelete(null);
+      },
+    });
   };
 
-  const handleCreateTag = (draft: { name: string; color: string }): TransactionTag => {
-    const createdTag = addTag(draft);
-    setTags(loadTags());
+  const handleCreateTag = async (draft: { name: string; color: string }): Promise<TransactionTag> => {
+    const createdTag = await createTagMutation.mutateAsync(draft);
     toast.success(`Tag "${createdTag.name}" created`);
     return createdTag;
   };
 
-  const handleUpdateTag = (
+  const handleUpdateTag = async (
     tagId: string,
     updates: { name: string; color: string },
-  ): TransactionTag => {
-    const updatedTag = updateTag(tagId, updates);
-    if (!updatedTag) {
-      throw new Error("Tag not found.");
-    }
-
-    setTags(loadTags());
+  ): Promise<TransactionTag> => {
+    const updatedTag = await updateTagMutation.mutateAsync({ id: tagId, ...updates });
     toast.success(`Tag "${updatedTag.name}" updated`);
     return updatedTag;
   };
 
-  const handleDeleteTag = (tagId: string): boolean => {
-    const deleteResult = deleteTag(tagId);
-    if (!deleteResult.deleted) {
+  const handleDeleteTag = async (tagId: string): Promise<boolean> => {
+    try {
+      await deleteTagMutation.mutateAsync(tagId);
+      setTagFilterIds((prev) => prev.filter((selectedTagId) => selectedTagId !== tagId));
+      toast.success("Tag deleted");
+      return true;
+    } catch {
+      toast.error("Failed to delete tag");
       return false;
     }
-
-    setTags(loadTags());
-    setTagFilterIds((prev) => prev.filter((selectedTagId) => selectedTagId !== tagId));
-
-    if (deleteResult.unlinkedTransactions > 0) {
-      setTransactions(loadTransactionsWithDetails());
-    }
-
-    toast.success("Tag deleted");
-    return true;
   };
 
   // Filtered scope before uncategorized toggle
@@ -1352,7 +1326,7 @@ export function Transactions() {
               className="flex items-center gap-1 px-2 py-1 rounded-full text-sm bg-primary/10 text-primary border border-primary/20 cursor-pointer transition-opacity hover:opacity-80"
             >
               {categoryFilterIds.length === 1
-                ? (getCategoryById(categoryFilterIds[0])?.name ?? "1 category")
+                ? (allCategoriesById.get(categoryFilterIds[0])?.name ?? "1 category")
                 : `${categoryFilterIds.length} categories`}
               <X size={12} />
             </button>

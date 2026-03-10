@@ -20,19 +20,18 @@ import {
   EntityCardSection,
   DeleteConfirmationModal,
 } from '../components/ui';
-import {
-  addAccount,
-  deleteAccount,
-  loadAccounts,
-  mergeAccounts,
-  updateAccount,
-} from '../lib/account-storage';
-import { loadTransactions } from '../lib/transaction-storage';
 import { formatRelativeDate, cn } from '../lib/utils';
 import { useFormatCurrency, useImportExport } from '../hooks';
 import { toast } from 'sonner';
-import { getTransactionsByAccount } from '../lib/data-service';
 import { inferTransactionType } from '../lib/transaction-type';
+import {
+  useAccounts,
+  useAccountBalances,
+  useCreateAccount,
+  useUpdateAccount,
+  useDeleteAccount,
+  useTransactions,
+} from '../hooks/api';
 import type { Account, AccountType } from '../types';
 import type { EntityCardDetailTone, EntityCardTone } from '../components/ui';
 
@@ -151,46 +150,57 @@ function parseImportedAccounts(rawContent: string): Account[] {
 
 export function Accounts() {
   const { formatCurrency } = useFormatCurrency();
-  const [accounts, setAccounts] = useState<Account[]>(() => loadAccounts());
+  const { data: accounts = [] } = useAccounts();
+  const { data: accountBalances = [] } = useAccountBalances();
+  const createAccount = useCreateAccount();
+  const updateAccountMutation = useUpdateAccount();
+  const deleteAccountMutation = useDeleteAccount();
+
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
   const [editingAccountId, setEditingAccountId] = useState<string | null>(null);
   const [accountToDelete, setAccountToDelete] = useState<Account | null>(null);
 
   const { importError, isImporting, importInputRef, openFilePicker, handleFileChange, exportJsonFile } = useImportExport<Account[]>({
     parseFile: parseImportedAccounts,
-    onImportSuccess: (importedAccounts) => {
-      const mergedAccounts = mergeAccounts(importedAccounts);
-      setAccounts(mergedAccounts);
-      toast.success(`${importedAccounts.length} account${importedAccounts.length === 1 ? '' : 's'} imported`);
+    onImportSuccess: async (importedAccounts) => {
+      let created = 0;
+      const existingNames = new Set(accounts.map(a => a.name.toLowerCase()));
+      for (const acc of importedAccounts) {
+        if (!existingNames.has(acc.name.toLowerCase())) {
+          await createAccount.mutateAsync({
+            name: acc.name,
+            type: acc.type,
+            balance: acc.balance,
+            currency: acc.currency,
+            icon: acc.icon,
+            accountIdentifier: acc.accountIdentifier,
+          });
+          created++;
+        }
+      }
+      toast.success(`${created} account${created === 1 ? '' : 's'} imported`);
     },
   });
 
-  const computedBalances = useMemo(
-    () => {
-      const balances = new Map<string, number>();
-      for (const account of accounts) {
-        balances.set(account.id, account.balance);
-      }
-      const transactions = loadTransactions();
-      for (const tx of transactions) {
-        if (balances.has(tx.accountId)) {
-          balances.set(tx.accountId, balances.get(tx.accountId)! + tx.amount);
-        }
-      }
-      return balances;
-    },
-    [accounts],
-  );
+  const computedBalancesMap = useMemo(() => {
+    const map = new Map<string, number>();
+    for (const ab of accountBalances) {
+      map.set(ab.accountId, ab.computedBalance);
+    }
+    return map;
+  }, [accountBalances]);
+
+  const txCountMap = useMemo(() => {
+    const map = new Map<string, number>();
+    for (const ab of accountBalances) {
+      map.set(ab.accountId, ab.transactionCount);
+    }
+    return map;
+  }, [accountBalances]);
 
   const netWorth = useMemo(
-    () => {
-      let total = 0;
-      for (const balance of computedBalances.values()) {
-        total += balance;
-      }
-      return total;
-    },
-    [computedBalances],
+    () => accountBalances.reduce((sum, ab) => sum + ab.computedBalance, 0),
+    [accountBalances],
   );
 
   const isEditing = editingAccountId !== null;
@@ -209,13 +219,10 @@ export function Accounts() {
     [editingAccount],
   );
 
-  const accountToDeleteTransactionCount = useMemo(() => {
-    if (!accountToDelete) {
-      return 0;
-    }
-
-    return getTransactionsByAccount(accountToDelete.id).length;
-  }, [accountToDelete]);
+  const accountToDeleteTxCount = useMemo(() => {
+    if (!accountToDelete) return 0;
+    return txCountMap.get(accountToDelete.id) ?? 0;
+  }, [accountToDelete, txCountMap]);
 
   const closeAccountModal = () => {
     setIsCreateModalOpen(false);
@@ -233,9 +240,7 @@ export function Accounts() {
   };
 
   const handleExportAccounts = () => {
-    if (accounts.length === 0) {
-      return;
-    }
+    if (accounts.length === 0) return;
 
     const exportPayload: ExportedAccountsFile = {
       schemaVersion: ACCOUNTS_EXPORT_SCHEMA_VERSION,
@@ -251,31 +256,40 @@ export function Accounts() {
 
   const handleSaveAccount = (accountPayload: AccountFormSubmitPayload) => {
     if (editingAccountId) {
-      updateAccount(editingAccountId, accountPayload);
+      updateAccountMutation.mutate(
+        { id: editingAccountId, ...accountPayload },
+        {
+          onSuccess: () => {
+            closeAccountModal();
+            toast.success('Account updated');
+          },
+          onError: (err) => toast.error(err instanceof Error ? err.message : 'Failed to update account'),
+        },
+      );
     } else {
-      addAccount({
-        id: `account-${Date.now()}`,
-        ...accountPayload,
+      createAccount.mutate(accountPayload, {
+        onSuccess: () => {
+          closeAccountModal();
+          toast.success('Account created');
+        },
+        onError: (err) => toast.error(err instanceof Error ? err.message : 'Failed to create account'),
       });
     }
-
-    setAccounts(loadAccounts());
-    closeAccountModal();
-    toast.success(editingAccountId ? 'Account updated' : 'Account created');
   };
 
   const handleConfirmDeleteAccount = () => {
-    if (!accountToDelete) {
-      return;
-    }
+    if (!accountToDelete) return;
 
-    deleteAccount(accountToDelete.id);
-    setAccounts(loadAccounts());
-    if (editingAccountId === accountToDelete.id) {
-      closeAccountModal();
-    }
-    setAccountToDelete(null);
-    toast.success('Account deleted');
+    deleteAccountMutation.mutate(accountToDelete.id, {
+      onSuccess: () => {
+        if (editingAccountId === accountToDelete.id) {
+          closeAccountModal();
+        }
+        setAccountToDelete(null);
+        toast.success('Account deleted');
+      },
+      onError: (err) => toast.error(err instanceof Error ? err.message : 'Failed to delete account'),
+    });
   };
 
   return (
@@ -314,9 +328,9 @@ export function Accounts() {
               This will permanently delete <span className="text-foreground">{accountToDelete.name}</span>.
             </>
           )}
-          details={accountToDeleteTransactionCount > 0 ? (
+          details={accountToDeleteTxCount > 0 ? (
             <p className="text-sm text-warning">
-              {accountToDeleteTransactionCount} transaction{accountToDeleteTransactionCount === 1 ? '' : 's'} are linked to this account. They will stay in your history and appear as Unknown Account.
+              {accountToDeleteTxCount} transaction{accountToDeleteTxCount === 1 ? '' : 's'} are linked to this account. They will stay in your history and appear as Unknown Account.
             </p>
           ) : undefined}
           confirmLabel="Delete account"
@@ -367,7 +381,8 @@ export function Accounts() {
             <AccountRow
               key={account.id}
               account={account}
-              computedBalance={computedBalances.get(account.id) ?? account.balance}
+              computedBalance={computedBalancesMap.get(account.id) ?? account.balance}
+              transactionCount={txCountMap.get(account.id) ?? 0}
               onEdit={() => openEditModal(account)}
               onDelete={() => setAccountToDelete(account)}
             />
@@ -381,14 +396,20 @@ export function Accounts() {
 interface AccountRowProps {
   account: Account;
   computedBalance: number;
+  transactionCount: number;
   onEdit: () => void;
   onDelete: () => void;
 }
 
-function AccountRow({ account, computedBalance, onEdit, onDelete }: AccountRowProps) {
+function AccountRow({ account, computedBalance, transactionCount, onEdit, onDelete }: AccountRowProps) {
   const { formatCurrency, formatSignedCurrency } = useFormatCurrency();
-  const accountTransactions = getTransactionsByAccount(account.id);
-  const recentTransactions = accountTransactions.slice(0, 3);
+  const { data: recentTxData } = useTransactions({
+    accountId: account.id,
+    pageSize: 3,
+    sortBy: 'date',
+    sortOrder: 'desc',
+  });
+  const recentTransactions = recentTxData?.items ?? [];
   const isNegative = computedBalance < 0;
   const balanceTone: EntityCardDetailTone = isNegative ? 'expense' : 'strong';
 
@@ -413,7 +434,7 @@ function AccountRow({ account, computedBalance, onEdit, onDelete }: AccountRowPr
     >
       <EntityCardDetailList
         items={[
-          { label: 'Total transactions', value: String(accountTransactions.length), tone: 'strong' },
+          { label: 'Total transactions', value: String(transactionCount), tone: 'strong' },
           {
             label: 'Account number',
             value: account.accountIdentifier ?? 'Not set',

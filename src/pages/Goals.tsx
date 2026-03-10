@@ -1,15 +1,11 @@
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import { toast } from "sonner";
 import { Target } from "lucide-react";
 import { PageHeader, PageHeaderActions } from "../components/layout";
 import { DeleteConfirmationModal } from "../components/ui";
 import { GoalDetailCard, GoalFormModal } from "../components/goals";
-import {
-  getGoalProgress,
-  getTransactionsWithDetails,
-} from "../lib/data-service";
-import { addGoal, deleteGoal, mergeGoals, updateGoal } from "../lib/goal-storage";
-import { loadTransactions, saveTransactions } from "../lib/transaction-storage";
+import { useGoals, useCreateGoal, useUpdateGoal, useDeleteGoal } from "../hooks/api";
+import { useGoalProgress } from "../hooks/api";
 import { useFormatCurrency, useImportExport } from "../hooks";
 import {
   DEFAULT_FORM_STATE,
@@ -22,7 +18,24 @@ import type { ExportedGoalsFile, GoalFormState } from "../lib/goal-utils";
 
 export function Goals() {
   const { formatCurrency } = useFormatCurrency();
-  const [goals, setGoals] = useState<GoalProgress[]>(() => getGoalProgress());
+  const { data: rawGoals = [] } = useGoals();
+  const { data: goalProgressData = [] } = useGoalProgress();
+  const createGoalMutation = useCreateGoal();
+  const updateGoalMutation = useUpdateGoal();
+  const deleteGoalMutation = useDeleteGoal();
+
+  const goals = useMemo<GoalProgress[]>(() => {
+    return rawGoals.map((goal) => {
+      const progress = goalProgressData.find((p) => p.goalId === goal.id);
+      return {
+        goal,
+        currentAmount: progress?.currentAmount ?? (goal.startingAmount ?? 0),
+        percentage: progress?.progressPercentage ?? 0,
+        transactionCount: progress?.contributionCount ?? 0,
+      };
+    });
+  }, [rawGoals, goalProgressData]);
+
   const [isCreateMenuOpen, setIsCreateMenuOpen] = useState(false);
   const [editingGoalId, setEditingGoalId] = useState<string | null>(null);
   const [goalToDelete, setGoalToDelete] = useState<Goal | null>(null);
@@ -30,17 +43,21 @@ export function Goals() {
 
   const { importError, isImporting, importInputRef, openFilePicker, handleFileChange, exportJsonFile } = useImportExport<GoalProgress[]>({
     parseFile: parseImportedGoals,
-    onImportSuccess: (importedGoals) => {
-      mergeGoals(importedGoals.map((goalProgress) => ({
-        ...goalProgress.goal,
-        startingAmount: goalProgress.currentAmount,
-      })));
-      setGoals(getGoalProgress());
-      toast.success(`${importedGoals.length} goal(s) imported`);
+    onImportSuccess: async (importedGoals) => {
+      try {
+        for (const gp of importedGoals) {
+          const { id: _id, createdAt: _createdAt, updatedAt: _updatedAt, ...goalData } = gp.goal;
+          await createGoalMutation.mutateAsync({
+            ...goalData,
+            startingAmount: gp.currentAmount,
+          });
+        }
+        toast.success(`${importedGoals.length} goal(s) imported`);
+      } catch {
+        toast.error("Failed to import some goals");
+      }
     },
   });
-
-  const allTransactions = getTransactionsWithDetails();
 
   // ─── Modal handlers ───────────────────────────────────────
 
@@ -64,36 +81,28 @@ export function Goals() {
   // ─── Goal operations ─────────────────────────────────────
 
   const handleSaveGoal = (goalPayload: Goal) => {
+    const { id: _id, createdAt: _createdAt, updatedAt: _updatedAt, ...goalData } = goalPayload;
+
     if (editingGoalId) {
-      updateGoal(goalPayload);
-    } else {
-      addGoal(goalPayload);
-    }
-
-    setGoals(getGoalProgress());
-    closeGoalForm();
-    toast.success(editingGoalId ? "Goal updated" : "Goal created");
-  };
-
-  const handleDeleteGoal = (goalId: string) => {
-    const deleted = deleteGoal(goalId);
-    if (!deleted) {
-      return;
-    }
-
-    const transactions = loadTransactions();
-    const hasLinkedTransactions = transactions.some((transaction) => transaction.goalId === goalId);
-    if (hasLinkedTransactions) {
-      saveTransactions(
-        transactions.map((transaction) => (
-          transaction.goalId === goalId
-            ? { ...transaction, goalId: undefined }
-            : transaction
-        )),
+      updateGoalMutation.mutate(
+        { id: editingGoalId, ...goalData },
+        {
+          onSuccess: () => {
+            closeGoalForm();
+            toast.success("Goal updated");
+          },
+          onError: () => toast.error("Failed to update goal"),
+        },
       );
+    } else {
+      createGoalMutation.mutate(goalData, {
+        onSuccess: () => {
+          closeGoalForm();
+          toast.success("Goal created");
+        },
+        onError: () => toast.error("Failed to create goal"),
+      });
     }
-
-    setGoals(getGoalProgress());
   };
 
   const handleConfirmDeleteGoal = () => {
@@ -101,9 +110,13 @@ export function Goals() {
       return;
     }
 
-    handleDeleteGoal(goalToDelete.id);
-    setGoalToDelete(null);
-    toast.success("Goal deleted");
+    deleteGoalMutation.mutate(goalToDelete.id, {
+      onSuccess: () => {
+        setGoalToDelete(null);
+        toast.success("Goal deleted");
+      },
+      onError: () => toast.error("Failed to delete goal"),
+    });
   };
 
   const handleExportGoals = () => {
@@ -221,12 +234,11 @@ export function Goals() {
 
       <div className="flex flex-col gap-4">
         {goals.map((gp) => {
-          const allGoalTransactions = allTransactions.filter((tx) => tx.goalId === gp.goal.id);
           return (
             <GoalDetailCard
               key={gp.goal.id}
               goalProgress={gp}
-              allGoalTransactions={allGoalTransactions}
+              allGoalTransactions={[]}
               onEdit={openEditGoalForm}
               onDelete={(goal) => setGoalToDelete(goal)}
             />

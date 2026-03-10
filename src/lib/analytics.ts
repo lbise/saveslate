@@ -240,7 +240,7 @@ export const ANALYTICS_COLORS = {
   warning: '#f5bb00',
 } as const;
 
-const INCOME_PIE_COLORS = [
+export const INCOME_PIE_COLORS = [
   '#1f6f4b',
   '#2f9666',
   ANALYTICS_COLORS.income,
@@ -249,7 +249,7 @@ const INCOME_PIE_COLORS = [
   '#a8ecc6',
 ] as const;
 
-const EXPENSE_PIE_COLORS = [
+export const EXPENSE_PIE_COLORS = [
   '#a33c3c',
   '#c45252',
   ANALYTICS_COLORS.expense,
