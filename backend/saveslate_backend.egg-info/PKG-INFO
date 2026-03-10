@@ -1,0 +1,20 @@
+Metadata-Version: 2.4
+Name: saveslate-backend
+Version: 0.1.0
+Summary: SaveSlate personal finance tracker – API backend
+Requires-Python: >=3.12
+Requires-Dist: fastapi<1,>=0.115
+Requires-Dist: uvicorn[standard]<1,>=0.34
+Requires-Dist: sqlalchemy[asyncio]<3,>=2.0
+Requires-Dist: asyncpg<1,>=0.30
+Requires-Dist: alembic<2,>=1.15
+Requires-Dist: pyjwt<3,>=2.10
+Requires-Dist: bcrypt<5,>=4.3
+Requires-Dist: pydantic[email]<3,>=2.11
+Requires-Dist: pydantic-settings<3,>=2.9
+Requires-Dist: python-multipart<1,>=0.0.20
+Provides-Extra: dev
+Requires-Dist: pytest<9,>=8; extra == "dev"
+Requires-Dist: pytest-asyncio<1,>=0.25; extra == "dev"
+Requires-Dist: httpx<1,>=0.28; extra == "dev"
+Requires-Dist: aiosqlite<1,>=0.21; extra == "dev"

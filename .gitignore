@@ -3,3 +3,9 @@ dist
 playwright-report
 test-results
 .playwright-cli
+
+# Backend
+backend/.venv
+backend/.env
+__pycache__
+*.pyc
