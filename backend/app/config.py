@@ -18,6 +18,7 @@ class Settings(BaseSettings):
     # App
     cors_origins: str = "http://localhost:5173"
     api_prefix: str = "/api"
+    rate_limit_enabled: bool = True
 
     model_config = {"env_file": ".env", "env_file_encoding": "utf-8"}
 

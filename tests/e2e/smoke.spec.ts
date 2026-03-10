@@ -1,4 +1,4 @@
-import { expect, test } from '@playwright/test';
+import { expect, test, type Page } from '@playwright/test';
 
 const PRIMARY_ROUTES = [
   { label: 'Dashboard', path: '/' },
@@ -12,14 +12,44 @@ const PRIMARY_ROUTES = [
   { label: 'Help', path: '/help' },
 ];
 
-test.beforeEach(async ({ page }) => {
-  await page.goto('/');
-  await page.evaluate(() => {
-    window.localStorage.clear();
-    window.sessionStorage.clear();
+const TEST_USER = {
+  name: 'E2E Smoke User',
+  email: `smoke-${Date.now()}@test.local`,
+  password: 'smoketest1234',
+};
+
+/**
+ * Register a test user and complete onboarding so the app lands on Dashboard.
+ */
+async function registerAndOnboard(page: Page) {
+  await page.goto('/register');
+  await page.getByLabel('Name').fill(TEST_USER.name);
+  await page.getByLabel('Email').fill(TEST_USER.email);
+  await page.getByLabel('Password').fill(TEST_USER.password);
+  await page.getByRole('button', { name: /register|sign up|create/i }).click();
+
+  // Wait for either onboarding or dashboard to load
+  await page.waitForURL((url) => url.pathname === '/' || url.pathname === '/onboarding', {
+    timeout: 10_000,
   });
 
-  await page.goto('/');
+  // If we land on onboarding, complete it
+  if (page.url().includes('/onboarding')) {
+    // Click through onboarding steps — the exact flow depends on the UI
+    // but typically: pick currency, pick category preset, confirm
+    const continueBtn = page.getByRole('button', { name: /continue|next|get started|finish/i });
+    while (await continueBtn.isVisible().catch(() => false)) {
+      await continueBtn.click();
+      await page.waitForTimeout(500);
+    }
+  }
+
+  // Should end up on dashboard
+  await expect(page).toHaveURL((url) => url.pathname === '/', { timeout: 10_000 });
+}
+
+test.beforeEach(async ({ page }) => {
+  await registerAndOnboard(page);
 });
 
 test('navigates all primary routes from the sidebar', async ({ page }) => {

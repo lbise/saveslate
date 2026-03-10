@@ -1,7 +1,11 @@
 """Shared test fixtures: async DB, test client, user helpers."""
 
 import asyncio
+import os
 from collections.abc import AsyncGenerator
+
+# Disable rate limiting before app import
+os.environ["RATE_LIMIT_ENABLED"] = "false"
 
 import pytest
 import pytest_asyncio

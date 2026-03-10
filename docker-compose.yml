@@ -2,34 +2,38 @@ services:
   db:
     image: postgres:16-alpine
     environment:
-      POSTGRES_USER: saveslate
-      POSTGRES_PASSWORD: saveslate
-      POSTGRES_DB: saveslate
-    ports:
-      - "5432:5432"
+      POSTGRES_USER: ${POSTGRES_USER:-saveslate}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?Set POSTGRES_PASSWORD in .env}
+      POSTGRES_DB: ${POSTGRES_DB:-saveslate}
     volumes:
       - pgdata:/var/lib/postgresql/data
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U saveslate"]
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-saveslate}"]
       interval: 5s
       timeout: 3s
       retries: 5
+    restart: unless-stopped
 
   api:
     build: ./backend
-    ports:
-      - "8000:8000"
-    env_file:
-      - ./backend/.env
     environment:
-      DATABASE_URL: postgresql+asyncpg://saveslate:saveslate@db:5432/saveslate
+      DATABASE_URL: postgresql+asyncpg://${POSTGRES_USER:-saveslate}:${POSTGRES_PASSWORD:?err}@db:5432/${POSTGRES_DB:-saveslate}
+      SECRET_KEY: ${SECRET_KEY:?Set SECRET_KEY in .env}
+      CSRF_SECRET_KEY: ${CSRF_SECRET_KEY:?Set CSRF_SECRET_KEY in .env}
+      CORS_ORIGINS: ${CORS_ORIGINS:-http://localhost}
     depends_on:
       db:
         condition: service_healthy
     command: >
-      sh -c "alembic upgrade head && uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload"
-    volumes:
-      - ./backend:/app
+      sh -c "alembic upgrade head && uvicorn app.main:app --host 0.0.0.0 --port 8000"
+    restart: unless-stopped
+
+  web:
+    build: .
+    ports:
+      - "${PORT:-80}:80"
+    depends_on:
+      - api
     restart: unless-stopped
 
 volumes:

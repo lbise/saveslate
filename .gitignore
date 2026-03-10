@@ -4,6 +4,9 @@ playwright-report
 test-results
 .playwright-cli
 
+# Environment
+.env
+
 # Backend
 backend/.venv
 backend/.env

@@ -2,11 +2,12 @@
 
 import secrets
 
-from fastapi import APIRouter, Depends, HTTPException, Response, status
+from fastapi import APIRouter, Depends, HTTPException, Request, Response, status
 from sqlalchemy import delete, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.deps import get_current_user, get_db, verify_csrf
+from app.limiter import limiter
 from app.models import (
     Account,
     AutomationRule,
@@ -70,7 +71,9 @@ def _clear_auth_cookies(response: Response) -> None:
     response_model=UserResponse,
     status_code=status.HTTP_201_CREATED,
 )
+@limiter.limit("5/minute")
 async def register(
+    request: Request,
     body: UserRegister,
     response: Response,
     db: AsyncSession = Depends(get_db),
@@ -104,7 +107,9 @@ async def register(
 
 
 @router.post("/login", response_model=UserResponse)
+@limiter.limit("10/minute")
 async def login(
+    request: Request,
     body: UserLogin,
     response: Response,
     db: AsyncSession = Depends(get_db),
