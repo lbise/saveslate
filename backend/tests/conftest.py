@@ -113,3 +113,9 @@ async def authed_client(client: AsyncClient) -> AsyncClient:
     resp = await client.post("/api/auth/register", json=TEST_USER)
     assert resp.status_code == 201
     return client
+
+
+def csrf_headers(client: AsyncClient) -> dict[str, str]:
+    """Extract CSRF header dict from client cookies."""
+    csrf = client.cookies.get("csrf_token")
+    return {"X-CSRF-Token": csrf} if csrf else {}
