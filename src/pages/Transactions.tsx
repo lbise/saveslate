@@ -122,13 +122,10 @@ export function Transactions() {
   const { data: importBatches = [] } = useImportBatches();
 
   const rawTransactionsData = transactionsResult.data;
-  const allCategories = categoriesResult.data ?? [];
-
-  // Show skeleton while primary data is loading
-  const isLoading = transactionsResult.isLoading || categoriesResult.isLoading;
-  if (isLoading) return <TransactionsSkeleton />;
-  if (transactionsResult.isError) return <QueryError message="Failed to load transactions." onRetry={() => transactionsResult.refetch()} />;
-  if (categoriesResult.isError) return <QueryError message="Failed to load categories." onRetry={() => categoriesResult.refetch()} />;
+  const allCategories = useMemo(
+    () => categoriesResult.data ?? [],
+    [categoriesResult.data],
+  );
 
   // Mutation hooks
   const createTransactionMutation = useCreateTransaction();
@@ -324,7 +321,26 @@ export function Transactions() {
     if (action === "duplicate") {
       const tx = transactions.find((t) => t.id === txId);
       if (!tx) return;
-      const { id, createdAt, updatedAt, type, category, account, destinationAccount, goal, ...txData } = tx;
+      const {
+        id,
+        createdAt,
+        updatedAt,
+        type,
+        category,
+        account,
+        destinationAccount,
+        goal,
+        ...txData
+      } = tx;
+      void id;
+      void createdAt;
+      void updatedAt;
+      void type;
+      void category;
+      void account;
+      void destinationAccount;
+      void goal;
+
       createTransactionMutation.mutate(txData, {
         onSuccess: () => toast.success("Transaction duplicated"),
         onError: () => toast.error("Failed to duplicate transaction"),
@@ -824,6 +840,11 @@ export function Transactions() {
     const end = start + pageSize;
     return filteredTransactions.slice(start, end);
   }, [filteredTransactions, page, pageSize]);
+
+  const isLoading = transactionsResult.isLoading || categoriesResult.isLoading;
+  if (isLoading) return <TransactionsSkeleton />;
+  if (transactionsResult.isError) return <QueryError message="Failed to load transactions." onRetry={() => transactionsResult.refetch()} />;
+  if (categoriesResult.isError) return <QueryError message="Failed to load categories." onRetry={() => categoriesResult.refetch()} />;
 
   const handleExportJson = () => {
     if (filteredTransactions.length === 0) {

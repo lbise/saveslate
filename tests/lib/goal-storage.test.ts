@@ -1,4 +1,4 @@
-import { describe, expect, it, beforeEach, vi } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 import {
   createUniqueGoalId,
   saveGoals,
@@ -31,8 +31,6 @@ describe('createUniqueGoalId', () => {
 
   it('avoids collisions with existing ids', () => {
     const fakeNow = 1000000;
-    const fakeRandom = 'abc123';
-    const collidingId = `goal-${fakeNow}-${fakeRandom}`;
 
     let callCount = 0;
     vi.spyOn(Date, 'now').mockImplementation(() => fakeNow);

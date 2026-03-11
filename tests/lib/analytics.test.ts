@@ -8,12 +8,9 @@ import {
   DATE_RANGE_OPTIONS,
   ANALYTICS_COLORS,
 } from '../../src/lib/analytics';
-import type { TransactionWithDetails, GoalProgress, Category, Account, Goal } from '../../src/types';
+import type { TransactionWithDetails, GoalProgress, Category, Account } from '../../src/types';
 import type {
   DateRangePeriod,
-  MonthlyIncomeExpensePoint,
-  AnalyticsPieDatum,
-  SankeyResult,
 } from '../../src/lib/analytics';
 
 // ── Factory helpers ─────────────────────────────────────────────

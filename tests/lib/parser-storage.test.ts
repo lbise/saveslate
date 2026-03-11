@@ -1,4 +1,4 @@
-import { describe, expect, it, beforeEach, vi } from 'vitest';
+import { describe, expect, it } from 'vitest';
 import {
   loadParsers,
   saveParser,
@@ -36,7 +36,16 @@ function makeParser(overrides: Partial<CsvParser> = {}): CsvParser {
 }
 
 function makeParserDraft() {
-  const { id, createdAt, updatedAt, ...draft } = makeParser();
+  const {
+    id,
+    createdAt,
+    updatedAt,
+    ...draft
+  } = makeParser();
+  void id;
+  void createdAt;
+  void updatedAt;
+
   return draft;
 }
 

@@ -25,14 +25,10 @@ export function Goals() {
   const updateGoalMutation = useUpdateGoal();
   const deleteGoalMutation = useDeleteGoal();
 
-  const rawGoals = goalsResult.data ?? [];
-  const goalProgressData = progressResult.data ?? [];
-
-  // Show skeleton while primary data is loading
-  if (goalsResult.isLoading) return <EntityListSkeleton cardCount={3} />;
-  if (goalsResult.isError) return <QueryError message="Failed to load goals." onRetry={() => goalsResult.refetch()} />;
-
   const goals = useMemo<GoalProgress[]>(() => {
+    const rawGoals = goalsResult.data ?? [];
+    const goalProgressData = progressResult.data ?? [];
+
     return rawGoals.map((goal) => {
       const progress = goalProgressData.find((p) => p.goalId === goal.id);
       return {
@@ -42,7 +38,7 @@ export function Goals() {
         transactionCount: progress?.contributionCount ?? 0,
       };
     });
-  }, [rawGoals, goalProgressData]);
+  }, [goalsResult.data, progressResult.data]);
 
   const [isCreateMenuOpen, setIsCreateMenuOpen] = useState(false);
   const [editingGoalId, setEditingGoalId] = useState<string | null>(null);
@@ -54,7 +50,16 @@ export function Goals() {
     onImportSuccess: async (importedGoals) => {
       try {
         for (const gp of importedGoals) {
-          const { id: _id, createdAt: _createdAt, updatedAt: _updatedAt, ...goalData } = gp.goal;
+          const {
+            id,
+            createdAt,
+            updatedAt,
+            ...goalData
+          } = gp.goal;
+          void id;
+          void createdAt;
+          void updatedAt;
+
           await createGoalMutation.mutateAsync({
             ...goalData,
             startingAmount: gp.currentAmount,
@@ -66,6 +71,9 @@ export function Goals() {
       }
     },
   });
+
+  if (goalsResult.isLoading) return <EntityListSkeleton cardCount={3} />;
+  if (goalsResult.isError) return <QueryError message="Failed to load goals." onRetry={() => goalsResult.refetch()} />;
 
   // ─── Modal handlers ───────────────────────────────────────
 
@@ -89,7 +97,15 @@ export function Goals() {
   // ─── Goal operations ─────────────────────────────────────
 
   const handleSaveGoal = (goalPayload: Goal) => {
-    const { id: _id, createdAt: _createdAt, updatedAt: _updatedAt, ...goalData } = goalPayload;
+    const {
+      id,
+      createdAt,
+      updatedAt,
+      ...goalData
+    } = goalPayload;
+    void id;
+    void createdAt;
+    void updatedAt;
 
     if (editingGoalId) {
       updateGoalMutation.mutate(

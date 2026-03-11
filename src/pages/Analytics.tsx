@@ -277,11 +277,7 @@ export function Analytics() {
   const { data: goalProgressData = [] } = useGoalProgress();
 
   const summaryData = summaryResult.data;
-  const monthlyData = monthlyResult.data ?? [];
-
-  // Show skeleton while primary data is loading
-  if (summaryResult.isLoading || monthlyResult.isLoading) return <AnalyticsSkeleton />;
-  if (summaryResult.isError) return <QueryError message="Failed to load analytics." onRetry={() => summaryResult.refetch()} />;
+  const monthlyData = useMemo(() => monthlyResult.data ?? [], [monthlyResult.data]);
 
   useEffect(() => {
     const handleResize = () => setViewportWidth(window.innerWidth);
@@ -441,6 +437,10 @@ export function Analytics() {
   const sankeyChartHeight = isMobileViewport ? 460 : 520;
   const sankeyLabelMaxLength = isMobileViewport ? 9 : isNarrowViewport ? 18 : 26;
   const goalLabelMaxLength = isMobileViewport ? 12 : 22;
+
+  if (summaryResult.isLoading || monthlyResult.isLoading) return <AnalyticsSkeleton />;
+  if (summaryResult.isError) return <QueryError message="Failed to load analytics." onRetry={() => summaryResult.refetch()} />;
+  if (monthlyResult.isError) return <QueryError message="Failed to load analytics." onRetry={() => monthlyResult.refetch()} />;
 
   return (
     <div className="space-y-6 max-w-[1000px] mx-auto px-[18px] pt-[30px] pb-9 lg:px-8 lg:py-11 xl:px-10 xl:py-12">
@@ -688,14 +688,13 @@ interface PieCardProps {
 function PieCard({ title, emptyLabel, data, hasData, formatCurrency }: PieCardProps) {
   const total = data.reduce((sum, entry) => sum + entry.value, 0);
   const [activeSliceId, setActiveSliceId] = useState<string | number | null>(null);
-
-  useEffect(() => {
-    setActiveSliceId(null);
-  }, [data]);
+  const activeSlice = data.some((entry) => entry.id === activeSliceId)
+    ? activeSliceId
+    : null;
 
   const PieCenterMetricLayer = useMemo(
-    () => makePieCenterMetricLayer({ total, activeSliceId }),
-    [activeSliceId, total],
+    () => makePieCenterMetricLayer({ total, activeSliceId: activeSlice }),
+    [activeSlice, total],
   );
 
   return (
@@ -744,7 +743,7 @@ function PieCard({ title, emptyLabel, data, hasData, formatCurrency }: PieCardPr
                   symbolShape: 'circle',
                 },
               ]}
-              activeId={activeSliceId}
+              activeId={activeSlice}
               valueFormat={(value) => formatCurrency(Number(value))}
               tooltip={(item: import('@nivo/pie').PieTooltipProps<AnalyticsPieDatum>) => {
                 const share = total > 0 ? (item.datum.value / total) * 100 : 0;

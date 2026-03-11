@@ -46,14 +46,8 @@ export function Dashboard() {
   const { data: categories = [] } = useCategories();
   const { data: goals = [] } = useGoals();
 
-  const accounts = accountsQuery.data ?? [];
-  const accountBalances = balancesQuery.data ?? [];
-
-  // Show skeleton while primary data is loading
-  const isLoading = accountsQuery.isLoading || balancesQuery.isLoading;
-  if (isLoading) return <DashboardSkeleton />;
-  if (accountsQuery.isError) return <QueryError message="Failed to load accounts." onRetry={() => accountsQuery.refetch()} />;
-  if (balancesQuery.isError) return <QueryError message="Failed to load account balances." onRetry={() => balancesQuery.refetch()} />;
+  const accounts = useMemo(() => accountsQuery.data ?? [], [accountsQuery.data]);
+  const accountBalances = useMemo(() => balancesQuery.data ?? [], [balancesQuery.data]);
 
   // Net worth from account balances
   const netWorth = useMemo(
@@ -119,6 +113,11 @@ export function Dashboard() {
     () => categorySpending.slice(0, MAX_SPENDING_CATEGORIES),
     [categorySpending],
   );
+
+  const isLoading = accountsQuery.isLoading || balancesQuery.isLoading;
+  if (isLoading) return <DashboardSkeleton />;
+  if (accountsQuery.isError) return <QueryError message="Failed to load accounts." onRetry={() => accountsQuery.refetch()} />;
+  if (balancesQuery.isError) return <QueryError message="Failed to load account balances." onRetry={() => balancesQuery.refetch()} />;
 
   return (
     <div className="space-y-6 max-w-[1000px] mx-auto px-[18px] pt-[30px] pb-9 lg:px-8 lg:py-11 xl:px-10 xl:py-12">

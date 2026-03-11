@@ -176,13 +176,11 @@ export function Categories() {
   const deleteCategoryMutation = useDeleteCategory();
   const createCategoryGroupMutation = useCreateCategoryGroup();
 
-  const allCategories = categoriesResult.data ?? [];
-  const allCategoryGroups = categoryGroupsResult.data ?? [];
-
-  // Show skeleton while primary data is loading
-  const isPageLoading = categoriesResult.isLoading || categoryGroupsResult.isLoading;
-  if (isPageLoading) return <EntityListSkeleton cardCount={4} />;
-  if (categoriesResult.isError) return <QueryError message="Failed to load categories." onRetry={() => categoriesResult.refetch()} />;
+  const allCategories = useMemo(() => categoriesResult.data ?? [], [categoriesResult.data]);
+  const allCategoryGroups = useMemo(
+    () => categoryGroupsResult.data ?? [],
+    [categoryGroupsResult.data],
+  );
 
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
   const [editingCategoryId, setEditingCategoryId] = useState<string | null>(null);
@@ -249,7 +247,10 @@ export function Categories() {
         }
       }
 
-      toast.success(`${categoriesCreated} categories imported`);
+      const importedLabel = groupsCreated > 0
+        ? `${categoriesCreated} categories and ${groupsCreated} groups imported`
+        : `${categoriesCreated} categories imported`;
+      toast.success(importedLabel);
     },
   });
 
@@ -290,6 +291,11 @@ export function Categories() {
 
     return groups.filter((group) => group.categories.length > 0);
   }, [categories, orderedGroups]);
+
+  const isPageLoading = categoriesResult.isLoading || categoryGroupsResult.isLoading;
+  if (isPageLoading) return <EntityListSkeleton cardCount={4} />;
+  if (categoriesResult.isError) return <QueryError message="Failed to load categories." onRetry={() => categoriesResult.refetch()} />;
+  if (categoryGroupsResult.isError) return <QueryError message="Failed to load category groups." onRetry={() => categoryGroupsResult.refetch()} />;
 
   const openCreateModal = () => {
     setForm({

@@ -137,7 +137,7 @@ describe('useImportExport', () => {
     it('sets importError to default message when parseFile throws non-Error', async () => {
       const opts = defaultOptions();
       opts.parseFile.mockImplementation(() => {
-        throw 'something went wrong'; // eslint-disable-line no-throw-literal
+        throw 'something went wrong';
       });
       const { result } = renderHook(() => useImportExport(opts));
 

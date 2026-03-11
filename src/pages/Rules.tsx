@@ -56,19 +56,18 @@ export function Rules() {
   const location = useLocation();
   useOnboarding();
   const categoriesResult = useCategories(true);
-  const visibleCategories = categoriesResult.data ?? [];
+  const visibleCategories = useMemo(
+    () => categoriesResult.data ?? [],
+    [categoriesResult.data],
+  );
   const defaultCategoryId = visibleCategories[0]?.id ?? '';
 
   const rulesResult = useAutomationRules();
-  const rules = rulesResult.data ?? [];
+  const rules = useMemo(() => rulesResult.data ?? [], [rulesResult.data]);
   const createRuleMutation = useCreateAutomationRule();
   const updateRuleMutation = useUpdateAutomationRule();
   const deleteRuleMutation = useDeleteAutomationRule();
   const runRulesMutation = useRunAutomationRules();
-
-  // Show skeleton while primary data is loading
-  if (rulesResult.isLoading || categoriesResult.isLoading) return <EntityListSkeleton cardCount={3} />;
-  if (rulesResult.isError) return <QueryError message="Failed to load automation rules." onRetry={() => rulesResult.refetch()} />;
 
   const [isRuleModalOpen, setIsRuleModalOpen] = useState(false);
   const [editingRuleId, setEditingRuleId] = useState<string | null>(null);
@@ -87,7 +86,16 @@ export function Rules() {
     onImportSuccess: async (parsedRules) => {
       try {
         for (const rule of parsedRules) {
-          const { id: _id, createdAt: _c, updatedAt: _u, ...ruleData } = rule as AutomationRule & { createdAt?: string; updatedAt?: string };
+          const {
+            id,
+            createdAt,
+            updatedAt,
+            ...ruleData
+          } = rule as AutomationRule & { createdAt?: string; updatedAt?: string };
+          void id;
+          void createdAt;
+          void updatedAt;
+
           await createRuleMutation.mutateAsync(ruleData);
         }
         toast.success(`${parsedRules.length} rule(s) imported`);
@@ -286,6 +294,10 @@ export function Rules() {
       ).length,
     [rules],
   );
+
+  if (rulesResult.isLoading || categoriesResult.isLoading) return <EntityListSkeleton cardCount={3} />;
+  if (rulesResult.isError) return <QueryError message="Failed to load automation rules." onRetry={() => rulesResult.refetch()} />;
+  if (categoriesResult.isError) return <QueryError message="Failed to load categories." onRetry={() => categoriesResult.refetch()} />;
 
   // ─── Modal handlers ───────────────────────────────────────
 

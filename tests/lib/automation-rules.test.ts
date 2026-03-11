@@ -1,4 +1,4 @@
-import { describe, expect, it, beforeEach, vi } from 'vitest';
+import { describe, expect, it, beforeEach } from 'vitest';
 import {
   AUTOMATION_RULES_EXPORT_SCHEMA_VERSION,
   AUTOMATION_TRIGGER_OPTIONS,

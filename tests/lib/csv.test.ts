@@ -20,11 +20,9 @@ import {
 } from '../../src/lib/csv';
 import type {
   CsvParser,
-  CsvDelimiter,
   ColumnMapping,
   FieldTransform,
   ParsedRow,
-  AmountFormat,
 } from '../../src/types';
 
 // ─── Helper ──────────────────────────────────────────────────

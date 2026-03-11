@@ -74,7 +74,6 @@ describe('account-storage', () => {
       const realDateNow = Date.now;
       const realMathRandom = Math.random;
 
-      let callCount = 0;
       // Force a collision on the first call by making Date.now and Math.random deterministic
       Date.now = vi.fn()
         .mockReturnValueOnce(1000)
@@ -244,7 +243,6 @@ describe('account-storage', () => {
     it('does not re-save when all items are valid', () => {
       const accounts = [makeAccount()];
       localStorage.setItem(STORAGE_KEY, JSON.stringify(accounts));
-      const originalStored = localStorage.getItem(STORAGE_KEY);
 
       const spy = vi.spyOn(Storage.prototype, 'setItem');
       loadAccounts();
