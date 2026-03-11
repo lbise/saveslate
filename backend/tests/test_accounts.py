@@ -5,6 +5,30 @@ from httpx import AsyncClient
 from tests.conftest import csrf_headers
 
 
+async def _create_transaction(
+    client: AsyncClient,
+    account_id: str,
+    *,
+    amount: str,
+    date: str,
+    description: str = "Imported transaction",
+) -> dict:
+    h = csrf_headers(client)
+    resp = await client.post(
+        "/api/transactions",
+        json={
+            "amount": amount,
+            "currency": "CHF",
+            "description": description,
+            "date": date,
+            "account_id": account_id,
+        },
+        headers=h,
+    )
+    assert resp.status_code == 201
+    return resp.json()
+
+
 # ============================================================================
 # List
 # ============================================================================
@@ -29,6 +53,39 @@ class TestListAccounts:
         assert resp.status_code == 200
         assert len(resp.json()) == 1
         assert resp.json()[0]["name"] == "Checking"
+        assert resp.json()[0]["computed_balance"] == "0.00"
+        assert resp.json()[0]["transaction_count"] == 0
+        assert resp.json()[0]["last_transaction_date"] is None
+
+    async def test_list_includes_computed_balance_fields(self, authed_client: AsyncClient):
+        h = csrf_headers(authed_client)
+        create_resp = await authed_client.post(
+            "/api/accounts",
+            json={"name": "Checking", "type": "checking", "balance": "250.00"},
+            headers=h,
+        )
+        account_id = create_resp.json()["id"]
+
+        await _create_transaction(
+            authed_client,
+            account_id,
+            amount="-25.50",
+            date="2026-01-15",
+        )
+        await _create_transaction(
+            authed_client,
+            account_id,
+            amount="100.00",
+            date="2026-01-16",
+        )
+
+        resp = await authed_client.get("/api/accounts")
+        assert resp.status_code == 200
+        data = resp.json()[0]
+        assert data["balance"] == "250.00"
+        assert data["computed_balance"] == "74.50"
+        assert data["transaction_count"] == 2
+        assert data["last_transaction_date"] == "2026-01-16"
 
     async def test_list_unauthenticated(self, client: AsyncClient):
         resp = await client.get("/api/accounts")
@@ -120,6 +177,8 @@ class TestGetAccount:
         assert resp.status_code == 200
         assert resp.json()["id"] == account_id
         assert resp.json()["name"] == "Test"
+        assert resp.json()["computed_balance"] == "0.00"
+        assert resp.json()["transaction_count"] == 0
 
     async def test_get_not_found(self, authed_client: AsyncClient):
         resp = await authed_client.get("/api/accounts/00000000-0000-0000-0000-000000000000")

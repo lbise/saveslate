@@ -1,7 +1,7 @@
 """Account schemas."""
 
 import uuid
-from datetime import datetime
+from datetime import date, datetime
 from decimal import Decimal
 from typing import Literal
 
@@ -43,6 +43,9 @@ class AccountResponse(BaseModel):
     currency: str
     icon: str
     account_identifier: str | None
+    computed_balance: Decimal
+    transaction_count: int
+    last_transaction_date: date | None
     created_at: datetime
     updated_at: datetime
 

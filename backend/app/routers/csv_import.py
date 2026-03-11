@@ -1,10 +1,14 @@
 """CSV import router: upload, parse, create transactions, apply rules."""
 
+import json
 import uuid
-from datetime import datetime, timezone
+from datetime import date as date_type
+from datetime import datetime, time as time_type, timezone
 from decimal import Decimal
+from typing import Any
 
-from fastapi import APIRouter, Depends, HTTPException, Query, UploadFile, status
+from fastapi import APIRouter, Depends, Form, HTTPException, Query, UploadFile, status
+from pydantic import BaseModel, Field, ValidationError
 from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
@@ -20,9 +24,30 @@ from app.models.user import User
 from app.schemas.transaction import TransactionResponse
 from app.services.automation_engine import apply_automation_rules
 from app.services.csv_import import CsvParseResult, parse_csv_file
-from app.services.transfer_pairs import normalize_transfer_pairs
+from app.services.transfer_pairs import normalize_transfer_pairs, validate_transfer_pair
 
 router = APIRouter(prefix="/api/import", tags=["import"])
+
+
+class ImportTransferLink(BaseModel):
+    """Transfer link between one imported row and one existing transaction."""
+
+    row_index: int = Field(ge=0)
+    matched_transaction_id: uuid.UUID
+
+
+class CsvImportPayload(BaseModel):
+    """Structured import options sent alongside the uploaded CSV file."""
+
+    account_id: uuid.UUID
+    parser_id: uuid.UUID | None = None
+    apply_rules: bool = True
+    currency: str = Field(default="CHF", min_length=3, max_length=3)
+    import_name: str | None = None
+    selected_row_indexes: list[int] | None = None
+    transfer_links: list[ImportTransferLink] = Field(default_factory=list)
+
+    model_config = {"extra": "forbid"}
 
 
 def _transaction_to_response(txn: Transaction) -> TransactionResponse:
@@ -51,6 +76,279 @@ def _transaction_to_response(txn: Transaction) -> TransactionResponse:
     )
 
 
+def _parse_import_payload(
+    payload: str | None,
+    account_id: uuid.UUID | None,
+    parser_id: uuid.UUID | None,
+    apply_rules: bool,
+    currency: str,
+) -> CsvImportPayload:
+    if payload is not None:
+        try:
+            raw_payload = json.loads(payload)
+        except json.JSONDecodeError as exc:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail=f"Invalid import payload: {exc.msg}",
+            ) from exc
+
+        try:
+            return CsvImportPayload.model_validate(raw_payload)
+        except ValidationError as exc:
+            raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_ENTITY, detail=exc.errors()) from exc
+
+    if account_id is None:
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            detail="accountId is required",
+        )
+
+    return CsvImportPayload(
+        account_id=account_id,
+        parser_id=parser_id,
+        apply_rules=apply_rules,
+        currency=currency,
+    )
+
+
+def _normalize_selected_row_indexes(
+    total_rows: int,
+    selected_row_indexes: list[int] | None,
+) -> list[int]:
+    if selected_row_indexes is None:
+        return list(range(total_rows))
+
+    if not selected_row_indexes:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="No rows selected for import",
+        )
+
+    normalized: list[int] = []
+    seen_indexes: set[int] = set()
+    for row_index in selected_row_indexes:
+        if row_index in seen_indexes:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail=f"Selected row {row_index} appears more than once",
+            )
+        if row_index < 0 or row_index >= total_rows:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail=f"Selected row index {row_index} is out of range",
+            )
+        normalized.append(row_index)
+        seen_indexes.add(row_index)
+
+    return normalized
+
+
+async def _load_parser_config(
+    db: AsyncSession,
+    user_id: uuid.UUID,
+    parser_id: uuid.UUID | None,
+) -> tuple[dict[str, Any] | None, str | None]:
+    if parser_id is None:
+        return None, None
+
+    result = await db.execute(
+        select(CsvParser).where(CsvParser.id == parser_id, CsvParser.user_id == user_id)
+    )
+    csv_parser = result.scalar_one_or_none()
+    if csv_parser is None:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="CSV parser not found",
+        )
+
+    return csv_parser.config, csv_parser.name
+
+
+def _parse_time(value: str | None, row_index: int) -> time_type | None:
+    if not value:
+        return None
+
+    parts = value.split(":")
+    try:
+        return time_type(
+            int(parts[0]),
+            int(parts[1]) if len(parts) > 1 else 0,
+            int(parts[2]) if len(parts) > 2 else 0,
+        )
+    except (ValueError, IndexError) as exc:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=f"Selected row {row_index} has an invalid time value",
+        ) from exc
+
+
+async def _build_transaction_dicts(
+    db: AsyncSession,
+    user: User,
+    parse_result: CsvParseResult,
+    selected_row_indexes: list[int],
+    account_id: uuid.UUID,
+    import_batch_id: uuid.UUID,
+    default_currency: str,
+) -> tuple[list[dict[str, Any]], dict[int, dict[str, Any]]]:
+    category_cache: dict[str, uuid.UUID | None] = {}
+    txn_dicts: list[dict[str, Any]] = []
+    txn_dicts_by_row_index: dict[int, dict[str, Any]] = {}
+
+    for row_index in selected_row_indexes:
+        row = parse_result.rows[row_index]
+
+        if not row.date or not row.description:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail=f"Selected row {row_index} is missing required fields",
+            )
+
+        try:
+            parsed_date = date_type.fromisoformat(row.date)
+        except ValueError as exc:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail=f"Selected row {row_index} has an invalid date value",
+            ) from exc
+
+        parsed_time = _parse_time(row.time, row_index)
+
+        category_id: uuid.UUID | None = None
+        if row.category:
+            cache_key = row.category.strip().lower()
+            if cache_key not in category_cache:
+                cat_result = await db.execute(
+                    select(Category.id).where(
+                        Category.user_id == user.id,
+                        func.lower(Category.name) == cache_key,
+                    )
+                )
+                category_cache[cache_key] = cat_result.scalar_one_or_none()
+            category_id = category_cache[cache_key]
+
+        txn_dict = {
+            "transaction_id": row.transaction_id,
+            "amount": row.amount,
+            "currency": row.currency or default_currency,
+            "category_id": str(category_id) if category_id else None,
+            "description": row.description,
+            "date": parsed_date,
+            "time": parsed_time,
+            "account_id": str(account_id),
+            "transfer_pair_id": None,
+            "transfer_pair_role": None,
+            "goal_id": None,
+            "import_batch_id": str(import_batch_id),
+            "metadata": row.metadata,
+            "raw_data": row.raw,
+        }
+        txn_dicts.append(txn_dict)
+        txn_dicts_by_row_index[row_index] = txn_dict
+
+    if not txn_dicts:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="No valid transactions could be created from the CSV",
+        )
+
+    return txn_dicts, txn_dicts_by_row_index
+
+
+async def _apply_transfer_links(
+    db: AsyncSession,
+    user: User,
+    transfer_links: list[ImportTransferLink],
+    selected_row_indexes: list[int],
+    txn_dicts_by_row_index: dict[int, dict[str, Any]],
+) -> None:
+    if not transfer_links:
+        return
+
+    selected_row_index_set = set(selected_row_indexes)
+    seen_row_indexes: set[int] = set()
+    seen_transaction_ids: set[uuid.UUID] = set()
+    matched_ids = [link.matched_transaction_id for link in transfer_links]
+
+    result = await db.execute(
+        select(Transaction).where(
+            Transaction.user_id == user.id,
+            Transaction.id.in_(matched_ids),
+        )
+    )
+    matched_transactions = list(result.scalars().all())
+    matched_by_id = {transaction.id: transaction for transaction in matched_transactions}
+
+    if len(matched_by_id) != len(set(matched_ids)):
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="One or more transfer link targets were not found",
+        )
+
+    for link in transfer_links:
+        if link.row_index in seen_row_indexes:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail=f"Transfer link row {link.row_index} appears more than once",
+            )
+        if link.matched_transaction_id in seen_transaction_ids:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="A transfer link target can only be used once per import",
+            )
+        if link.row_index not in selected_row_index_set:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail=f"Transfer link row {link.row_index} is not selected for import",
+            )
+
+        imported_txn = txn_dicts_by_row_index.get(link.row_index)
+        if imported_txn is None:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail=f"Transfer link row {link.row_index} is invalid",
+            )
+        if imported_txn.get("transfer_pair_id"):
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail=f"Selected row {link.row_index} is already paired within this import",
+            )
+
+        matched_transaction = matched_by_id[link.matched_transaction_id]
+        if matched_transaction.transfer_pair_id:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Matched transaction already belongs to a transfer pair",
+            )
+
+        validation_errors = validate_transfer_pair(
+            imported_txn,
+            {
+                "account_id": str(matched_transaction.account_id),
+                "currency": matched_transaction.currency,
+                "amount": matched_transaction.amount,
+                "date": matched_transaction.date,
+            },
+        )
+        if validation_errors:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail=f"Invalid transfer link for row {link.row_index}: {'; '.join(validation_errors)}",
+            )
+
+        pair_id = f"transfer-pair-{uuid.uuid4()}"
+        imported_role = "source" if Decimal(str(imported_txn["amount"])) < 0 else "destination"
+        matched_role = "destination" if imported_role == "source" else "source"
+
+        imported_txn["transfer_pair_id"] = pair_id
+        imported_txn["transfer_pair_role"] = imported_role
+        matched_transaction.transfer_pair_id = pair_id
+        matched_transaction.transfer_pair_role = matched_role
+
+        seen_row_indexes.add(link.row_index)
+        seen_transaction_ids.add(link.matched_transaction_id)
+
+
 # ---------------------------------------------------------------------------
 # Preview: parse CSV without importing
 # ---------------------------------------------------------------------------
@@ -65,19 +363,7 @@ async def preview_csv(
 ) -> CsvParseResult:
     """Parse a CSV file and return preview data without creating transactions."""
     content = (await file.read()).decode("utf-8-sig")
-
-    parser_config = None
-    if parser_id:
-        result = await db.execute(
-            select(CsvParser).where(CsvParser.id == parser_id, CsvParser.user_id == user.id)
-        )
-        parser = result.scalar_one_or_none()
-        if parser is None:
-            raise HTTPException(
-                status_code=status.HTTP_404_NOT_FOUND, detail="CSV parser not found"
-            )
-        parser_config = parser.config
-
+    parser_config, _ = await _load_parser_config(db, user.id, parser_id)
     return parse_csv_file(content, parser_config)
 
 
@@ -94,161 +380,107 @@ async def preview_csv(
 )
 async def import_csv(
     file: UploadFile,
-    account_id: uuid.UUID = Query(alias="accountId"),
+    payload: str | None = Form(default=None),
+    account_id: uuid.UUID | None = Query(default=None, alias="accountId"),
     parser_id: uuid.UUID | None = Query(default=None, alias="parserId"),
     apply_rules: bool = Query(default=True, alias="applyRules"),
     currency: str = Query(default="CHF"),
     user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
 ) -> list[TransactionResponse]:
-    """Upload a CSV, parse it, create transactions, and apply automation rules.
+    """Upload a CSV, parse it, create transactions, and apply automation rules."""
+    import_request = _parse_import_payload(payload, account_id, parser_id, apply_rules, currency)
 
-    Steps:
-    1. Read and parse CSV with optional parser config.
-    2. Create an ImportBatch record.
-    3. Convert parsed rows to transactions.
-    4. Apply transfer pair normalization.
-    5. Apply automation rules (if enabled).
-    6. Persist all transactions.
-    """
-    # Validate account
     acct_result = await db.execute(
-        select(Account).where(Account.id == account_id, Account.user_id == user.id)
+        select(Account).where(Account.id == import_request.account_id, Account.user_id == user.id)
     )
     account = acct_result.scalar_one_or_none()
     if account is None:
         raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND, detail="Account not found"
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Account not found",
         )
 
     content = (await file.read()).decode("utf-8-sig")
+    parser_config, parser_name = await _load_parser_config(db, user.id, import_request.parser_id)
 
-    # Load parser config
-    parser_config = None
-    parser_name = None
-    if parser_id:
-        result = await db.execute(
-            select(CsvParser).where(CsvParser.id == parser_id, CsvParser.user_id == user.id)
-        )
-        csv_parser = result.scalar_one_or_none()
-        if csv_parser is None:
-            raise HTTPException(
-                status_code=status.HTTP_404_NOT_FOUND, detail="CSV parser not found"
-            )
-        parser_config = csv_parser.config
-        parser_name = csv_parser.name
-
-    # Parse CSV
     parse_result = parse_csv_file(content, parser_config)
     if not parse_result.rows:
         raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST, detail="No valid rows parsed from CSV"
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="No valid rows parsed from CSV",
         )
 
-    # Create import batch
+    selected_row_indexes = _normalize_selected_row_indexes(
+        len(parse_result.rows),
+        import_request.selected_row_indexes,
+    )
+
+    batch_name = (
+        import_request.import_name.strip()
+        if import_request.import_name and import_request.import_name.strip()
+        else file.filename or "import.csv"
+    )
     batch = ImportBatch(
         user_id=user.id,
         file_name=file.filename or "import.csv",
+        name=batch_name,
         imported_at=datetime.now(timezone.utc),
         parser_name=parser_name,
-        parser_id=parser_id,
-        row_count=len(parse_result.rows),
-        account_id=account_id,
+        parser_id=import_request.parser_id,
+        row_count=len(selected_row_indexes),
+        account_id=import_request.account_id,
     )
     db.add(batch)
     await db.flush()
 
-    # Convert parsed rows to transaction dicts for automation processing
-    txn_dicts: list[dict] = []
-    for row in parse_result.rows:
-        if not row.date or not row.description:
-            continue  # Skip rows without essential data
+    txn_dicts, txn_dicts_by_row_index = await _build_transaction_dicts(
+        db,
+        user,
+        parse_result,
+        selected_row_indexes,
+        import_request.account_id,
+        batch.id,
+        import_request.currency or account.currency,
+    )
 
-        from datetime import date as date_type, time as time_type
-
-        parsed_date = date_type.fromisoformat(row.date) if row.date else None
-        if parsed_date is None:
-            continue
-
-        parsed_time = None
-        if row.time:
-            parts = row.time.split(":")
-            try:
-                parsed_time = time_type(
-                    int(parts[0]),
-                    int(parts[1]) if len(parts) > 1 else 0,
-                    int(parts[2]) if len(parts) > 2 else 0,
-                )
-            except (ValueError, IndexError):
-                pass
-
-        # Look up category by name if provided
-        category_id = None
-        if row.category:
-            cat_result = await db.execute(
-                select(Category.id).where(
-                    Category.user_id == user.id,
-                    func.lower(Category.name) == row.category.lower(),
-                )
-            )
-            cat_row = cat_result.scalar_one_or_none()
-            if cat_row:
-                category_id = cat_row
-
-        txn_dict = {
-            "transaction_id": row.transaction_id,
-            "amount": row.amount,
-            "currency": row.currency or currency,
-            "category_id": str(category_id) if category_id else None,
-            "description": row.description,
-            "date": parsed_date,
-            "time": parsed_time,
-            "account_id": str(account_id),
-            "transfer_pair_id": None,
-            "transfer_pair_role": None,
-            "goal_id": None,
-            "import_batch_id": str(batch.id),
-            "metadata": row.metadata,
-            "raw_data": row.raw,
-        }
-        txn_dicts.append(txn_dict)
-
-    if not txn_dicts:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail="No valid transactions could be created from the CSV",
-        )
-
-    # Normalize transfer pairs
     txn_dicts = normalize_transfer_pairs(txn_dicts)
+    txn_dicts_by_row_index = {
+        row_index: txn_dicts[idx]
+        for idx, row_index in enumerate(selected_row_indexes)
+    }
 
-    # Apply automation rules
-    if apply_rules:
+    if import_request.apply_rules:
         rules_result = await db.execute(
             select(AutomationRule).where(AutomationRule.user_id == user.id)
         )
         rules = [
             {
-                "id": str(r.id),
-                "name": r.name,
-                "is_enabled": r.is_enabled,
-                "triggers": r.triggers,
-                "match_mode": r.match_mode,
-                "conditions": r.conditions,
-                "actions": r.actions,
-                "created_at": r.created_at.isoformat() if r.created_at else "",
+                "id": str(rule.id),
+                "name": rule.name,
+                "is_enabled": rule.is_enabled,
+                "triggers": rule.triggers,
+                "match_mode": rule.match_mode,
+                "conditions": rule.conditions,
+                "actions": rule.actions,
+                "created_at": rule.created_at.isoformat() if rule.created_at else "",
             }
-            for r in rules_result.scalars().all()
+            for rule in rules_result.scalars().all()
         ]
 
         run_result = apply_automation_rules(txn_dicts, rules, "on-import")
-
-        # Apply updates from automation
         for idx, updates in run_result.transaction_updates.items():
             for key, value in updates.items():
                 txn_dicts[idx][key] = value
 
-    # Create transaction ORM objects
+    await _apply_transfer_links(
+        db,
+        user,
+        import_request.transfer_links,
+        selected_row_indexes,
+        txn_dicts_by_row_index,
+    )
+
     created_txns: list[Transaction] = []
     for txn_dict in txn_dicts:
         txn = Transaction(
@@ -273,11 +505,10 @@ async def import_csv(
 
     await db.commit()
 
-    # Reload with tags
     result = await db.execute(
         select(Transaction)
         .options(selectinload(Transaction.tags))
-        .where(Transaction.id.in_([t.id for t in created_txns]))
+        .where(Transaction.id.in_([txn.id for txn in created_txns]))
     )
     loaded = list(result.scalars().all())
-    return [_transaction_to_response(t) for t in loaded]
+    return [_transaction_to_response(txn) for txn in loaded]

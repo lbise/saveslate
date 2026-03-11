@@ -17,7 +17,7 @@ import {
   parseRawCsv,
   extractHeadersAndData,
 } from '../lib/csv';
-import { useAccounts, useCreateImportBatch, useBulkCreateTransactions, useUpdateTransaction, useCsvPreview } from '../hooks/api';
+import { useAccounts, useCsvImport, useCsvPreview } from '../hooks/api';
 import { useFormatCurrency } from '../hooks';
 import type { CsvParser, ImportStep, ParsedRow } from '../types';
 
@@ -25,10 +25,14 @@ export function Import() {
   const { formatCurrency } = useFormatCurrency();
   const navigate = useNavigate();
   const { data: accounts = [] } = useAccounts();
-  const createImportBatchMutation = useCreateImportBatch();
-  const bulkCreateTransactionsMutation = useBulkCreateTransactions();
-  const updateTransactionMutation = useUpdateTransaction();
-  const csvPreviewMutation = useCsvPreview();
+  const csvImportMutation = useCsvImport();
+  const {
+    data: previewData,
+    isPending: isPreviewPending,
+    isError: isPreviewError,
+    mutate: previewCsv,
+    reset: resetCsvPreview,
+  } = useCsvPreview();
 
   // ─── Wizard state ──────────────────────────────────────────
   const [step, setStep] = useState<ImportStep>('upload');
@@ -54,8 +58,8 @@ export function Import() {
   }, [rawContent, selectedParser]);
 
   // ─── Server-parsed preview data ────────────────────────────
-  const previewRows: ParsedRow[] = csvPreviewMutation.data?.rows ?? [];
-  const detectedIdentifier = csvPreviewMutation.data?.accountIdentifier;
+  const previewRows = useMemo<ParsedRow[]>(() => previewData?.rows ?? [], [previewData]);
+  const detectedIdentifier = previewData?.accountIdentifier;
 
   // ─── Step 1: File loaded ───────────────────────────────────
   const handleFileLoaded = useCallback((content: string, name: string, fileObj: File) => {
@@ -64,9 +68,9 @@ export function Import() {
     setFile(fileObj);
     setSelectedParser(null);
     setIsCreatingParser(false);
-    csvPreviewMutation.reset();
+    resetCsvPreview();
     setStep('parser');
-  }, [csvPreviewMutation.reset]);
+  }, [resetCsvPreview]);
 
   // ─── Step 2: Parser selected ───────────────────────────────
   const handleSelectParser = useCallback((parser: CsvParser) => {
@@ -74,9 +78,9 @@ export function Import() {
     setIsCreatingParser(false);
     setStep('preview');
     if (file) {
-      csvPreviewMutation.mutate({ file, parserId: parser.id });
+      previewCsv({ file, parserId: parser.id });
     }
-  }, [file, csvPreviewMutation.mutate]);
+  }, [file, previewCsv]);
 
   const handleCreateNew = useCallback(() => {
     setParserToEdit(null);
@@ -96,12 +100,12 @@ export function Import() {
     if (file) {
       setSelectedParser(parser);
       setStep('preview');
-      csvPreviewMutation.mutate({ file, parserId: parser.id });
+      previewCsv({ file, parserId: parser.id });
       return;
     }
 
     setStep('upload');
-  }, [file, csvPreviewMutation.mutate]);
+  }, [file, previewCsv]);
 
   const handleCancelCreate = useCallback(() => {
     setIsCreatingParser(false);
@@ -116,7 +120,7 @@ export function Import() {
     importName: string,
     transferLinks: Array<{ rowIndex: number; matchedTransactionId: string }>,
   ) => {
-    if (!selectedParser) return;
+    if (!selectedParser || !file) return;
 
     const selectedRows = selectedRowIndexes
       .map((index) => previewRows[index])
@@ -127,71 +131,16 @@ export function Import() {
     const fallbackCurrency = account?.currency ?? 'CHF';
 
     try {
-      // 1. Create an import batch record
-      const batch = await createImportBatchMutation.mutateAsync({
-        fileName,
-        name: importName || fileName,
-        importedAt: new Date().toISOString(),
-        parserName: selectedParser.name,
-        parserId: selectedParser.id,
-        rowCount: selectedRows.length,
+      await csvImportMutation.mutateAsync({
+        file,
         accountId,
+        parserId: selectedParser.id,
+        currency: fallbackCurrency,
+        importName: importName || fileName,
+        selectedRowIndexes,
+        transferLinks,
       });
 
-      // 2. Build transfer pair mappings
-      const transferLinkByRowIndex = new Map<number, { pairId: string; role: 'source' | 'destination' }>();
-      const matchedTransactionUpdates = new Map<string, { transferPairId: string; transferPairRole: 'source' | 'destination' }>();
-
-      transferLinks.forEach((link, index) => {
-        const row = previewRows[link.rowIndex];
-        if (!row) return;
-
-        const pairId = `transfer-pair-${Date.now()}-${index}-${Math.random().toString(36).slice(2, 8)}`;
-        const newRole: 'source' | 'destination' = row.amount < 0 ? 'source' : 'destination';
-        const matchedRole: 'source' | 'destination' = newRole === 'source' ? 'destination' : 'source';
-
-        transferLinkByRowIndex.set(link.rowIndex, { pairId, role: newRole });
-        matchedTransactionUpdates.set(link.matchedTransactionId, {
-          transferPairId: pairId,
-          transferPairRole: matchedRole,
-        });
-      });
-
-      // 3. Build transaction payloads
-      const transactionPayloads = selectedRowIndexes
-        .map((rowIndex) => {
-          const row = previewRows[rowIndex];
-          if (!row) return null;
-
-          const transferLink = transferLinkByRowIndex.get(rowIndex);
-          return {
-            transactionId: row.transactionId,
-            amount: row.amount,
-            currency: row.currency || fallbackCurrency,
-            description: row.description,
-            date: row.date,
-            time: row.time,
-            accountId,
-            importBatchId: batch.id,
-            metadata: row.metadata && row.metadata.length > 0 ? row.metadata : undefined,
-            rawData: row.raw,
-            ...(transferLink && {
-              transferPairId: transferLink.pairId,
-              transferPairRole: transferLink.role,
-            }),
-          };
-        })
-        .filter((p): p is NonNullable<typeof p> => p !== null);
-
-      // 4. Bulk create transactions (backend applies automation rules)
-      await bulkCreateTransactionsMutation.mutateAsync(transactionPayloads);
-
-      // 5. Update matched existing transactions with transfer pair IDs
-      for (const [txId, pairInfo] of matchedTransactionUpdates) {
-        await updateTransactionMutation.mutateAsync({ id: txId, ...pairInfo });
-      }
-
-      // 6. Calculate stats for the success screen
       let income = 0;
       let expense = 0;
       for (const row of selectedRows) {
@@ -205,7 +154,7 @@ export function Import() {
       console.error('Import failed:', error);
       toast.error('Failed to import transactions');
     }
-  }, [selectedParser, previewRows, fileName, accounts, createImportBatchMutation, bulkCreateTransactionsMutation, updateTransactionMutation]);
+  }, [selectedParser, previewRows, fileName, accounts, file, csvImportMutation]);
 
   // ─── Navigation helpers ────────────────────────────────────
   const handleBackToUpload = useCallback(() => {
@@ -216,16 +165,16 @@ export function Import() {
     setSelectedParser(null);
     setParserToEdit(null);
     setIsCreatingParser(false);
-    csvPreviewMutation.reset();
-  }, [csvPreviewMutation.reset]);
+    resetCsvPreview();
+  }, [resetCsvPreview]);
 
   const handleBackToParser = useCallback(() => {
     setStep('parser');
     setSelectedParser(null);
     setParserToEdit(null);
     setIsCreatingParser(false);
-    csvPreviewMutation.reset();
-  }, [csvPreviewMutation.reset]);
+    resetCsvPreview();
+  }, [resetCsvPreview]);
 
   const handleStartOver = useCallback(() => {
     setStep('upload');
@@ -236,8 +185,8 @@ export function Import() {
     setParserToEdit(null);
     setIsCreatingParser(false);
     setImportResult(null);
-    csvPreviewMutation.reset();
-  }, [csvPreviewMutation.reset]);
+    resetCsvPreview();
+  }, [resetCsvPreview]);
 
   return (
     <div className="space-y-6 max-w-[1000px] mx-auto px-[18px] pt-[30px] pb-9 lg:px-8 lg:py-11 xl:px-10 xl:py-12">
@@ -327,12 +276,12 @@ export function Import() {
             </button>
           </div>
 
-          {csvPreviewMutation.isPending ? (
+          {isPreviewPending ? (
             <div className="flex items-center justify-center gap-3 py-16">
               <Loader2 size={20} className="animate-spin text-muted-foreground" />
               <span className="text-sm text-muted-foreground">Parsing CSV&hellip;</span>
             </div>
-          ) : csvPreviewMutation.isError ? (
+          ) : isPreviewError ? (
             <div className="flex flex-col items-center justify-center gap-4 py-16 text-center">
               <p className="text-sm text-expense">Failed to parse CSV file</p>
               <Button variant="outline" size="sm" onClick={handleBackToParser}>

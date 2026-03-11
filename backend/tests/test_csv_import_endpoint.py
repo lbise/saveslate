@@ -1,6 +1,7 @@
 """CSV import endpoint tests: preview and full import."""
 
 import io
+import json
 
 from httpx import AsyncClient
 
@@ -59,9 +60,74 @@ async def _create_parser(client: AsyncClient) -> str:
     return resp.json()["id"]
 
 
+async def _create_transaction(
+    client: AsyncClient,
+    *,
+    account_id: str,
+    amount: str,
+    date: str,
+    currency: str = "CHF",
+    description: str = "Existing transaction",
+    transfer_pair_id: str | None = None,
+    transfer_pair_role: str | None = None,
+) -> dict:
+    h = csrf_headers(client)
+    resp = await client.post(
+        "/api/transactions",
+        json={
+            "amount": amount,
+            "currency": currency,
+            "description": description,
+            "date": date,
+            "account_id": account_id,
+            "transfer_pair_id": transfer_pair_id,
+            "transfer_pair_role": transfer_pair_role,
+        },
+        headers=h,
+    )
+    assert resp.status_code == 201
+    return resp.json()
+
+
 def _make_upload_file(content: str, filename: str = "test.csv"):
     """Create a file-like object for upload."""
     return ("file", (filename, io.BytesIO(content.encode("utf-8")), "text/csv"))
+
+
+def _camel_to_snake(value: str) -> str:
+    result: list[str] = []
+    for char in value:
+        if char.isupper():
+            result.append(f"_{char.lower()}")
+        else:
+            result.append(char)
+    return "".join(result)
+
+
+def _transform_payload_keys(value):
+    if isinstance(value, list):
+        return [_transform_payload_keys(item) for item in value]
+    if isinstance(value, dict):
+        return {
+            _camel_to_snake(key): _transform_payload_keys(item)
+            for key, item in value.items()
+        }
+    return value
+
+
+async def _post_import_with_payload(
+    client: AsyncClient,
+    csv_content: str,
+    payload: dict,
+):
+    return await client.post(
+        "/api/import",
+        files=[
+            _make_upload_file(csv_content),
+            ("payload", (None, json.dumps(_transform_payload_keys(payload)))),
+        ],
+        headers=csrf_headers(client),
+    )
 
 
 # ============================================================================
@@ -123,13 +189,14 @@ class TestCsvImport:
         """Import CSV and verify transactions are created."""
         acct_id = await _create_account(authed_client)
         parser_id = await _create_parser(authed_client)
-        h = csrf_headers(authed_client)
 
-        resp = await authed_client.post(
-            "/api/import",
-            files=[_make_upload_file(SIMPLE_CSV)],
-            params={"accountId": acct_id, "parserId": parser_id},
-            headers=h,
+        resp = await _post_import_with_payload(
+            authed_client,
+            SIMPLE_CSV,
+            {
+                "accountId": acct_id,
+                "parserId": parser_id,
+            },
         )
         assert resp.status_code == 201
         data = resp.json()
@@ -171,13 +238,16 @@ class TestCsvImport:
         """Verify import creates an import batch record."""
         acct_id = await _create_account(authed_client)
         parser_id = await _create_parser(authed_client)
-        h = csrf_headers(authed_client)
 
-        resp = await authed_client.post(
-            "/api/import",
-            files=[_make_upload_file(SIMPLE_CSV)],
-            params={"accountId": acct_id, "parserId": parser_id},
-            headers=h,
+        resp = await _post_import_with_payload(
+            authed_client,
+            SIMPLE_CSV,
+            {
+                "accountId": acct_id,
+                "parserId": parser_id,
+                "importName": "January import",
+                "selectedRowIndexes": [0, 2],
+            },
         )
         assert resp.status_code == 201
         batch_id = resp.json()[0]["import_batch_id"]
@@ -186,11 +256,14 @@ class TestCsvImport:
         batches_resp = await authed_client.get("/api/import-batches")
         assert batches_resp.status_code == 200
         batches = batches_resp.json()
-        assert any(b["id"] == batch_id for b in batches)
+        batch = next(b for b in batches if b["id"] == batch_id)
+        assert batch["name"] == "January import"
+        assert batch["row_count"] == 2
 
     async def test_import_with_rules(self, authed_client: AsyncClient):
         """Import with automation rules should categorize matching transactions."""
         acct_id = await _create_account(authed_client)
+        linked_acct_id = await _create_account(authed_client, name="Transfer Match")
         parser_id = await _create_parser(authed_client)
         h = csrf_headers(authed_client)
 
@@ -218,17 +291,92 @@ class TestCsvImport:
         }
         await authed_client.post("/api/automation-rules", json=rule_payload, headers=h)
 
+        existing_txn = await _create_transaction(
+            authed_client,
+            account_id=linked_acct_id,
+            amount="50.00",
+            date="2026-01-15",
+            description="Transfer arrival",
+        )
+
         # Import
-        resp = await authed_client.post(
-            "/api/import",
-            files=[_make_upload_file(SIMPLE_CSV)],
-            params={"accountId": acct_id, "parserId": parser_id, "applyRules": "true"},
-            headers=h,
+        resp = await _post_import_with_payload(
+            authed_client,
+            SIMPLE_CSV,
+            {
+                "accountId": acct_id,
+                "parserId": parser_id,
+                "applyRules": True,
+                "selectedRowIndexes": [0],
+                "transferLinks": [
+                    {
+                        "rowIndex": 0,
+                        "matchedTransactionId": existing_txn["id"],
+                    }
+                ],
+            },
         )
         assert resp.status_code == 201
         data = resp.json()
         grocery_txn = next(t for t in data if t["description"] == "Grocery Store")
         assert grocery_txn["category_id"] == cat_id
+        assert grocery_txn["transfer_pair_id"] is not None
+        assert grocery_txn["transfer_pair_role"] == "source"
+
+        existing_txn_resp = await authed_client.get(f"/api/transactions/{existing_txn['id']}")
+        assert existing_txn_resp.status_code == 200
+        existing_linked = existing_txn_resp.json()
+        assert existing_linked["transfer_pair_id"] == grocery_txn["transfer_pair_id"]
+        assert existing_linked["transfer_pair_role"] == "destination"
+
+    async def test_import_rejects_invalid_selected_row_index(self, authed_client: AsyncClient):
+        acct_id = await _create_account(authed_client)
+        parser_id = await _create_parser(authed_client)
+
+        resp = await _post_import_with_payload(
+            authed_client,
+            SIMPLE_CSV,
+            {
+                "accountId": acct_id,
+                "parserId": parser_id,
+                "selectedRowIndexes": [99],
+            },
+        )
+        assert resp.status_code == 400
+        assert "out of range" in resp.json()["detail"]
+
+    async def test_import_rejects_already_linked_transfer_target(self, authed_client: AsyncClient):
+        acct_id = await _create_account(authed_client)
+        linked_acct_id = await _create_account(authed_client, name="Linked Target")
+        parser_id = await _create_parser(authed_client)
+
+        existing_txn = await _create_transaction(
+            authed_client,
+            account_id=linked_acct_id,
+            amount="50.00",
+            date="2026-01-15",
+            description="Existing linked transaction",
+            transfer_pair_id="transfer-pair-existing",
+            transfer_pair_role="destination",
+        )
+
+        resp = await _post_import_with_payload(
+            authed_client,
+            SIMPLE_CSV,
+            {
+                "accountId": acct_id,
+                "parserId": parser_id,
+                "selectedRowIndexes": [0],
+                "transferLinks": [
+                    {
+                        "rowIndex": 0,
+                        "matchedTransactionId": existing_txn["id"],
+                    }
+                ],
+            },
+        )
+        assert resp.status_code == 400
+        assert "already belongs to a transfer pair" in resp.json()["detail"]
 
     async def test_import_csrf_required(self, authed_client: AsyncClient):
         """Import should require CSRF token."""

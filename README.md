@@ -78,10 +78,18 @@ npm run test:coverage # with coverage
 # Backend (pytest + async SQLite)
 cd backend && .venv/bin/python -m pytest tests/ -q
 
-# E2E (Playwright — requires dev server running)
+# E2E (Playwright)
 npm run test:e2e
 npm run test:smoke
+
+# Target a Docker Compose deployment instead of the dev server
+npm run test:e2e:docker
+npm run test:smoke:docker
 ```
+
+`npm run test:e2e` and `npm run test:smoke` start the Vite dev server automatically.
+
+`npm run test:e2e:docker` and `npm run test:smoke:docker` expect the app to already be running via Docker Compose at `http://localhost`.
 
 ### Type Checking & Lint
 

@@ -84,6 +84,7 @@ export function useCreateTransaction() {
     mutationFn: (data: Partial<Transaction> & { description: string; date: string; accountId: string }) =>
       api.post<Record<string, unknown>>('/api/transactions', data),
     onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['accounts'] });
       queryClient.invalidateQueries({ queryKey: transactionKeys.all });
       queryClient.invalidateQueries({ queryKey: ['analytics'] });
     },
@@ -98,6 +99,7 @@ export function useUpdateTransaction() {
     mutationFn: ({ id, ...data }: { id: string } & Partial<Transaction>) =>
       api.put<Record<string, unknown>>(`/api/transactions/${id}`, data),
     onSuccess: (_, variables) => {
+      queryClient.invalidateQueries({ queryKey: ['accounts'] });
       queryClient.invalidateQueries({ queryKey: transactionKeys.all });
       queryClient.invalidateQueries({ queryKey: transactionKeys.detail(variables.id) });
       queryClient.invalidateQueries({ queryKey: ['analytics'] });
@@ -112,6 +114,7 @@ export function useDeleteTransaction() {
   return useMutation({
     mutationFn: (id: string) => api.delete(`/api/transactions/${id}`),
     onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['accounts'] });
       queryClient.invalidateQueries({ queryKey: transactionKeys.all });
       queryClient.invalidateQueries({ queryKey: ['analytics'] });
     },
@@ -126,6 +129,7 @@ export function useBulkCreateTransactions() {
     mutationFn: (transactions: Array<Partial<Transaction> & { description: string; date: string; accountId: string }>) =>
       api.post<Record<string, unknown>[]>('/api/transactions/bulk', { transactions }),
     onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['accounts'] });
       queryClient.invalidateQueries({ queryKey: transactionKeys.all });
       queryClient.invalidateQueries({ queryKey: ['analytics'] });
       queryClient.invalidateQueries({ queryKey: ['importBatches'] });
@@ -141,6 +145,7 @@ export function useBulkDeleteTransactions() {
     mutationFn: (ids: string[]) =>
       api.delete('/api/transactions/bulk', { ids }),
     onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['accounts'] });
       queryClient.invalidateQueries({ queryKey: transactionKeys.all });
       queryClient.invalidateQueries({ queryKey: ['analytics'] });
     },

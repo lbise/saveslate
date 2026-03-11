@@ -12,7 +12,9 @@
     "test:watch": "vitest",
     "test:coverage": "vitest run --coverage",
     "test:e2e": "playwright test",
-    "test:smoke": "playwright test tests/e2e/smoke.spec.ts"
+    "test:smoke": "playwright test tests/e2e/smoke.spec.ts",
+    "test:e2e:docker": "BASE_URL=http://localhost playwright test",
+    "test:smoke:docker": "BASE_URL=http://localhost playwright test tests/e2e/smoke.spec.ts"
   },
   "dependencies": {
     "@nivo/bar": "^0.99.0",

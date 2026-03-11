@@ -3,8 +3,8 @@ import { Download, Edit, Plus, Upload } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/Card';
 import { ScrollArea } from '@/components/ui/scroll-area';
+import { exportParser, getParserDraftFromImport } from '../../lib/parser-transfer';
 import { useCsvParsers, useCreateCsvParser, toCsvParserConfig } from '../../hooks/api';
-import { exportParser, getParserDraftFromImport } from '../../lib/parser-storage';
 import type { CsvParser } from '../../types';
 
 interface ParserLibraryProps {

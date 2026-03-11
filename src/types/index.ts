@@ -143,6 +143,9 @@ export interface Account {
   name: string;
   type: AccountType;
   balance: number;
+  computedBalance?: number;
+  transactionCount?: number;
+  lastTransactionDate?: string;
   currency: string;
   icon: string; // Lucide icon name
   accountIdentifier?: string; // Optional identifier (e.g. IBAN, account number) for matching imported transactions

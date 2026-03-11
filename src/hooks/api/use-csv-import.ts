@@ -14,6 +14,11 @@ export interface CsvPreviewResult {
   accountIdentifier?: string;
 }
 
+export interface CsvImportTransferLink {
+  rowIndex: number;
+  matchedTransactionId: string;
+}
+
 // ─── Hooks ───────────────────────────────────────────────────────────
 
 /** Preview a CSV file without importing. Returns parsed rows for review. */
@@ -35,20 +40,32 @@ export function useCsvImport() {
       parserId,
       applyRules = true,
       currency = 'CHF',
+      importName,
+      selectedRowIndexes,
+      transferLinks = [],
     }: {
       file: File;
       accountId: string;
       parserId?: string;
       applyRules?: boolean;
       currency?: string;
+      importName?: string;
+      selectedRowIndexes?: number[];
+      transferLinks?: CsvImportTransferLink[];
     }) =>
-      api.upload<Transaction[]>('/api/import', file, {
-        accountId,
-        parserId,
-        applyRules,
-        currency,
+      api.upload<Transaction[]>('/api/import', file, undefined, {
+        payload: {
+          accountId,
+          parserId,
+          applyRules,
+          currency,
+          importName,
+          selectedRowIndexes,
+          transferLinks,
+        },
       }),
     onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['accounts'] });
       queryClient.invalidateQueries({ queryKey: ['transactions'] });
       queryClient.invalidateQueries({ queryKey: ['importBatches'] });
       queryClient.invalidateQueries({ queryKey: ['analytics'] });

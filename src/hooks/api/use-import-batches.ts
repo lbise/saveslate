@@ -60,6 +60,7 @@ export function useDeleteImportBatch() {
     mutationFn: (id: string) => api.delete(`/api/import-batches/${id}`),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: importBatchKeys.all });
+      queryClient.invalidateQueries({ queryKey: ['accounts'] });
       queryClient.invalidateQueries({ queryKey: ['transactions'] });
       queryClient.invalidateQueries({ queryKey: ['analytics'] });
     },

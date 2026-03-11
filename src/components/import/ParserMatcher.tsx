@@ -5,8 +5,8 @@ import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/Card';
 import { Separator } from '@/components/ui/separator';
 import { findBestParserFromRaw } from '../../lib/csv';
+import { exportParser, getParserDraftFromImport } from '../../lib/parser-transfer';
 import { useCsvParsers, useCreateCsvParser, toCsvParserConfig } from '../../hooks/api';
-import { exportParser, getParserDraftFromImport } from '../../lib/parser-storage';
 import type { CsvParser } from '../../types';
 
 interface ParserMatcherProps {

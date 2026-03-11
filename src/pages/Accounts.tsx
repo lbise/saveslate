@@ -27,7 +27,6 @@ import { toast } from 'sonner';
 import { inferTransactionType } from '../lib/transaction-type';
 import {
   useAccounts,
-  useAccountBalances,
   useCreateAccount,
   useUpdateAccount,
   useDeleteAccount,
@@ -152,19 +151,10 @@ function parseImportedAccounts(rawContent: string): Account[] {
 export function Accounts() {
   const { formatCurrency } = useFormatCurrency();
   const accountsResult = useAccounts();
-  const balancesResult = useAccountBalances();
   const createAccount = useCreateAccount();
   const updateAccountMutation = useUpdateAccount();
   const deleteAccountMutation = useDeleteAccount();
-
-  const accounts = accountsResult.data ?? [];
-  const accountBalances = balancesResult.data ?? [];
-
-  // Show skeleton while primary data is loading
-  const isLoading = accountsResult.isLoading || balancesResult.isLoading;
-  if (isLoading) return <EntityListSkeleton cardCount={3} />;
-  if (accountsResult.isError) return <QueryError message="Failed to load accounts." onRetry={() => accountsResult.refetch()} />;
-  if (balancesResult.isError) return <QueryError message="Failed to load balances." onRetry={() => balancesResult.refetch()} />;
+  const accounts = useMemo(() => accountsResult.data ?? [], [accountsResult.data]);
 
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
   const [editingAccountId, setEditingAccountId] = useState<string | null>(null);
@@ -192,25 +182,9 @@ export function Accounts() {
     },
   });
 
-  const computedBalancesMap = useMemo(() => {
-    const map = new Map<string, number>();
-    for (const ab of accountBalances) {
-      map.set(ab.accountId, ab.computedBalance);
-    }
-    return map;
-  }, [accountBalances]);
-
-  const txCountMap = useMemo(() => {
-    const map = new Map<string, number>();
-    for (const ab of accountBalances) {
-      map.set(ab.accountId, ab.transactionCount);
-    }
-    return map;
-  }, [accountBalances]);
-
   const netWorth = useMemo(
-    () => accountBalances.reduce((sum, ab) => sum + ab.computedBalance, 0),
-    [accountBalances],
+    () => accounts.reduce((sum, account) => sum + (account.computedBalance ?? account.balance), 0),
+    [accounts],
   );
 
   const isEditing = editingAccountId !== null;
@@ -231,8 +205,12 @@ export function Accounts() {
 
   const accountToDeleteTxCount = useMemo(() => {
     if (!accountToDelete) return 0;
-    return txCountMap.get(accountToDelete.id) ?? 0;
-  }, [accountToDelete, txCountMap]);
+    return accountToDelete.transactionCount ?? 0;
+  }, [accountToDelete]);
+
+  // Show skeleton while primary data is loading
+  if (accountsResult.isLoading) return <EntityListSkeleton cardCount={3} />;
+  if (accountsResult.isError) return <QueryError message="Failed to load accounts." onRetry={() => accountsResult.refetch()} />;
 
   const closeAccountModal = () => {
     setIsCreateModalOpen(false);
@@ -391,8 +369,8 @@ export function Accounts() {
             <AccountRow
               key={account.id}
               account={account}
-              computedBalance={computedBalancesMap.get(account.id) ?? account.balance}
-              transactionCount={txCountMap.get(account.id) ?? 0}
+              computedBalance={account.computedBalance ?? account.balance}
+              transactionCount={account.transactionCount ?? 0}
               onEdit={() => openEditModal(account)}
               onDelete={() => setAccountToDelete(account)}
             />

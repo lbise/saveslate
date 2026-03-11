@@ -15,6 +15,9 @@ function transformAccount(raw: Record<string, unknown>): Account {
   return {
     ...(raw as unknown as Account),
     balance: toNumber(raw.balance as string | number),
+    computedBalance: raw.computedBalance === undefined ? undefined : toNumber(raw.computedBalance as string | number),
+    transactionCount: raw.transactionCount as number | undefined,
+    lastTransactionDate: raw.lastTransactionDate as string | undefined,
   };
 }
 

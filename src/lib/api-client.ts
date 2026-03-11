@@ -178,9 +178,23 @@ export const api = {
     url: string,
     file: File,
     params?: Record<string, string | number | boolean | undefined | null>,
+    fields?: Record<string, unknown>,
   ) {
     const formData = new FormData();
     formData.append('file', file);
+
+    if (fields) {
+      for (const [key, value] of Object.entries(fields)) {
+        if (value === undefined || value === null) continue;
+        if (typeof value === 'string') {
+          formData.append(key, value);
+          continue;
+        }
+
+        formData.append(key, JSON.stringify(transformKeys(value, camelToSnake)));
+      }
+    }
+
     return request<T>('POST', url, { params, body: formData });
   },
 };
