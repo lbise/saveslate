@@ -37,20 +37,40 @@ This starts three containers:
 - Python 3.12+
 - Docker and Docker Compose (for the database)
 
-### Frontend
+### Daily Workflow
 
 ```bash
-npm install
-npm run dev          # http://localhost:5173
+npm install            # first time only
+npm run dev:full       # starts DB + API in Docker, then launches Vite
 ```
 
-### Backend
+This single command:
+
+1. Runs `docker compose up -d` (Postgres + FastAPI with hot-reload)
+2. Starts the Vite dev server at http://localhost:5173
+
+Quitting Vite (Ctrl-C) leaves the Docker services running so restarts are instant. When you're done for the day:
 
 ```bash
-# Start the database (and API with hot-reload)
-docker compose up -d
+npm run dev:stop       # tears down Postgres + API containers
+```
 
-# Or set up manually:
+### Individual Commands
+
+| Command              | What it does                              |
+| -------------------- | ----------------------------------------- |
+| `npm run dev`        | Vite dev server only (frontend)           |
+| `npm run dev:backend`| Start DB + API in Docker (background)     |
+| `npm run dev:full`   | `dev:backend` then `dev` in one command   |
+| `npm run dev:stop`   | Stop and remove Docker dev containers     |
+
+### Manual Backend Setup (without Docker API)
+
+```bash
+# Start only the database
+docker compose up -d db
+
+# Run the API locally
 cd backend
 python -m venv .venv
 source .venv/bin/activate
