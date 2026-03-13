@@ -5,7 +5,7 @@ import uuid
 from datetime import date
 
 from fastapi import APIRouter, Depends, HTTPException, Query, status
-from sqlalchemy import select, func, or_
+from sqlalchemy import select, func, nulls_last, or_
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.deps import get_current_user, get_db, verify_csrf
@@ -101,6 +101,42 @@ async def _load_transaction_with_tags(
     return result.scalar_one_or_none()
 
 
+def _apply_transaction_sort(stmt, sort_by: str, sort_order: str):
+    """Apply deterministic sorting so non-sort edits do not reshuffle ties."""
+    is_asc = sort_order == "asc"
+
+    date_desc_tiebreakers = [
+        Transaction.date.desc(),
+        nulls_last(Transaction.time.desc()),
+        Transaction.created_at.desc(),
+        Transaction.id.desc(),
+    ]
+
+    if sort_by == "amount":
+        primary = Transaction.amount.asc() if is_asc else Transaction.amount.desc()
+        return stmt.order_by(primary, *date_desc_tiebreakers)
+
+    if sort_by == "description":
+        primary = (
+            Transaction.description.asc()
+            if is_asc
+            else Transaction.description.desc()
+        )
+        return stmt.order_by(primary, *date_desc_tiebreakers)
+
+    date_order = Transaction.date.asc() if is_asc else Transaction.date.desc()
+    time_order = (
+        nulls_last(Transaction.time.asc())
+        if is_asc
+        else nulls_last(Transaction.time.desc())
+    )
+    created_at_order = (
+        Transaction.created_at.asc() if is_asc else Transaction.created_at.desc()
+    )
+    id_order = Transaction.id.asc() if is_asc else Transaction.id.desc()
+    return stmt.order_by(date_order, time_order, created_at_order, id_order)
+
+
 # ---------------------------------------------------------------------------
 # Endpoints
 # ---------------------------------------------------------------------------
@@ -175,16 +211,7 @@ async def list_transactions(
     total = (await db.execute(count_stmt)).scalar() or 0
 
     # Sorting
-    sort_column_map = {
-        "date": Transaction.date,
-        "amount": Transaction.amount,
-        "description": Transaction.description,
-    }
-    sort_col = sort_column_map.get(sort_by, Transaction.date)
-    if sort_order == "asc":
-        stmt = stmt.order_by(sort_col.asc())
-    else:
-        stmt = stmt.order_by(sort_col.desc())
+    stmt = _apply_transaction_sort(stmt, sort_by, sort_order)
 
     # Pagination
     offset = (page - 1) * page_size

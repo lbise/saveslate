@@ -234,7 +234,7 @@ export function TransactionRow({
               onCreateRule={onCreateRule}
               hasGoal={Boolean(transaction.goalId)}
               hasTags={resolvedTags.length > 0}
-              open={isActionOpen}
+              open={isActionOpen && !isDesktopLayout}
               onOpenChange={(open) => { if (open) onToggleAction(); else onCloseAction(); }}
               triggerClassName={isActionOpen ? "opacity-100" : "opacity-60"}
             />
@@ -361,7 +361,7 @@ export function TransactionRow({
             onCreateRule={onCreateRule}
             hasGoal={Boolean(transaction.goalId)}
             hasTags={resolvedTags.length > 0}
-            open={isActionOpen}
+            open={isActionOpen && isDesktopLayout}
             onOpenChange={(open) => { if (open) onToggleAction(); else onCloseAction(); }}
             triggerClassName={isActionOpen ? "opacity-100" : "opacity-0 group-hover:opacity-100"}
           />

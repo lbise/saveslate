@@ -960,11 +960,6 @@ export function Transactions() {
 
   return (
     <div className="space-y-6 max-w-[1000px] mx-auto px-[18px] pt-[30px] pb-9 lg:px-8 lg:py-11 xl:px-10 xl:py-12">
-      {/* Backdrop — closes any open popover on click */}
-      {(openActionId || editingCategoryId || editingGoalId || editingTagsId) && (
-        <div className="fixed inset-0 z-10" onClick={closePopovers} />
-      )}
-
       {transactionToDelete && (
         <DeleteConfirmationModal
           title="Delete transaction?"

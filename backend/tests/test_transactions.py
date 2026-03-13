@@ -1,5 +1,7 @@
 """Transaction CRUD endpoint tests (filtering, pagination, bulk, tags)."""
 
+import asyncio
+
 import pytest_asyncio
 from httpx import AsyncClient
 
@@ -244,6 +246,55 @@ class TestListTransactions:
         data = resp.json()
         assert len(data["items"]) == 3
         assert data["page_size"] == 10000
+
+    async def test_list_order_stays_stable_after_category_update(
+        self, authed_client: AsyncClient
+    ):
+        h = csrf_headers(authed_client)
+        account_id = await _create_account(authed_client)
+
+        older = await _create_transaction(
+            authed_client,
+            account_id,
+            description="Older same-day transaction",
+            date="2026-01-15",
+        )
+        await asyncio.sleep(0.01)
+        newer = await _create_transaction(
+            authed_client,
+            account_id,
+            description="Newer same-day transaction",
+            date="2026-01-15",
+        )
+
+        initial_resp = await authed_client.get(
+            "/api/transactions?sortBy=date&sortOrder=desc"
+        )
+        assert initial_resp.status_code == 200
+        initial_ids = [item["id"] for item in initial_resp.json()["items"]]
+        assert initial_ids[:2] == [newer["id"], older["id"]]
+
+        category_resp = await authed_client.post(
+            "/api/categories",
+            json={"name": "Stable order", "icon": "Apple"},
+            headers=h,
+        )
+        assert category_resp.status_code == 201
+        category_id = category_resp.json()["id"]
+
+        update_resp = await authed_client.put(
+            f"/api/transactions/{older['id']}",
+            json={"category_id": category_id},
+            headers=h,
+        )
+        assert update_resp.status_code == 200
+
+        after_resp = await authed_client.get(
+            "/api/transactions?sortBy=date&sortOrder=desc"
+        )
+        assert after_resp.status_code == 200
+        after_ids = [item["id"] for item in after_resp.json()["items"]]
+        assert after_ids[:2] == initial_ids[:2]
 
     async def test_list_search_filter(self, authed_client: AsyncClient):
         account_id = await _create_account(authed_client)
