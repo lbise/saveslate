@@ -110,6 +110,7 @@ export interface Transaction {
   currency: string;
   categoryId: string;
   description: string;
+  notes?: string;
   date: string; // ISO date string
   time?: string; // Optional transaction time in HH:mm:ss
   accountId: string;

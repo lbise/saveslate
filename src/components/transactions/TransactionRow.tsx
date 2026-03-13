@@ -1,11 +1,15 @@
 import { useEffect, useState } from "react";
-import { Tag, Users } from "lucide-react";
+import { StickyNote, Tag, Users } from "lucide-react";
 import {
   Badge,
   CategoryPicker,
   GoalPicker,
   Icon,
   TagPicker,
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
 } from "../ui";
 import { useFormatCurrency } from "../../hooks";
 import { cn, formatDate, resolveTransferFlowAccounts } from "../../lib/utils";
@@ -42,11 +46,48 @@ export interface TransactionRowProps {
   onCategoryChange: (categoryId: string) => void;
   onGoalChange: (goalId: string | null) => void;
   onTagsChange: (tagIds: string[]) => void;
-  onCreateTag: (draft: { name: string; color: string }) => TransactionTag | Promise<TransactionTag>;
-  onUpdateTag: (tagId: string, updates: { name: string; color: string }) => TransactionTag | void | Promise<TransactionTag | void>;
+  onCreateTag: (draft: {
+    name: string;
+    color: string;
+  }) => TransactionTag | Promise<TransactionTag>;
+  onUpdateTag: (
+    tagId: string,
+    updates: { name: string; color: string },
+  ) => TransactionTag | void | Promise<TransactionTag | void>;
   onDeleteTag: (tagId: string) => boolean | Promise<boolean>;
   onCreateRule: () => void;
-  onAction: (action: "edit" | "duplicate" | "delete") => void;
+  onAction: (action: "edit" | "edit-note" | "duplicate" | "delete") => void;
+}
+
+interface TransactionNoteIndicatorProps {
+  note: string;
+}
+
+function TransactionNoteIndicator({ note }: TransactionNoteIndicatorProps) {
+  return (
+    <TooltipProvider>
+      <Tooltip>
+        <TooltipTrigger asChild>
+          <button
+            type="button"
+            className="inline-flex h-5 w-5 shrink-0 items-center justify-center rounded-full border-none bg-transparent p-0 text-dimmed transition-colors hover:text-foreground"
+            aria-label="View transaction note"
+            title={note}
+            onClick={(event) => event.stopPropagation()}
+          >
+            <StickyNote size={12} />
+          </button>
+        </TooltipTrigger>
+        <TooltipContent
+          align="start"
+          sideOffset={6}
+          className="max-w-80 whitespace-pre-wrap text-left leading-relaxed"
+        >
+          {note}
+        </TooltipContent>
+      </Tooltip>
+    </TooltipProvider>
+  );
 }
 
 export function TransactionRow({
@@ -95,23 +136,27 @@ export function TransactionRow({
   }, []);
 
   const type = transaction.type;
-  const iconStyle =
-    isUncategorizedCategory(transaction.categoryId, transaction.category)
-      ? UNCATEGORIZED_ICON_STYLE
-      : iconBoxStyles[type];
-  const transferFlow = type === "transfer" && transaction.destinationAccount
-    ? resolveTransferFlowAccounts({
-        amount: transaction.amount,
-        accountName: transaction.account.name,
-        counterpartyAccountName: transaction.destinationAccount.name,
-        transferPairRole: transaction.transferPairRole,
-      })
-    : null;
+  const iconStyle = isUncategorizedCategory(
+    transaction.categoryId,
+    transaction.category,
+  )
+    ? UNCATEGORIZED_ICON_STYLE
+    : iconBoxStyles[type];
+  const transferFlow =
+    type === "transfer" && transaction.destinationAccount
+      ? resolveTransferFlowAccounts({
+          amount: transaction.amount,
+          accountName: transaction.account.name,
+          counterpartyAccountName: transaction.destinationAccount.name,
+          transferPairRole: transaction.transferPairRole,
+        })
+      : null;
   const resolvedTags = (transaction.tagIds ?? [])
     .map((tagId) => availableTagsById.get(tagId))
     .filter((tag): tag is TransactionTag => tag !== undefined);
   const visibleTags = resolvedTags.slice(0, 2);
   const hiddenTagCount = resolvedTags.length - visibleTags.length;
+  const note = transaction.notes?.trim() ?? "";
 
   return (
     <div className="group flex items-center gap-3 py-3 border-b border-border last:border-b-0 transition-colors duration-150 hover:bg-secondary/30 relative">
@@ -146,13 +191,14 @@ export function TransactionRow({
         </button>
 
         <div className="flex-1 min-w-0">
-          <div className="flex items-center gap-2">
+          <div className="flex items-start gap-2 min-w-0">
             <span
-              className="text-sm text-foreground font-medium line-clamp-2"
+              className="min-w-0 text-sm text-foreground font-medium line-clamp-2"
               title={transaction.description}
             >
               {transaction.description}
             </span>
+            {note && <TransactionNoteIndicator note={note} />}
           </div>
           <div className="flex items-center gap-2 mt-1 flex-wrap">
             <div className="relative">
@@ -176,14 +222,22 @@ export function TransactionRow({
             </div>
             {transaction.goal && (
               <span className="inline-flex items-center gap-1 text-sm text-goal max-w-36">
-                <Icon name={transaction.goal.icon} size={10} className="shrink-0" />
+                <Icon
+                  name={transaction.goal.icon}
+                  size={10}
+                  className="shrink-0"
+                />
                 <span className="truncate">{transaction.goal.name}</span>
               </span>
             )}
             {resolvedTags.length > 0 && (
               <span className="inline-flex items-center gap-2 flex-wrap max-w-full">
                 {visibleTags.map((tag) => (
-                  <span key={tag.id} className="inline-flex items-center gap-1 text-sm max-w-36" style={{ color: tag.color }}>
+                  <span
+                    key={tag.id}
+                    className="inline-flex items-center gap-1 text-sm max-w-36"
+                    style={{ color: tag.color }}
+                  >
                     <Tag size={10} className="shrink-0" />
                     <span className="truncate">{tag.name}</span>
                   </span>
@@ -195,7 +249,8 @@ export function TransactionRow({
             )}
             {transferFlow && (
               <span className="text-sm text-dimmed truncate max-w-48">
-                {transferFlow.fromAccountName} &rarr; {transferFlow.toAccountName}
+                {transferFlow.fromAccountName} &rarr;{" "}
+                {transferFlow.toAccountName}
               </span>
             )}
             {transaction.split && (
@@ -218,7 +273,10 @@ export function TransactionRow({
 
         <div className="flex items-center gap-1 shrink-0">
           <span
-            className={cn("text-sm text-muted-foreground font-medium", getAmountColorClass(type, transaction.amount))}
+            className={cn(
+              "text-sm text-muted-foreground font-medium",
+              getAmountColorClass(type, transaction.amount),
+            )}
             style={{ fontFamily: "var(--font-display)" }}
           >
             {formatSignedCurrency(transaction.amount, transaction.currency)}
@@ -235,7 +293,11 @@ export function TransactionRow({
               hasGoal={Boolean(transaction.goalId)}
               hasTags={resolvedTags.length > 0}
               open={isActionOpen && !isDesktopLayout}
-              onOpenChange={(open) => { if (open) onToggleAction(); else onCloseAction(); }}
+              hasNote={Boolean(note)}
+              onOpenChange={(open) => {
+                if (open) onToggleAction();
+                else onCloseAction();
+              }}
               triggerClassName={isActionOpen ? "opacity-100" : "opacity-60"}
             />
             {isEditingGoal && !isDesktopLayout && (
@@ -265,13 +327,14 @@ export function TransactionRow({
       <div className="hidden lg:flex lg:items-center lg:gap-4 lg:flex-1 min-w-0">
         {/* Description + meta */}
         <div className="flex-1 min-w-0">
-          <div className="flex items-center gap-2">
+          <div className="flex items-start gap-2 min-w-0">
             <span
-              className="text-sm text-foreground font-medium line-clamp-2"
+              className="min-w-0 text-sm text-foreground font-medium line-clamp-2"
               title={transaction.description}
             >
               {transaction.description}
             </span>
+            {note && <TransactionNoteIndicator note={note} />}
             {transaction.split && (
               <span className="inline-flex items-center gap-1 text-sm text-dimmed shrink-0">
                 <Users size={9} />
@@ -314,13 +377,19 @@ export function TransactionRow({
                 <span>&middot;</span>
                 <span className="inline-flex items-center gap-2 flex-wrap max-w-[360px]">
                   {visibleTags.map((tag) => (
-                    <span key={tag.id} className="inline-flex items-center gap-1 text-sm max-w-40" style={{ color: tag.color }}>
+                    <span
+                      key={tag.id}
+                      className="inline-flex items-center gap-1 text-sm max-w-40"
+                      style={{ color: tag.color }}
+                    >
                       <Tag size={10} className="shrink-0" />
                       <span className="truncate">{tag.name}</span>
                     </span>
                   ))}
                   {hiddenTagCount > 0 && (
-                    <span className="text-sm text-dimmed">+{hiddenTagCount}</span>
+                    <span className="text-sm text-dimmed">
+                      +{hiddenTagCount}
+                    </span>
                   )}
                 </span>
               </>
@@ -329,7 +398,11 @@ export function TransactionRow({
               <>
                 <span>&middot;</span>
                 <span className="inline-flex items-center gap-1 text-goal max-w-40">
-                  <Icon name={transaction.goal.icon} size={10} className="shrink-0" />
+                  <Icon
+                    name={transaction.goal.icon}
+                    size={10}
+                    className="shrink-0"
+                  />
                   <span className="truncate">{transaction.goal.name}</span>
                 </span>
               </>
@@ -338,7 +411,9 @@ export function TransactionRow({
         </div>
 
         {/* Date */}
-        <div className="w-24 text-sm text-muted-foreground">{formatDate(transaction.date)}</div>
+        <div className="w-24 text-sm text-muted-foreground">
+          {formatDate(transaction.date)}
+        </div>
 
         {/* Amount */}
         <span
@@ -362,8 +437,14 @@ export function TransactionRow({
             hasGoal={Boolean(transaction.goalId)}
             hasTags={resolvedTags.length > 0}
             open={isActionOpen && isDesktopLayout}
-            onOpenChange={(open) => { if (open) onToggleAction(); else onCloseAction(); }}
-            triggerClassName={isActionOpen ? "opacity-100" : "opacity-0 group-hover:opacity-100"}
+            hasNote={Boolean(note)}
+            onOpenChange={(open) => {
+              if (open) onToggleAction();
+              else onCloseAction();
+            }}
+            triggerClassName={
+              isActionOpen ? "opacity-100" : "opacity-0 group-hover:opacity-100"
+            }
           />
           {isEditingGoal && isDesktopLayout && (
             <GoalPicker

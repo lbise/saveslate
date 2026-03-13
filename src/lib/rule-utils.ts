@@ -61,6 +61,11 @@ export interface ExportedRulesFile {
   rules: AutomationRule[];
 }
 
+export interface ResolvedRuleFormPrefill {
+  initialForm: RuleFormState;
+  editingRuleId: string | null;
+}
+
 // ─── Constants ───────────────────────────────────────────────
 
 export const BASE_RULE_FIELD_OPTIONS: RuleFieldOption[] = [
@@ -269,5 +274,83 @@ export function toRuleFormStateFromPrefill(
         : []),
     ],
     conditions: prefillConditions,
+  };
+}
+
+export function resolveRuleFormPrefill({
+  prefill,
+  rules,
+  defaultCategoryId,
+}: {
+  prefill: AutomationRulePrefillDraft;
+  rules: AutomationRule[];
+  defaultCategoryId: string;
+}): ResolvedRuleFormPrefill {
+  const prefillCondition = prefill.conditions?.[0];
+  const keyword = prefillCondition?.value?.trim() ?? "";
+  const shouldMergeIntoExistingRule = Boolean(
+    prefill.mergeIntoExistingCategoryRule &&
+      prefill.categoryId &&
+      !prefill.goalId &&
+      prefillCondition &&
+      prefillCondition.field === "description" &&
+      prefillCondition.operator === "contains" &&
+      keyword,
+  );
+
+  if (!shouldMergeIntoExistingRule) {
+    return {
+      initialForm: toRuleFormStateFromPrefill(prefill, defaultCategoryId),
+      editingRuleId: null,
+    };
+  }
+
+  const targetRule = rules.find((rule) => {
+    const categoryAction = rule.actions.find(
+      (action) => action.type === "set-category",
+    );
+    const hasGoalAction = rule.actions.some(
+      (action) => action.type === "set-goal",
+    );
+    if (!categoryAction) {
+      return false;
+    }
+
+    return (
+      categoryAction.categoryId === prefill.categoryId &&
+      categoryAction.overwriteExisting !== true &&
+      !hasGoalAction
+    );
+  });
+
+  if (!targetRule) {
+    return {
+      initialForm: toRuleFormStateFromPrefill(prefill, defaultCategoryId),
+      editingRuleId: null,
+    };
+  }
+
+  const initialForm = toRuleFormStateFromRule(targetRule);
+  const hasKeyword = targetRule.conditions.some((condition) => {
+    return (
+      condition.field === "description" &&
+      condition.operator === "contains" &&
+      (condition.value ?? "").trim().toLowerCase() === keyword.toLowerCase()
+    );
+  });
+
+  if (!hasKeyword) {
+    initialForm.conditions.push({
+      id: createAutomationConditionId(),
+      field: "description",
+      operator: "contains",
+      value: keyword,
+    });
+    initialForm.matchMode = "any";
+  }
+
+  return {
+    initialForm,
+    editingRuleId: targetRule.id,
   };
 }

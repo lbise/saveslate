@@ -28,6 +28,12 @@ export { Input } from './input';
 export { Label } from './label';
 export { Textarea } from './textarea';
 export {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from './tooltip';
+export {
   Select,
   SelectContent,
   SelectGroup,

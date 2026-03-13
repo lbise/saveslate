@@ -26,7 +26,6 @@ import {
 } from "../hooks/api";
 import {
   AUTOMATION_RULES_EXPORT_SCHEMA_VERSION,
-  createAutomationConditionId,
   parseAutomationRulesFile,
 } from "../lib/automation-rules";
 import { useImportExport, useOnboarding } from "../hooks";
@@ -35,7 +34,7 @@ import {
   formatCondition,
   formatRuleActionSummary,
   getTriggerLabel,
-  toRuleFormStateFromPrefill,
+  resolveRuleFormPrefill,
   toRuleFormStateFromRule,
 } from "../lib/rule-utils";
 import { RuleFormModal } from "../components/rules/RuleFormModal";
@@ -202,76 +201,12 @@ export function Rules() {
 
   if (routePrefill && location.key !== processedLocationKey) {
     setProcessedLocationKey(location.key);
-
-    const prefillCondition = routePrefill.conditions?.[0];
-    const shouldMergeIntoExistingRule = Boolean(
-      routePrefill.mergeIntoExistingCategoryRule &&
-        routePrefill.categoryId &&
-        !routePrefill.goalId &&
-        prefillCondition &&
-        prefillCondition.field === "description" &&
-        prefillCondition.operator === "contains" &&
-        prefillCondition.value?.trim(),
-    );
-
-    let resolvedForm: RuleFormState;
-    let resolvedEditingId: string | null = null;
-
-    if (shouldMergeIntoExistingRule) {
-      const targetRule = rules.find((rule) => {
-        const categoryAction = rule.actions.find(
-          (action) => action.type === "set-category",
-        );
-        const hasGoalAction = rule.actions.some(
-          (action) => action.type === "set-goal",
-        );
-        if (!categoryAction) {
-          return false;
-        }
-
-        return (
-          categoryAction.categoryId === routePrefill.categoryId &&
-          categoryAction.overwriteExisting !== true &&
-          !hasGoalAction
-        );
-      });
-
-      if (targetRule) {
-        const keyword = prefillCondition!.value!.trim();
-        const hasKeyword = targetRule.conditions.some((condition) => {
-          return (
-            condition.field === "description" &&
-            condition.operator === "contains" &&
-            (condition.value ?? "").trim().toLowerCase() ===
-              keyword.toLowerCase()
-          );
-        });
-
-        const targetForm = toRuleFormStateFromRule(targetRule);
-        if (!hasKeyword) {
-          targetForm.conditions.push({
-            id: createAutomationConditionId(),
-            field: "description",
-            operator: "contains",
-            value: keyword,
-          });
-          targetForm.matchMode = "any";
-        }
-
-        resolvedForm = targetForm;
-        resolvedEditingId = targetRule.id;
-      } else {
-        resolvedForm = toRuleFormStateFromPrefill(
-          routePrefill,
-          defaultCategoryId,
-        );
-      }
-    } else {
-      resolvedForm = toRuleFormStateFromPrefill(
-        routePrefill,
+    const { initialForm: resolvedForm, editingRuleId: resolvedEditingId } =
+      resolveRuleFormPrefill({
+        prefill: routePrefill,
+        rules,
         defaultCategoryId,
-      );
-    }
+      });
 
     setInitialForm(resolvedForm);
     setEditingRuleId(resolvedEditingId);

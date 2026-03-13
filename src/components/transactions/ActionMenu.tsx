@@ -1,4 +1,5 @@
-import { Target, Tags, Filter, Pencil, Copy, Trash2, MoreHorizontal } from "lucide-react";
+import { useRef, type ComponentProps } from "react";
+import { Target, Tags, StickyNote, Filter, Pencil, Copy, Trash2, MoreHorizontal } from "lucide-react";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -8,14 +9,19 @@ import {
 } from "../ui/dropdown-menu";
 import { cn } from "../../lib/utils";
 
+type DropdownMenuItemSelectEvent = Parameters<
+  NonNullable<ComponentProps<typeof DropdownMenuItem>["onSelect"]>
+>[0];
+
 export interface ActionMenuProps {
-  onAction: (action: "edit" | "duplicate" | "delete") => void;
+  onAction: (action: "edit" | "edit-note" | "duplicate" | "delete") => void;
   onEditGoal: () => void;
   onEditTags: () => void;
   onRemoveGoal: () => void;
   onCreateRule: () => void;
   hasGoal: boolean;
   hasTags: boolean;
+  hasNote: boolean;
   open: boolean;
   onOpenChange: (open: boolean) => void;
   triggerClassName?: string;
@@ -29,10 +35,21 @@ export function ActionMenu({
   onCreateRule,
   hasGoal,
   hasTags,
+  hasNote,
   open,
   onOpenChange,
   triggerClassName,
 }: ActionMenuProps) {
+  const skipCloseAutoFocusRef = useRef(false);
+
+  const handlePopoverItemSelect = (callback: () => void) => {
+    return (event: DropdownMenuItemSelectEvent) => {
+      event.preventDefault();
+      skipCloseAutoFocusRef.current = true;
+      callback();
+    };
+  };
+
   return (
     <DropdownMenu open={open} onOpenChange={onOpenChange}>
       <DropdownMenuTrigger asChild>
@@ -45,8 +62,19 @@ export function ActionMenu({
           <MoreHorizontal size={14} />
         </button>
       </DropdownMenuTrigger>
-      <DropdownMenuContent align="end" className="w-44">
-        <DropdownMenuItem onClick={onEditGoal}>
+      <DropdownMenuContent
+        align="end"
+        className="w-44"
+        onCloseAutoFocus={(event) => {
+          if (!skipCloseAutoFocusRef.current) {
+            return;
+          }
+
+          event.preventDefault();
+          skipCloseAutoFocusRef.current = false;
+        }}
+      >
+        <DropdownMenuItem onSelect={handlePopoverItemSelect(onEditGoal)}>
           <Target size={12} />
           {hasGoal ? "Change goal" : "Set goal"}
         </DropdownMenuItem>
@@ -56,9 +84,13 @@ export function ActionMenu({
             Unlink goal
           </DropdownMenuItem>
         )}
-        <DropdownMenuItem onClick={onEditTags}>
+        <DropdownMenuItem onSelect={handlePopoverItemSelect(onEditTags)}>
           <Tags size={12} />
           {hasTags ? "Edit tags" : "Set tags"}
+        </DropdownMenuItem>
+        <DropdownMenuItem onClick={() => onAction("edit-note")}>
+          <StickyNote size={12} />
+          {hasNote ? "Edit note" : "Add note"}
         </DropdownMenuItem>
         <DropdownMenuItem onClick={onCreateRule}>
           <Filter size={12} />

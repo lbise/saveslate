@@ -51,6 +51,7 @@ class Transaction(Base):
         UUID(as_uuid=True), ForeignKey("categories.id", ondelete="SET NULL"), nullable=True
     )
     description: Mapped[str] = mapped_column(String, nullable=False)
+    notes: Mapped[str | None] = mapped_column(String, nullable=True)
     date: Mapped[date] = mapped_column(Date, nullable=False)
     time: Mapped[time | None] = mapped_column(Time, nullable=True)
     account_id: Mapped[uuid.UUID] = mapped_column(

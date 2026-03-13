@@ -1,4 +1,4 @@
-import { useMemo, useState, type FormEvent } from 'react';
+import { useEffect, useMemo, useRef, useState, type FormEvent } from 'react';
 import { Tag, Users } from 'lucide-react';
 import { useSettings } from '../../hooks';
 import { getCurrencyOptionsWithFallback } from '../../lib/currencies';
@@ -6,6 +6,7 @@ import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/Card';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import { Textarea } from '@/components/ui/textarea';
 import {
   Dialog,
   DialogContent,
@@ -42,6 +43,7 @@ interface TransactionFormModalProps {
   allCategories: Category[];
   goals: Goal[];
   tags: TransactionTag[];
+  initialFocusField?: 'description' | 'notes';
   onCancel: () => void;
   onSubmit: (payload: TransactionFormSubmitPayload) => void;
 }
@@ -78,10 +80,13 @@ export function TransactionFormModal({
   allCategories,
   goals,
   tags,
+  initialFocusField = 'description',
   onCancel,
   onSubmit,
 }: TransactionFormModalProps) {
   const { defaultCurrency } = useSettings();
+  const descriptionInputRef = useRef<HTMLInputElement | null>(null);
+  const notesTextareaRef = useRef<HTMLTextAreaElement | null>(null);
   const [form, setForm] = useState<TransactionFormState>(() => createTransactionFormState({
     transaction,
     accounts,
@@ -164,6 +169,27 @@ export function TransactionFormModal({
   const isLinkedTransfer = Boolean(transaction?.transferPairId);
   const canSave = accountOptions.length > 0 && categoryOptions.length > 0;
 
+  useEffect(() => {
+    const target = initialFocusField === 'notes'
+      ? notesTextareaRef.current
+      : descriptionInputRef.current;
+
+    if (!target) {
+      return undefined;
+    }
+
+    const frameId = window.requestAnimationFrame(() => {
+      target.focus();
+      if (initialFocusField === 'notes') {
+        target.scrollIntoView({ block: 'center' });
+      }
+    });
+
+    return () => {
+      window.cancelAnimationFrame(frameId);
+    };
+  }, [initialFocusField]);
+
   function handleTagToggle(tagId: string) {
     setForm((current) => {
       const nextTagIds = new Set(current.selectedTagIds);
@@ -215,6 +241,7 @@ export function TransactionFormModal({
                 Description
               </Label>
               <Input
+                ref={descriptionInputRef}
                 id="transaction-description"
                 placeholder="Coffee with team"
                 value={form.description}
@@ -234,6 +261,20 @@ export function TransactionFormModal({
                 onChange={(event) => setForm((current) => ({ ...current, transactionId: event.target.value }))}
               />
             </div>
+          </div>
+
+          <div>
+            <Label className="mb-1.5 block" htmlFor="transaction-notes">
+              Notes (optional)
+            </Label>
+            <Textarea
+              ref={notesTextareaRef}
+              id="transaction-notes"
+              placeholder="Add context, reminders, or anything worth keeping with this transaction"
+              value={form.notes}
+              onChange={(event) => setForm((current) => ({ ...current, notes: event.target.value }))}
+              rows={3}
+            />
           </div>
 
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4">

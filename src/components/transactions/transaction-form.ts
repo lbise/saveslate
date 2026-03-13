@@ -11,6 +11,7 @@ export type TransactionFormDirection = 'expense' | 'income';
 
 export interface TransactionFormState {
   description: string;
+  notes: string;
   transactionId: string;
   direction: TransactionFormDirection;
   amount: string;
@@ -33,6 +34,7 @@ export interface TransactionFormSubmitPayload {
   currency: string;
   categoryId: string;
   description: string;
+  notes?: string;
   date: string;
   time?: string;
   accountId: string;
@@ -69,6 +71,7 @@ export function createTransactionFormState(params: {
   if (!transaction) {
     return {
       description: '',
+      notes: '',
       transactionId: '',
       direction: 'expense',
       amount: '',
@@ -88,6 +91,7 @@ export function createTransactionFormState(params: {
 
   return {
     description: transaction.description,
+    notes: typeof transaction.notes === 'string' ? transaction.notes : '',
     transactionId: transaction.transactionId ?? '',
     direction: transaction.amount < 0 ? 'expense' : 'income',
     amount: String(Math.abs(transaction.amount)),
@@ -116,6 +120,7 @@ export function toTransactionFormSubmitPayload(
   },
 ): TransactionFormSubmitPayload | null {
   const description = form.description.trim();
+  const notes = form.notes.trim();
   const accountId = form.accountId.trim();
   const categoryId = form.categoryId.trim();
   const date = form.date.trim();
@@ -172,6 +177,7 @@ export function toTransactionFormSubmitPayload(
     currency: currency || options.accounts[0]?.currency || options.defaultCurrency || 'CHF',
     categoryId,
     description,
+    notes,
     date,
     time: form.time.trim() || undefined,
     accountId,

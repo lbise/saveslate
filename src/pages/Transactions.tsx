@@ -39,6 +39,7 @@ import {
   DialogTitle,
   DialogFooter,
 } from "@/components/ui/dialog";
+import { RuleFormModal } from "../components/rules";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Separator } from "@/components/ui/separator";
@@ -59,6 +60,9 @@ import {
   useImportBatches,
   useUpdateImportBatch,
   useDeleteImportBatch,
+  useAutomationRules,
+  useCreateAutomationRule,
+  useUpdateAutomationRule,
 } from "../hooks/api";
 import {
   inferTransactionType,
@@ -71,9 +75,15 @@ import {
   parseFilterIdsFromQuery,
   parseTypeFilterFromQuery,
 } from "../lib/transaction-utils";
+import {
+  createDefaultRuleFormState,
+  resolveRuleFormPrefill,
+} from "../lib/rule-utils";
 import { cn } from "../lib/utils";
 import { useFormatCurrency, useOnboarding, useTransactionFilters, usePagination } from "../hooks";
+import type { RuleFormState } from "../lib/rule-utils";
 import type {
+  AutomationRule,
   AutomationRulePrefillDraft,
   Tag as TransactionTag,
   TransactionType,
@@ -122,11 +132,16 @@ export function Transactions() {
   const { data: goals = [] } = useGoals();
   const { data: tags = [] } = useTags();
   const { data: importBatches = [] } = useImportBatches();
+  const automationRulesResult = useAutomationRules();
 
   const rawTransactionsData = transactionsResult.data;
   const allCategories = useMemo(
     () => categoriesResult.data ?? [],
     [categoriesResult.data],
+  );
+  const automationRules = useMemo(
+    () => automationRulesResult.data ?? [],
+    [automationRulesResult.data],
   );
   const uncategorizedCategory = useMemo(
     () => allCategories.find((category) => isUncategorizedCategory(category.id, category)),
@@ -142,6 +157,8 @@ export function Transactions() {
   const deleteTagMutation = useDeleteTag();
   const updateImportBatchMutation = useUpdateImportBatch();
   const deleteImportBatchMutation = useDeleteImportBatch();
+  const createAutomationRuleMutation = useCreateAutomationRule();
+  const updateAutomationRuleMutation = useUpdateAutomationRule();
 
   // Enrich transactions with category/account/goal objects
   const transactions = useMemo<TxDetails[]>(() => {
@@ -216,6 +233,12 @@ export function Transactions() {
 
   const [isTransactionFormOpen, setIsTransactionFormOpen] = useState(false);
   const [editingTransactionId, setEditingTransactionId] = useState<string | null>(null);
+  const [transactionFormFocusField, setTransactionFormFocusField] = useState<'description' | 'notes'>('description');
+  const [isRuleModalOpen, setIsRuleModalOpen] = useState(false);
+  const [editingRuleId, setEditingRuleId] = useState<string | null>(null);
+  const [initialRuleForm, setInitialRuleForm] = useState<RuleFormState>(() =>
+    createDefaultRuleFormState(""),
+  );
 
   // Popover state — at most one open at a time
   const [openActionId, setOpenActionId] = useState<string | null>(null);
@@ -246,6 +269,7 @@ export function Transactions() {
     () => allCategories.filter(c => !c.hidden && !c.isHidden),
     [allCategories],
   );
+  const defaultRuleCategoryId = availableCategories[0]?.id ?? "";
 
   const allCategoriesById = useMemo(
     () => new Map(allCategories.map(c => [c.id, c])),
@@ -263,6 +287,12 @@ export function Transactions() {
   const closeTransactionForm = () => {
     setIsTransactionFormOpen(false);
     setEditingTransactionId(null);
+    setTransactionFormFocusField('description');
+  };
+
+  const closeRuleModal = () => {
+    setIsRuleModalOpen(false);
+    setEditingRuleId(null);
   };
 
   const openCreateTransactionForm = () => {
@@ -274,12 +304,17 @@ export function Transactions() {
 
     closePopovers();
     setEditingTransactionId(null);
+    setTransactionFormFocusField('description');
     setIsTransactionFormOpen(true);
   };
 
-  const openEditTransactionForm = (txId: string) => {
+  const openEditTransactionForm = (
+    txId: string,
+    focusField: 'description' | 'notes' = 'description',
+  ) => {
     closePopovers();
     setEditingTransactionId(txId);
+    setTransactionFormFocusField(focusField);
     setIsTransactionFormOpen(true);
   };
 
@@ -329,7 +364,7 @@ export function Transactions() {
 
   const handleAction = (
     txId: string,
-    action: "edit" | "duplicate" | "delete",
+    action: "edit" | "edit-note" | "duplicate" | "delete",
   ) => {
     closePopovers();
     if (action === "delete") {
@@ -342,6 +377,11 @@ export function Transactions() {
 
     if (action === "edit") {
       openEditTransactionForm(txId);
+      return;
+    }
+
+    if (action === "edit-note") {
+      openEditTransactionForm(txId, 'notes');
       return;
     }
 
@@ -451,10 +491,41 @@ export function Transactions() {
     setOpenActionId(null);
   };
 
+  const handleSaveRule = (ruleData: {
+    name: string;
+    isEnabled: boolean;
+    triggers: AutomationRule["triggers"];
+    matchMode: AutomationRule["matchMode"];
+    conditions: AutomationRule["conditions"];
+    actions: AutomationRule["actions"];
+  }) => {
+    if (editingRuleId) {
+      updateAutomationRuleMutation.mutate(
+        { id: editingRuleId, ...ruleData },
+        {
+          onSuccess: () => {
+            closeRuleModal();
+            toast.success("Rule updated");
+          },
+          onError: () => toast.error("Failed to update rule"),
+        },
+      );
+      return;
+    }
+
+    createAutomationRuleMutation.mutate(ruleData, {
+      onSuccess: () => {
+        closeRuleModal();
+        toast.success("Rule created");
+      },
+      onError: () => toast.error("Failed to create rule"),
+    });
+  };
+
   const openQuickAutoRuleModal = (transaction: TxDetails) => {
     closePopovers();
 
-    const fallbackCategoryId = availableCategories[0]?.id ?? '';
+    const fallbackCategoryId = defaultRuleCategoryId;
     const transactionIsUncategorized = isUncategorizedCategory(
       transaction.categoryId,
       transaction.category,
@@ -491,11 +562,16 @@ export function Transactions() {
       ],
     };
 
-    navigate('/rules', {
-      state: {
-        prefillRuleDraft: prefillDraft,
-      },
-    });
+    const { initialForm, editingRuleId: resolvedEditingRuleId } =
+      resolveRuleFormPrefill({
+        prefill: prefillDraft,
+        rules: automationRules,
+        defaultCategoryId: fallbackCategoryId,
+      });
+
+    setInitialRuleForm(initialForm);
+    setEditingRuleId(resolvedEditingRuleId);
+    setIsRuleModalOpen(true);
   };
 
   // Computed stats from local state
@@ -721,6 +797,7 @@ export function Transactions() {
       result = result.filter(
         (t) =>
           t.description.toLowerCase().includes(query) ||
+          t.notes?.toLowerCase().includes(query) ||
           t.category.name.toLowerCase().includes(query) ||
           t.goal?.name.toLowerCase().includes(query) ||
           (t.tagIds ?? []).some((tagId) => tagsById.get(tagId)?.name.toLowerCase().includes(query)),
@@ -920,6 +997,7 @@ export function Transactions() {
         date: transaction.date,
         time: transaction.time ?? null,
         description: transaction.description,
+        notes: transaction.notes ?? null,
         amount: transaction.amount,
         currency: transaction.currency,
         type: transaction.type,
@@ -1046,8 +1124,20 @@ export function Transactions() {
           allCategories={allCategories}
           goals={availableGoals}
           tags={tags}
+          initialFocusField={transactionFormFocusField}
           onCancel={closeTransactionForm}
           onSubmit={handleSubmitTransactionForm}
+        />
+      )}
+
+      {isRuleModalOpen && (
+        <RuleFormModal
+          editingRuleId={editingRuleId}
+          initialForm={initialRuleForm}
+          defaultCategoryId={defaultRuleCategoryId}
+          categories={availableCategories}
+          onClose={closeRuleModal}
+          onSave={handleSaveRule}
         />
       )}
 
@@ -1136,7 +1226,7 @@ export function Transactions() {
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-dimmed" />
           <Input
             type="text"
-            placeholder="Search transactions..."
+            placeholder="Search transactions and notes..."
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
             className="pl-10"

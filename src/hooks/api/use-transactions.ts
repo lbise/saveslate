@@ -31,9 +31,12 @@ export interface TransactionFilters {
 // ─── Transformer ─────────────────────────────────────────────────────
 
 function transformTransaction(raw: Record<string, unknown>): Transaction {
+  const notes = typeof raw.notes === 'string' ? raw.notes.trim() : '';
+
   return {
     ...(raw as unknown as Transaction),
     amount: toNumber(raw.amount as string | number),
+    notes: notes || undefined,
     // API returns splitInfo, frontend also supports split
     split: (raw.splitInfo as Transaction['split']) ?? (raw.split as Transaction['split']),
   };

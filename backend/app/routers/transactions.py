@@ -41,6 +41,7 @@ def _transaction_to_response(txn: Transaction) -> TransactionResponse:
         currency=txn.currency,
         category_id=txn.category_id,
         description=txn.description,
+        notes=txn.notes,
         date=txn.date,
         time=txn.time,
         account_id=txn.account_id,
@@ -144,7 +145,7 @@ def _apply_transaction_sort(stmt, sort_by: str, sort_order: str):
 
 @router.get("", response_model=PaginatedTransactions)
 async def list_transactions(
-    search: str | None = Query(default=None, description="Search description"),
+    search: str | None = Query(default=None, description="Search description or notes"),
     type: str | None = Query(default=None, description="income, expense, transfer"),
     account_id: uuid.UUID | None = Query(default=None, alias="accountId"),
     category_id: uuid.UUID | None = Query(default=None, alias="categoryId"),
@@ -172,7 +173,12 @@ async def list_transactions(
 
     # Filters
     if search:
-        stmt = stmt.where(Transaction.description.ilike(f"%{search}%"))
+        stmt = stmt.where(
+            or_(
+                Transaction.description.ilike(f"%{search}%"),
+                Transaction.notes.ilike(f"%{search}%"),
+            )
+        )
     if account_id:
         stmt = stmt.where(Transaction.account_id == account_id)
     if category_id:

@@ -82,6 +82,17 @@ class TestCreateTransaction:
         )
         assert set(txn["tag_ids"]) == set(tag_ids)
 
+    async def test_create_with_notes(self, authed_client: AsyncClient):
+        account_id = await _create_account(authed_client)
+
+        txn = await _create_transaction(
+            authed_client,
+            account_id,
+            notes="  Split with Sam - reimburse next Friday.  ",
+        )
+
+        assert txn["notes"] == "Split with Sam - reimburse next Friday."
+
     async def test_create_missing_required(self, authed_client: AsyncClient):
         h = csrf_headers(authed_client)
         resp = await authed_client.post(
@@ -152,6 +163,24 @@ class TestUpdateTransaction:
         )
         assert resp.status_code == 200
         assert resp.json()["tag_ids"] == [tag_id]
+
+    async def test_update_notes_can_be_cleared(self, authed_client: AsyncClient):
+        h = csrf_headers(authed_client)
+        account_id = await _create_account(authed_client)
+        txn = await _create_transaction(
+            authed_client,
+            account_id,
+            notes="Remember to file this under shared expenses.",
+        )
+
+        clear_resp = await authed_client.put(
+            f"/api/transactions/{txn['id']}",
+            json={"notes": "   "},
+            headers=h,
+        )
+
+        assert clear_resp.status_code == 200
+        assert clear_resp.json()["notes"] is None
 
     async def test_update_not_found(self, authed_client: AsyncClient):
         h = csrf_headers(authed_client)
@@ -245,6 +274,28 @@ class TestListTransactions:
         assert resp.status_code == 200
         data = resp.json()
         assert len(data["items"]) == 3
+
+    async def test_list_search_matches_notes(self, authed_client: AsyncClient):
+        account_id = await _create_account(authed_client)
+        await _create_transaction(
+            authed_client,
+            account_id,
+            description="Taxi",
+            notes="Need receipt for work reimbursement",
+        )
+        await _create_transaction(
+            authed_client,
+            account_id,
+            description="Groceries",
+            notes="Weekly shop",
+        )
+
+        resp = await authed_client.get("/api/transactions?search=reimbursement")
+
+        assert resp.status_code == 200
+        data = resp.json()
+        assert len(data["items"]) == 1
+        assert data["items"][0]["description"] == "Taxi"
         assert data["page_size"] == 10000
 
     async def test_list_order_stays_stable_after_category_update(

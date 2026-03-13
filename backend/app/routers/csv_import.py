@@ -60,6 +60,7 @@ def _transaction_to_response(txn: Transaction) -> TransactionResponse:
         currency=txn.currency,
         category_id=txn.category_id,
         description=txn.description,
+        notes=txn.notes,
         date=txn.date,
         time=txn.time,
         account_id=txn.account_id,

@@ -5,7 +5,15 @@ import uuid
 from decimal import Decimal
 from typing import Any
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, field_validator
+
+
+def _normalize_optional_notes(value: str | None) -> str | None:
+    if value is None or not isinstance(value, str):
+        return value
+
+    normalized = value.strip()
+    return normalized or None
 
 
 class TransactionCreate(BaseModel):
@@ -16,6 +24,7 @@ class TransactionCreate(BaseModel):
     currency: str = Field(min_length=3, max_length=3)
     category_id: uuid.UUID | None = None
     description: str = Field(min_length=1)
+    notes: str | None = None
     date: dt.date
     time: dt.time | None = None
     account_id: uuid.UUID
@@ -28,6 +37,8 @@ class TransactionCreate(BaseModel):
     raw_data: dict[str, Any] | None = None
     tag_ids: list[uuid.UUID] | None = None
 
+    _normalize_notes = field_validator("notes", mode="before")(_normalize_optional_notes)
+
 
 class TransactionUpdate(BaseModel):
     """Update transaction request (partial)."""
@@ -37,6 +48,7 @@ class TransactionUpdate(BaseModel):
     currency: str | None = Field(default=None, min_length=3, max_length=3)
     category_id: uuid.UUID | None = None
     description: str | None = Field(default=None, min_length=1)
+    notes: str | None = None
     date: dt.date | None = None
     time: dt.time | None = None
     account_id: uuid.UUID | None = None
@@ -48,6 +60,8 @@ class TransactionUpdate(BaseModel):
     raw_data: dict[str, Any] | None = None
     tag_ids: list[uuid.UUID] | None = None
 
+    _normalize_notes = field_validator("notes", mode="before")(_normalize_optional_notes)
+
 
 class TransactionResponse(BaseModel):
     """Transaction response."""
@@ -58,6 +72,7 @@ class TransactionResponse(BaseModel):
     currency: str
     category_id: uuid.UUID | None
     description: str
+    notes: str | None
     date: dt.date
     time: dt.time | None
     account_id: uuid.UUID

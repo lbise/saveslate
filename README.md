@@ -1,14 +1,14 @@
 # SaveSlate
 
-Personal finance tracking app — self-hosted, single-user.
+Personal finance tracking app
 
 ## Stack
 
-| Layer    | Technology                          |
-| -------- | ----------------------------------- |
+| Layer    | Technology                                             |
+| -------- | ------------------------------------------------------ |
 | Frontend | React 19, TypeScript, Vite, Tailwind CSS v4, shadcn/ui |
-| Backend  | FastAPI, SQLAlchemy (async), PostgreSQL |
-| Infra    | Docker Compose, nginx               |
+| Backend  | FastAPI, SQLAlchemy (async), PostgreSQL                |
+| Infra    | Docker Compose, nginx                                  |
 
 ## Quick Start (Docker)
 
@@ -57,12 +57,12 @@ npm run dev:stop       # tears down Postgres + API containers
 
 ### Individual Commands
 
-| Command              | What it does                              |
-| -------------------- | ----------------------------------------- |
-| `npm run dev`        | Vite dev server only (frontend)           |
-| `npm run dev:backend`| Start DB + API in Docker (background)     |
-| `npm run dev:full`   | `dev:backend` then `dev` in one command   |
-| `npm run dev:stop`   | Stop and remove Docker dev containers     |
+| Command               | What it does                            |
+| --------------------- | --------------------------------------- |
+| `npm run dev`         | Vite dev server only (frontend)         |
+| `npm run dev:backend` | Start DB + API in Docker (background)   |
+| `npm run dev:full`    | `dev:backend` then `dev` in one command |
+| `npm run dev:stop`    | Stop and remove Docker dev containers   |
 
 ### Manual Backend Setup (without Docker API)
 
@@ -123,13 +123,13 @@ npm run build        # Full production build (type check + bundle)
 
 See [`.env.example`](.env.example) for the full list. Key variables:
 
-| Variable           | Required | Description                              |
-| ------------------ | -------- | ---------------------------------------- |
-| `POSTGRES_PASSWORD`| Yes      | Database password                        |
-| `SECRET_KEY`       | Yes      | JWT signing secret                       |
-| `CSRF_SECRET_KEY`  | Yes      | CSRF double-submit cookie secret         |
-| `CORS_ORIGINS`     | No       | Allowed origins (default: `http://localhost`) |
-| `PORT`             | No       | Host port for web service (default: `80`)|
+| Variable            | Required | Description                                   |
+| ------------------- | -------- | --------------------------------------------- |
+| `POSTGRES_PASSWORD` | Yes      | Database password                             |
+| `SECRET_KEY`        | Yes      | JWT signing secret                            |
+| `CSRF_SECRET_KEY`   | Yes      | CSRF double-submit cookie secret              |
+| `CORS_ORIGINS`      | No       | Allowed origins (default: `http://localhost`) |
+| `PORT`              | No       | Host port for web service (default: `80`)     |
 
 ## Project Structure
 
@@ -156,3 +156,11 @@ tests/                  # Frontend tests
 ├── lib/                #   Utility tests
 └── e2e/                #   Playwright browser tests
 ```
+
+## Task list
+
+- [] Run rules preview (See potential changes and validate or not)
+- [] Split transactions
+- [] Handle savings properly
+- [] Mass transaction tool (edit transactions based on some rules)
+- [] Improve rules (and and or depending on the condition instead of globally)
