@@ -268,6 +268,47 @@ class TestParseCsvFile:
         assert result.rows[0].description == "Test"
         assert result.rows[0].date == "2026-01-15"
 
+    def test_with_parser_applies_transforms(self):
+        csv_content = "Date,Description,Amount\n2026-01-15,Purchase at Coffee Shop,-5.00\n"
+        config = {
+            "delimiter": ",",
+            "has_header_row": True,
+            "skip_rows": 0,
+            "date_format": "YYYY-MM-DD",
+            "decimal_separator": ".",
+            "amount_format": "single",
+            "time_mode": "none",
+            "column_mappings": [
+                {"field": "date", "column_indices": [0]},
+                {"field": "description", "column_indices": [1]},
+                {"field": "amount", "column_indices": [2]},
+            ],
+            "transforms": [
+                {
+                    "label": "Extract merchant",
+                    "source_field": "description",
+                    "target_field": "description",
+                    "match_pattern": "Purchase",
+                    "extract_pattern": r"Purchase at (?<merchant>.+)",
+                    "replacement": "{{merchant}}",
+                },
+                {
+                    "label": "Set category",
+                    "source_field": "description",
+                    "target_field": "category",
+                    "match_pattern": ".*",
+                    "extract_pattern": r"(?<kind>Coffee)",
+                    "replacement": "{{kind}}",
+                },
+            ],
+        }
+
+        result = parse_csv_file(csv_content, config)
+
+        assert result.rows[0].description == "Coffee Shop"
+        assert result.rows[0].category == "Coffee"
+        assert result.rows[0].errors == []
+
     def test_skip_rows(self):
         csv_content = "Bank Report\nAccount: CH123\nDate,Desc,Amt\n2026-01-15,Test,-50\n"
         config = {

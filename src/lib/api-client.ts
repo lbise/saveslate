@@ -90,13 +90,15 @@ async function request<T>(
 ): Promise<T> {
   const { params, body, headers: extraHeaders } = options;
 
-  // Build URL with query params (keys converted to snake_case)
+  // Build URL with query params.
+  // Preserve caller-provided names because the backend exposes camelCase aliases
+  // for many filter/query params (for example `parserId`, `accountId`, `pageSize`).
   let fullUrl = url;
   if (params) {
     const searchParams = new URLSearchParams();
     for (const [key, value] of Object.entries(params)) {
       if (value !== undefined && value !== null && value !== '') {
-        searchParams.set(camelToSnake(key), String(value));
+        searchParams.set(key, String(value));
       }
     }
     const qs = searchParams.toString();

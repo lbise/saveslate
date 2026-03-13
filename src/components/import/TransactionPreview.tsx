@@ -579,6 +579,7 @@ export function TransactionPreview({
           ) : (
             <Card className="p-3 border-warning/30 space-y-3">
               <p className="text-sm text-warning">
+                No accounts yet. Create an account to choose where these transactions will be imported.
               </p>
               <Button
                 type="button"

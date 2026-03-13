@@ -124,7 +124,7 @@ export function MetadataMappingRow({
         </button>
 
         {dropdownOpen && (
-            <ScrollArea className="absolute top-full left-0 right-0 mt-1 bg-card border border-border rounded-(--radius-md) py-1 z-20 shadow-(--shadow-md) max-h-80">
+          <ScrollArea className="absolute top-full left-0 mt-1 z-20 max-h-80 w-full max-w-[calc(100vw-2rem)] overflow-y-auto rounded-(--radius-md) border border-border bg-card py-1 shadow-(--shadow-md) sm:w-max sm:min-w-full sm:max-w-[32rem]">
             {headers.map((header, columnIndex) => {
               const isSelected = mapping.columnIndices.includes(columnIndex);
               const isMapped = mappedColumnIndices.has(columnIndex);
@@ -141,17 +141,18 @@ export function MetadataMappingRow({
                   disabled={isDisabled}
                   onClick={() => onToggleColumn(columnIndex)}
                   className={cn(
-                    "flex flex-col w-full px-3 py-2 text-left bg-transparent border-none transition-colors",
+                    "flex w-full min-w-0 flex-col border-none bg-transparent px-3 py-2 text-left transition-colors",
                     isDisabled
                       ? "opacity-40 cursor-not-allowed"
                       : "cursor-pointer hover:bg-secondary",
                     isSelected && "bg-foreground/5",
                   )}
                 >
-                  <span className="flex items-center gap-2">
+                  <span className="flex min-w-0 items-center gap-2">
                     <span
+                      title={header || `Column ${columnIndex + 1}`}
                       className={cn(
-                        "text-sm",
+                        "min-w-0 flex-1 truncate text-sm",
                         isSelected ? "text-foreground font-medium" : "text-foreground",
                       )}
                     >

@@ -229,6 +229,22 @@ class TestListTransactions:
         data = resp.json()
         assert len(data["items"]) == 1
 
+    async def test_list_large_page_size(self, authed_client: AsyncClient):
+        account_id = await _create_account(authed_client)
+        for i in range(3):
+            await _create_transaction(
+                authed_client,
+                account_id,
+                description=f"Txn {i}",
+                date=f"2026-01-{15 + i:02d}",
+            )
+
+        resp = await authed_client.get("/api/transactions?page=1&pageSize=10000")
+        assert resp.status_code == 200
+        data = resp.json()
+        assert len(data["items"]) == 3
+        assert data["page_size"] == 10000
+
     async def test_list_search_filter(self, authed_client: AsyncClient):
         account_id = await _create_account(authed_client)
         await _create_transaction(authed_client, account_id, description="Coffee shop")

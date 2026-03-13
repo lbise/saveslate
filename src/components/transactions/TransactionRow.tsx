@@ -1,3 +1,4 @@
+import { useEffect, useState } from "react";
 import { Tag, Users } from "lucide-react";
 import {
   Badge,
@@ -8,7 +9,7 @@ import {
 } from "../ui";
 import { useFormatCurrency } from "../../hooks";
 import { cn, formatDate, resolveTransferFlowAccounts } from "../../lib/utils";
-import { UNCATEGORIZED_CATEGORY_ID } from "../../lib/transaction-type";
+import { isUncategorizedCategory } from "../../lib/transaction-type";
 import {
   getAmountColorClass,
   iconBoxStyles,
@@ -31,9 +32,13 @@ export interface TransactionRowProps {
   availableTagsById: Map<string, TransactionTag>;
   tagUsageCountById: Map<string, number>;
   onToggleAction: () => void;
+  onCloseAction: () => void;
   onToggleEditCategory: () => void;
   onToggleEditGoal: () => void;
   onToggleEditTags: () => void;
+  onCloseCategory: () => void;
+  onCloseGoal: () => void;
+  onCloseTags: () => void;
   onCategoryChange: (categoryId: string) => void;
   onGoalChange: (goalId: string | null) => void;
   onTagsChange: (tagIds: string[]) => void;
@@ -55,9 +60,13 @@ export function TransactionRow({
   availableTagsById,
   tagUsageCountById,
   onToggleAction,
+  onCloseAction,
   onToggleEditCategory,
   onToggleEditGoal,
   onToggleEditTags,
+  onCloseCategory,
+  onCloseGoal,
+  onCloseTags,
   onCategoryChange,
   onGoalChange,
   onTagsChange,
@@ -68,9 +77,26 @@ export function TransactionRow({
   onAction,
 }: TransactionRowProps) {
   const { formatSignedCurrency } = useFormatCurrency();
+  const [isDesktopLayout, setIsDesktopLayout] = useState(false);
+
+  useEffect(() => {
+    const mediaQuery = window.matchMedia("(min-width: 1024px)");
+
+    const updateLayout = () => {
+      setIsDesktopLayout(mediaQuery.matches);
+    };
+
+    updateLayout();
+    mediaQuery.addEventListener("change", updateLayout);
+
+    return () => {
+      mediaQuery.removeEventListener("change", updateLayout);
+    };
+  }, []);
+
   const type = transaction.type;
   const iconStyle =
-    transaction.categoryId === UNCATEGORIZED_CATEGORY_ID
+    isUncategorizedCategory(transaction.categoryId, transaction.category)
       ? UNCATEGORIZED_ICON_STYLE
       : iconBoxStyles[type];
   const transferFlow = type === "transfer" && transaction.destinationAccount
@@ -139,11 +165,11 @@ export function TransactionRow({
               >
                 <Badge variant={type}>{transaction.category.name}</Badge>
               </button>
-              {isEditingCategory && (
+              {isEditingCategory && !isDesktopLayout && (
                 <CategoryPicker
                   currentCategoryId={transaction.categoryId}
                   onSelect={onCategoryChange}
-                  onClose={onToggleEditCategory}
+                  onClose={onCloseCategory}
                   openUpward={openCategoryUpward}
                 />
               )}
@@ -209,17 +235,17 @@ export function TransactionRow({
               hasGoal={Boolean(transaction.goalId)}
               hasTags={resolvedTags.length > 0}
               open={isActionOpen}
-              onOpenChange={(open) => { if (open) onToggleAction(); else if (isActionOpen) onToggleAction(); }}
+              onOpenChange={(open) => { if (open) onToggleAction(); else onCloseAction(); }}
               triggerClassName={isActionOpen ? "opacity-100" : "opacity-60"}
             />
-            {isEditingGoal && (
+            {isEditingGoal && !isDesktopLayout && (
               <GoalPicker
                 currentGoalId={transaction.goalId}
                 onSelect={onGoalChange}
-                onClose={onToggleEditGoal}
+                onClose={onCloseGoal}
               />
             )}
-            {isEditingTags && (
+            {isEditingTags && !isDesktopLayout && (
               <TagPicker
                 tags={availableTags}
                 selectedTagIds={transaction.tagIds ?? []}
@@ -228,7 +254,7 @@ export function TransactionRow({
                 onUpdateTag={onUpdateTag}
                 onDeleteTag={onDeleteTag}
                 tagUsageCountById={tagUsageCountById}
-                onClose={onToggleEditTags}
+                onClose={onCloseTags}
               />
             )}
           </div>
@@ -275,11 +301,11 @@ export function TransactionRow({
             >
               {transaction.category.name}
             </button>
-            {isEditingCategory && (
+            {isEditingCategory && isDesktopLayout && (
               <CategoryPicker
                 currentCategoryId={transaction.categoryId}
                 onSelect={onCategoryChange}
-                onClose={onToggleEditCategory}
+                onClose={onCloseCategory}
                 openUpward={openCategoryUpward}
               />
             )}
@@ -336,17 +362,17 @@ export function TransactionRow({
             hasGoal={Boolean(transaction.goalId)}
             hasTags={resolvedTags.length > 0}
             open={isActionOpen}
-            onOpenChange={(open) => { if (open) onToggleAction(); else if (isActionOpen) onToggleAction(); }}
+            onOpenChange={(open) => { if (open) onToggleAction(); else onCloseAction(); }}
             triggerClassName={isActionOpen ? "opacity-100" : "opacity-0 group-hover:opacity-100"}
           />
-          {isEditingGoal && (
+          {isEditingGoal && isDesktopLayout && (
             <GoalPicker
               currentGoalId={transaction.goalId}
               onSelect={onGoalChange}
-              onClose={onToggleEditGoal}
+              onClose={onCloseGoal}
             />
           )}
-          {isEditingTags && (
+          {isEditingTags && isDesktopLayout && (
             <TagPicker
               tags={availableTags}
               selectedTagIds={transaction.tagIds ?? []}
@@ -355,7 +381,7 @@ export function TransactionRow({
               onUpdateTag={onUpdateTag}
               onDeleteTag={onDeleteTag}
               tagUsageCountById={tagUsageCountById}
-              onClose={onToggleEditTags}
+              onClose={onCloseTags}
             />
           )}
         </div>

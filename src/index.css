@@ -151,6 +151,11 @@ body {
   outline-offset: 2px;
 }
 
+[data-slot="command-input"]:focus-visible {
+  outline: none;
+  outline-offset: 0;
+}
+
 /* Selection color */
 ::selection {
   background-color: var(--primary);

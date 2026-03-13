@@ -210,6 +210,33 @@ class TestCsvImport:
             assert txn["account_id"] == acct_id
             assert txn["import_batch_id"] is not None
 
+    async def test_import_defaults_to_uncategorized_category(self, authed_client: AsyncClient):
+        """Imported rows without a matched category should use the hidden Uncategorized category."""
+        acct_id = await _create_account(authed_client)
+        parser_id = await _create_parser(authed_client)
+
+        categories_resp = await authed_client.get("/api/categories")
+        assert categories_resp.status_code == 200
+        uncategorized_id = next(
+            category["id"]
+            for category in categories_resp.json()
+            if category["name"] == "Uncategorized"
+        )
+
+        resp = await _post_import_with_payload(
+            authed_client,
+            SIMPLE_CSV,
+            {
+                "accountId": acct_id,
+                "parserId": parser_id,
+            },
+        )
+        assert resp.status_code == 201
+
+        data = resp.json()
+        assert len(data) == 3
+        assert all(txn["category_id"] == uncategorized_id for txn in data)
+
     async def test_import_no_parser(self, authed_client: AsyncClient):
         """Import without parser config – no column mappings → should fail with 400."""
         acct_id = await _create_account(authed_client)

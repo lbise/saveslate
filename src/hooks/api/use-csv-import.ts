@@ -1,5 +1,5 @@
 import { useMutation, useQueryClient } from '@tanstack/react-query';
-import { api } from '@/lib/api-client';
+import { api, toNumber } from '@/lib/api-client';
 import type { Transaction, ParsedRow } from '@/types';
 
 // ─── Response Types ──────────────────────────────────────────────────
@@ -14,6 +14,24 @@ export interface CsvPreviewResult {
   accountIdentifier?: string;
 }
 
+type RawParsedRow = Omit<ParsedRow, 'amount'> & {
+  amount: string | number;
+};
+
+type RawCsvPreviewResult = Omit<CsvPreviewResult, 'rows'> & {
+  rows: RawParsedRow[];
+};
+
+export function transformCsvPreviewResult(raw: RawCsvPreviewResult): CsvPreviewResult {
+  return {
+    ...raw,
+    rows: raw.rows.map((row) => ({
+      ...row,
+      amount: toNumber(row.amount),
+    })),
+  };
+}
+
 export interface CsvImportTransferLink {
   rowIndex: number;
   matchedTransactionId: string;
@@ -24,8 +42,14 @@ export interface CsvImportTransferLink {
 /** Preview a CSV file without importing. Returns parsed rows for review. */
 export function useCsvPreview() {
   return useMutation({
-    mutationFn: ({ file, parserId }: { file: File; parserId?: string }) =>
-      api.upload<CsvPreviewResult>('/api/import/preview', file, parserId ? { parserId } : undefined),
+    mutationFn: async ({ file, parserId }: { file: File; parserId?: string }) => {
+      const raw = await api.upload<RawCsvPreviewResult>(
+        '/api/import/preview',
+        file,
+        parserId ? { parserId } : undefined,
+      );
+      return transformCsvPreviewResult(raw);
+    },
   });
 }
 

@@ -55,6 +55,7 @@ function withFallbackOption(
   options: SelectOption[],
   selectedValue: string,
   fallbackLabelPrefix: string,
+  fallbackLabel?: string,
 ): SelectOption[] {
   if (!selectedValue || options.some((option) => option.value === selectedValue)) {
     return options;
@@ -63,7 +64,7 @@ function withFallbackOption(
   return [
     {
       value: selectedValue,
-      label: `${fallbackLabelPrefix} (${selectedValue})`,
+      label: fallbackLabel ?? `${fallbackLabelPrefix} (${selectedValue})`,
     },
     ...options,
   ];
@@ -108,8 +109,17 @@ export function TransactionFormModal({
         label: category.name,
       }));
 
-    return withFallbackOption(options, form.categoryId, 'Unknown category');
-  }, [categories, form.categoryId]);
+    const selectedCategoryName = allCategories.find(
+      (category) => category.id === form.categoryId,
+    )?.name;
+
+    return withFallbackOption(
+      options,
+      form.categoryId,
+      'Unknown category',
+      selectedCategoryName,
+    );
+  }, [allCategories, categories, form.categoryId]);
 
   const goalOptions = useMemo(() => {
     const options = [...goals]

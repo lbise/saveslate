@@ -82,7 +82,7 @@ export function FieldMappingRow({
   return (
     <div
       className={cn(
-        "flex items-center gap-4 p-3 rounded-(--radius-md) border",
+        "flex flex-col gap-3 p-3 rounded-(--radius-md) border sm:flex-row sm:items-center sm:gap-4",
         error
           ? "border-expense/40 bg-expense/[0.03]"
           : hasValue
@@ -93,8 +93,8 @@ export function FieldMappingRow({
       {/* Field label */}
       <div
         className={cn(
-          "shrink-0",
-          field === "transactionId" ? "w-56" : "w-28",
+          "w-full sm:shrink-0",
+          field === "transactionId" ? "sm:w-56" : "sm:w-28",
         )}
       >
         <span className="text-sm font-medium text-foreground">
@@ -163,7 +163,7 @@ export function FieldMappingRow({
 
           {/* Dropdown */}
           {dropdownOpen && (
-            <ScrollArea className="absolute top-full left-0 right-0 mt-1 bg-card border border-border rounded-(--radius-md) py-1 z-20 shadow-(--shadow-md) max-h-80">
+            <ScrollArea className="absolute top-full left-0 mt-1 z-20 max-h-80 w-full max-w-[calc(100vw-2rem)] overflow-y-auto rounded-(--radius-md) border border-border bg-card py-1 shadow-(--shadow-md) sm:w-max sm:min-w-full sm:max-w-[32rem]">
               {availableColumns.map(
                 ({ idx, header, alreadyAssigned, disabled }) => {
                   const sampleValue = dataRows[0]?.[idx] ?? "";
@@ -174,23 +174,24 @@ export function FieldMappingRow({
                       disabled={disabled}
                       onClick={() => handleSelect(idx)}
                       className={cn(
-                        "flex flex-col w-full px-3 py-2 text-left bg-transparent border-none transition-colors",
+                        "flex w-full min-w-0 flex-col border-none bg-transparent px-3 py-2 text-left transition-colors",
                         disabled
                           ? "opacity-30 cursor-not-allowed"
                           : "cursor-pointer hover:bg-secondary",
                         alreadyAssigned && isMulti && "bg-foreground/5",
                       )}
                     >
-                      <span className="flex items-center gap-2">
+                      <span className="flex min-w-0 items-center gap-2">
                         <span
+                          title={header || `Column ${idx + 1}`}
                           className={cn(
-                            "text-sm",
+                            "min-w-0 flex-1 truncate text-sm",
                             alreadyAssigned
                               ? "text-foreground font-medium"
                               : "text-foreground",
                           )}
                         >
-                          {header}
+                          {header || `Column ${idx + 1}`}
                         </span>
                         {alreadyAssigned && isMulti && (
                           <span className="text-sm text-income">selected</span>

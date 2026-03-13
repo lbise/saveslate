@@ -62,7 +62,9 @@ import {
 } from "../hooks/api";
 import {
   inferTransactionType,
+  isUncategorizedCategory,
   UNCATEGORIZED_CATEGORY_ID,
+  UNCATEGORIZED_CATEGORY_NAME,
 } from "../lib/transaction-type";
 import {
   createTransferCounterpartyMap,
@@ -126,6 +128,10 @@ export function Transactions() {
     () => categoriesResult.data ?? [],
     [categoriesResult.data],
   );
+  const uncategorizedCategory = useMemo(
+    () => allCategories.find((category) => isUncategorizedCategory(category.id, category)),
+    [allCategories],
+  );
 
   // Mutation hooks
   const createTransactionMutation = useCreateTransaction();
@@ -148,9 +154,14 @@ export function Transactions() {
     const counterpartyMap = createTransferCounterpartyMap(items);
 
     return items.map(tx => {
-      const category = categoriesById.get(tx.categoryId) ?? {
-        id: tx.categoryId,
-        name: tx.categoryId === UNCATEGORIZED_CATEGORY_ID ? "Uncategorized" : "Unknown Category",
+      const resolvedCategory = tx.categoryId
+        ? categoriesById.get(tx.categoryId)
+        : uncategorizedCategory;
+      const category = resolvedCategory ?? {
+        id: tx.categoryId ?? UNCATEGORIZED_CATEGORY_ID,
+        name: isUncategorizedCategory(tx.categoryId, resolvedCategory)
+          ? UNCATEGORIZED_CATEGORY_NAME
+          : "Unknown Category",
         icon: "CircleHelp",
       };
       const account = accountsById.get(tx.accountId) ?? {
@@ -173,7 +184,7 @@ export function Transactions() {
         goal,
       } as TxDetails;
     });
-  }, [rawTransactionsData, allCategories, accounts, goals]);
+  }, [rawTransactionsData, allCategories, uncategorizedCategory, accounts, goals]);
 
   // Filters (extracted to hook)
   const filters = useTransactionFilters({
@@ -300,6 +311,22 @@ export function Transactions() {
     setEditingTagsId((prev) => (prev === txId ? null : txId));
   };
 
+  const closeEditCategory = () => {
+    setEditingCategoryId(null);
+  };
+
+  const closeEditGoal = () => {
+    setEditingGoalId(null);
+  };
+
+  const closeEditTags = () => {
+    setEditingTagsId(null);
+  };
+
+  const closeAction = () => {
+    setOpenActionId(null);
+  };
+
   const handleAction = (
     txId: string,
     action: "edit" | "duplicate" | "delete",
@@ -420,21 +447,27 @@ export function Transactions() {
         onError: () => toast.error("Failed to update tags"),
       },
     );
+    setEditingTagsId(null);
+    setOpenActionId(null);
   };
 
   const openQuickAutoRuleModal = (transaction: TxDetails) => {
     closePopovers();
 
     const fallbackCategoryId = availableCategories[0]?.id ?? '';
+    const transactionIsUncategorized = isUncategorizedCategory(
+      transaction.categoryId,
+      transaction.category,
+    );
 
-    const prefillCategoryId = transaction.categoryId === UNCATEGORIZED_CATEGORY_ID
+    const prefillCategoryId = transactionIsUncategorized
       ? fallbackCategoryId
       : transaction.categoryId;
 
     const keyword = transaction.description.trim();
 
     let prefillName = '';
-    if (transaction.categoryId !== UNCATEGORIZED_CATEGORY_ID) {
+    if (!transactionIsUncategorized) {
       prefillName = transaction.goal
         ? `${transaction.category.name} → ${transaction.goal.name}`
         : transaction.category.name;
@@ -767,7 +800,7 @@ export function Transactions() {
   const uncategorizedCount = useMemo(
     () =>
       scopedTransactions.filter(
-        (transaction) => transaction.categoryId === UNCATEGORIZED_CATEGORY_ID,
+        (transaction) => isUncategorizedCategory(transaction.categoryId, transaction.category),
       ).length,
     [scopedTransactions],
   );
@@ -776,7 +809,7 @@ export function Transactions() {
   const filteredTransactions = useMemo(() => {
     const result = showUncategorizedOnly
       ? scopedTransactions.filter(
-          (transaction) => transaction.categoryId === UNCATEGORIZED_CATEGORY_ID,
+          (transaction) => isUncategorizedCategory(transaction.categoryId, transaction.category),
         )
       : [...scopedTransactions];
 
@@ -840,6 +873,18 @@ export function Transactions() {
     const end = start + pageSize;
     return filteredTransactions.slice(start, end);
   }, [filteredTransactions, page, pageSize]);
+
+  // Close any open popover whose transaction is no longer visible
+  // (e.g. after filter/pagination change or tag edit that moves the row out of view).
+  // Uses React's "adjusting state during rendering" pattern to avoid cascading effects.
+  const paginatedIds = useMemo(
+    () => new Set(paginatedTransactions.map((t) => t.id)),
+    [paginatedTransactions],
+  );
+  if (openActionId && !paginatedIds.has(openActionId)) setOpenActionId(null);
+  if (editingCategoryId && !paginatedIds.has(editingCategoryId)) setEditingCategoryId(null);
+  if (editingGoalId && !paginatedIds.has(editingGoalId)) setEditingGoalId(null);
+  if (editingTagsId && !paginatedIds.has(editingTagsId)) setEditingTagsId(null);
 
   const isLoading = transactionsResult.isLoading || categoriesResult.isLoading;
   if (isLoading) return <TransactionsSkeleton />;
@@ -1512,9 +1557,13 @@ export function Transactions() {
               availableTagsById={tagsById}
               tagUsageCountById={tagTransactionCountById}
               onToggleAction={() => toggleAction(tx.id)}
+              onCloseAction={closeAction}
               onToggleEditCategory={() => toggleEditCategory(tx.id)}
               onToggleEditGoal={() => toggleEditGoal(tx.id)}
               onToggleEditTags={() => toggleEditTags(tx.id)}
+              onCloseCategory={closeEditCategory}
+              onCloseGoal={closeEditGoal}
+              onCloseTags={closeEditTags}
               onCategoryChange={(catId) => handleCategoryChange(tx.id, catId)}
               onGoalChange={(goalId) => handleGoalChange(tx.id, goalId)}
               onTagsChange={(tagIds) => handleTagsChange(tx.id, tagIds)}
