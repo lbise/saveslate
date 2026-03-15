@@ -107,8 +107,8 @@ class TestAnalyticsSummary:
         data = resp.json()
         # Income: 500 + 200 + 600 = 1300
         assert float(data["total_income"]) == 1300.0
-        # Expenses: -50 + -30 + -80 = -160 (transfer excluded)
-        assert float(data["total_expenses"]) == -160.0
+        # Expenses: 50 + 30 + 80 = 160 (transfer excluded, absolute value)
+        assert float(data["total_expenses"]) == 160.0
         # Net: 1300 + (-160) = 1140
         assert float(data["net"]) == 1140.0
         # Count: 6 (transfer excluded)
@@ -122,9 +122,9 @@ class TestAnalyticsSummary:
         )
         assert resp.status_code == 200
         data = resp.json()
-        # January only: income=700, expenses=-80
+        # January only: income=700, expenses=80
         assert float(data["total_income"]) == 700.0
-        assert float(data["total_expenses"]) == -80.0
+        assert float(data["total_expenses"]) == 80.0
         assert data["transaction_count"] == 4
 
     async def test_with_account_filter(self, authed_client: AsyncClient):
@@ -161,13 +161,13 @@ class TestMonthlyBreakdown:
 
         jan = next(m for m in data if m["month"] == "2026-01")
         assert float(jan["income"]) == 700.0
-        assert float(jan["expenses"]) == -80.0
+        assert float(jan["expenses"]) == 80.0
         assert float(jan["net"]) == 620.0
         assert jan["transaction_count"] == 4
 
         feb = next(m for m in data if m["month"] == "2026-02")
         assert float(feb["income"]) == 600.0
-        assert float(feb["expenses"]) == -80.0
+        assert float(feb["expenses"]) == 80.0
         assert float(feb["net"]) == 520.0
         assert feb["transaction_count"] == 2
 

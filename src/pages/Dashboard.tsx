@@ -67,7 +67,7 @@ export function Dashboard() {
   // Monthly stats from analytics summary
   const stats = useMemo(() => ({
     totalIncome: summary?.totalIncome ?? 0,
-    totalExpenses: Math.abs(summary?.totalExpenses ?? 0),
+    totalExpenses: summary?.totalExpenses ?? 0,
     net: summary?.net ?? 0,
     savingsRate: summary && summary.totalIncome > 0
       ? (summary.net / summary.totalIncome) * 100
@@ -196,7 +196,7 @@ export function Dashboard() {
                     key={cs.categoryId ?? 'uncategorized'}
                     categoryName={cs.categoryName ?? 'Uncategorized'}
                     categoryIcon={cs.categoryIcon ?? 'Tag'}
-                    amount={Math.abs(cs.total)}
+                    amount={cs.total}
                     percentage={cs.percentage}
                     formatCurrency={formatCurrency}
                   />

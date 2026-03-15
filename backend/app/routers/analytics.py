@@ -68,7 +68,7 @@ async def get_summary(
     row = result.one()
 
     total_income = Decimal(str(row.income))
-    total_expenses = Decimal(str(row.expenses))
+    total_expenses = abs(Decimal(str(row.expenses)))
     net = Decimal(str(row.net))
     count = row.count
     avg = net / count if count > 0 else Decimal("0")
@@ -134,16 +134,20 @@ async def get_monthly_breakdown(
     result = await db.execute(stmt)
     rows = result.all()
 
-    return [
-        MonthlyBreakdown(
-            month=f"{int(r.yr)}-{int(r.mo):02d}",
-            income=Decimal(str(r.income)),
-            expenses=Decimal(str(r.expenses)),
-            net=Decimal(str(r.income)) + Decimal(str(r.expenses)),
-            transaction_count=r.count,
+    breakdowns = []
+    for r in rows:
+        income = Decimal(str(r.income))
+        raw_expenses = Decimal(str(r.expenses))
+        breakdowns.append(
+            MonthlyBreakdown(
+                month=f"{int(r.yr)}-{int(r.mo):02d}",
+                income=income,
+                expenses=abs(raw_expenses),
+                net=income + raw_expenses,
+                transaction_count=r.count,
+            )
         )
-        for r in rows
-    ]
+    return breakdowns
 
 
 # ---------------------------------------------------------------------------
@@ -201,7 +205,7 @@ async def get_category_breakdown(
             category_id=r.category_id,
             category_name=r.category_name,
             category_icon=r.category_icon,
-            total=Decimal(str(r.total)),
+            total=abs(Decimal(str(r.total))),
             count=r.count,
             percentage=round(abs(Decimal(str(r.total))) / grand_total * 100, 2),
         )
