@@ -28,6 +28,7 @@ import type {
 export interface TransactionRowProps {
   transaction: TxDetails;
   openCategoryUpward: boolean;
+  recentCategoryIds?: string[];
   isActionOpen: boolean;
   isEditingCategory: boolean;
   isEditingGoal: boolean;
@@ -93,6 +94,7 @@ function TransactionNoteIndicator({ note }: TransactionNoteIndicatorProps) {
 export function TransactionRow({
   transaction,
   openCategoryUpward,
+  recentCategoryIds,
   isActionOpen,
   isEditingCategory,
   isEditingGoal,
@@ -214,6 +216,7 @@ export function TransactionRow({
               {isEditingCategory && !isDesktopLayout && (
                 <CategoryPicker
                   currentCategoryId={transaction.categoryId}
+                  recentCategoryIds={recentCategoryIds}
                   onSelect={onCategoryChange}
                   onClose={onCloseCategory}
                   openUpward={openCategoryUpward}
@@ -367,6 +370,7 @@ export function TransactionRow({
             {isEditingCategory && isDesktopLayout && (
               <CategoryPicker
                 currentCategoryId={transaction.categoryId}
+                recentCategoryIds={recentCategoryIds}
                 onSelect={onCategoryChange}
                 onClose={onCloseCategory}
                 openUpward={openCategoryUpward}

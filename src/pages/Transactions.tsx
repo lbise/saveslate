@@ -104,6 +104,7 @@ const activeTypePillStyles: Record<TransactionType, string> = {
 };
 
 const MANUAL_SOURCE_ID = "manual";
+const MAX_RECENT_CATEGORY_IDS = 4;
 
 interface SourceOption {
   id: string;
@@ -117,6 +118,7 @@ export function Transactions() {
   useOnboarding();
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
+  const [recentCategoryIds, setRecentCategoryIds] = useState<string[]>([]);
 
   const initialTypeFilter = parseTypeFilterFromQuery(searchParams);
   const initialCategoryFilterIds = parseFilterIdsFromQuery(searchParams, "category");
@@ -454,6 +456,14 @@ export function Transactions() {
     updateTransactionMutation.mutate(
       { id: txId, categoryId },
       {
+        onSuccess: () => {
+          setRecentCategoryIds((prev) =>
+            [categoryId, ...prev.filter((id) => id !== categoryId)].slice(
+              0,
+              MAX_RECENT_CATEGORY_IDS,
+            ),
+          );
+        },
         onError: () => toast.error("Failed to update category"),
       },
     );
@@ -1634,6 +1644,7 @@ export function Transactions() {
               key={tx.id}
               transaction={tx}
               openCategoryUpward={index >= Math.max(0, paginatedTransactions.length - 3)}
+              recentCategoryIds={recentCategoryIds}
               isActionOpen={openActionId === tx.id}
               isEditingCategory={editingCategoryId === tx.id}
               isEditingGoal={editingGoalId === tx.id}

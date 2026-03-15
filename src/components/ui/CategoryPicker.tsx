@@ -1,9 +1,11 @@
+import { useMemo } from 'react';
 import { Check } from 'lucide-react';
 
 import { useOnboarding } from '../../hooks';
 import { useCategories, useCategoryGroups } from '../../hooks/api';
-import { Icon } from './Icon';
 import { cn } from '../../lib/utils';
+import type { Category } from '../../types';
+import { Icon } from './Icon';
 import { Popover, PopoverAnchor, PopoverContent } from './popover';
 import {
   Command,
@@ -12,10 +14,12 @@ import {
   CommandInput,
   CommandItem,
   CommandList,
+  CommandSeparator,
 } from './command';
 
 interface CategoryPickerProps {
   currentCategoryId: string;
+  recentCategoryIds?: string[];
   onSelect: (categoryId: string) => void;
   onClose: () => void;
   openUpward?: boolean;
@@ -23,6 +27,7 @@ interface CategoryPickerProps {
 
 export function CategoryPicker({
   currentCategoryId,
+  recentCategoryIds = [],
   onSelect,
   onClose,
   openUpward = false,
@@ -33,13 +38,31 @@ export function CategoryPicker({
   const categoryGroups = allCategoryGroups.filter((g) => !g.hidden);
 
   const knownGroupIds = new Set(categoryGroups.map((group) => group.id));
+  const categoriesById = useMemo(
+    () => new Map(categories.map((category) => [category.id, category])),
+    [categories],
+  );
+  const recentCategories = useMemo(
+    () =>
+      recentCategoryIds
+        .map((categoryId) => categoriesById.get(categoryId))
+        .filter((category): category is Category => category !== undefined),
+    [categoriesById, recentCategoryIds],
+  );
+  const recentCategoryIdsSet = new Set(
+    recentCategories.map((category) => category.id),
+  );
 
   const sortedGroups = [...categoryGroups].sort(
     (a, b) => a.order - b.order || a.name.localeCompare(b.name),
   );
 
   const ungroupedCategories = categories
-    .filter((category) => !category.groupId || !knownGroupIds.has(category.groupId))
+    .filter(
+      (category) =>
+        !recentCategoryIdsSet.has(category.id) &&
+        (!category.groupId || !knownGroupIds.has(category.groupId)),
+    )
     .sort((a, b) => a.name.localeCompare(b.name));
 
   const handleSelect = (categoryId: string) => {
@@ -68,9 +91,43 @@ export function CategoryPicker({
             <CommandEmpty className="py-3 text-sm text-dimmed">
               {categories.length === 0 ? 'No categories available yet' : 'No categories found'}
             </CommandEmpty>
+            {recentCategories.length > 0 && (
+              <CommandGroup heading="Recent">
+                {recentCategories.map((cat) => {
+                  const isCurrent = cat.id === currentCategoryId;
+                  return (
+                    <CommandItem
+                      key={cat.id}
+                      value={cat.id}
+                      onSelect={handleSelect}
+                      className={cn(
+                        isCurrent && 'bg-foreground/10 text-foreground',
+                      )}
+                    >
+                      <Icon
+                        name={cat.icon}
+                        size={14}
+                        className={cn(
+                          'text-muted-foreground',
+                          isCurrent ? 'opacity-100' : 'opacity-60',
+                        )}
+                      />
+                      <span className="flex-1 truncate">{cat.name}</span>
+                      {isCurrent && <Check size={12} />}
+                    </CommandItem>
+                  );
+                })}
+              </CommandGroup>
+            )}
+            {recentCategories.length > 0 && recentCategories.length < categories.length && (
+              <CommandSeparator />
+            )}
             {sortedGroups.map((group) => {
               const groupedCategories = categories
-                .filter((category) => category.groupId === group.id)
+                .filter(
+                  (category) =>
+                    category.groupId === group.id && !recentCategoryIdsSet.has(category.id),
+                )
                 .sort((a, b) => a.name.localeCompare(b.name));
 
               if (groupedCategories.length === 0) return null;
