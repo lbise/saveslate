@@ -213,6 +213,39 @@ class TestDeleteTransaction:
         get_resp = await authed_client.get(f"/api/transactions/{txn['id']}")
         assert get_resp.status_code == 404
 
+    async def test_delete_clears_counterpart_transfer_link(self, authed_client: AsyncClient):
+        h = csrf_headers(authed_client)
+        source_account_id = await _create_account(authed_client, name="Source")
+        destination_account_id = await _create_account(authed_client, name="Destination")
+
+        source_txn = await _create_transaction(
+            authed_client,
+            source_account_id,
+            amount="-50.00",
+            description="Transfer out",
+            transfer_pair_id="transfer-pair-1",
+            transfer_pair_role="source",
+        )
+        destination_txn = await _create_transaction(
+            authed_client,
+            destination_account_id,
+            amount="50.00",
+            description="Transfer in",
+            transfer_pair_id="transfer-pair-1",
+            transfer_pair_role="destination",
+        )
+
+        resp = await authed_client.delete(
+            f"/api/transactions/{source_txn['id']}", headers=h
+        )
+        assert resp.status_code == 204
+
+        counterpart_resp = await authed_client.get(f"/api/transactions/{destination_txn['id']}")
+        assert counterpart_resp.status_code == 200
+        counterpart = counterpart_resp.json()
+        assert counterpart["transfer_pair_id"] is None
+        assert counterpart["transfer_pair_role"] is None
+
     async def test_delete_not_found(self, authed_client: AsyncClient):
         h = csrf_headers(authed_client)
         resp = await authed_client.delete(
@@ -501,3 +534,39 @@ class TestBulkDeleteTransactions:
             headers=h,
         )
         assert resp.status_code == 404
+
+    async def test_bulk_delete_clears_counterpart_transfer_links(self, authed_client: AsyncClient):
+        h = csrf_headers(authed_client)
+        source_account_id = await _create_account(authed_client, name="Bulk Source")
+        destination_account_id = await _create_account(authed_client, name="Bulk Destination")
+
+        source_txn = await _create_transaction(
+            authed_client,
+            source_account_id,
+            amount="-75.00",
+            description="Bulk transfer out",
+            transfer_pair_id="transfer-pair-bulk",
+            transfer_pair_role="source",
+        )
+        destination_txn = await _create_transaction(
+            authed_client,
+            destination_account_id,
+            amount="75.00",
+            description="Bulk transfer in",
+            transfer_pair_id="transfer-pair-bulk",
+            transfer_pair_role="destination",
+        )
+
+        resp = await authed_client.request(
+            "DELETE",
+            "/api/transactions/bulk",
+            json={"ids": [source_txn["id"]]},
+            headers=h,
+        )
+        assert resp.status_code == 204
+
+        counterpart_resp = await authed_client.get(f"/api/transactions/{destination_txn['id']}")
+        assert counterpart_resp.status_code == 200
+        counterpart = counterpart_resp.json()
+        assert counterpart["transfer_pair_id"] is None
+        assert counterpart["transfer_pair_role"] is None

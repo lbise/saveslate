@@ -4,6 +4,7 @@ import {
   parseRawCsv,
   extractHeadersAndData,
   extractAccountIdentifier,
+  normalizeAccountIdentifier,
   scoreParserMatch,
   findBestParser,
   findBestParserFromRaw,
@@ -304,6 +305,17 @@ describe('extractAccountIdentifier', () => {
   it('skips empty next-cell values for label pattern', () => {
     const rows = [['IBAN', '', 'other']];
     expect(extractAccountIdentifier(rows, 'IBAN')).toBeNull();
+  });
+});
+
+describe('normalizeAccountIdentifier', () => {
+  it('normalizes spacing, punctuation, and casing', () => {
+    expect(normalizeAccountIdentifier('ch93 0076-2011 6238 5295 7')).toBe('CH9300762011623852957');
+  });
+
+  it('returns null for empty values', () => {
+    expect(normalizeAccountIdentifier('   ')).toBeNull();
+    expect(normalizeAccountIdentifier(undefined)).toBeNull();
   });
 });
 

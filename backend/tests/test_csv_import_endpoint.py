@@ -23,6 +23,12 @@ SEMICOLON_CSV = """Date;Description;Amount
 16.01.2026;Kaffee;-4.20
 """
 
+CSV_WITH_IBAN_HEADER = """Report,Export
+IBAN,CH93 0076 2011 6238 5295 7
+Date,Description,Amount
+2026-01-15,Grocery Store,-50.00
+"""
+
 
 async def _create_account(client: AsyncClient, name: str = "Import Account") -> str:
     h = csrf_headers(client)
@@ -35,7 +41,23 @@ async def _create_account(client: AsyncClient, name: str = "Import Account") -> 
     return resp.json()["id"]
 
 
-async def _create_parser(client: AsyncClient) -> str:
+async def _seed_minimal_categories(client: AsyncClient) -> list[dict]:
+    resp = await client.post(
+        "/api/categories/seed",
+        json={"preset": "minimal"},
+        headers=csrf_headers(client),
+    )
+    assert resp.status_code == 200
+    categories_resp = await client.get("/api/categories")
+    assert categories_resp.status_code == 200
+    return categories_resp.json()
+
+
+async def _create_parser(
+    client: AsyncClient,
+    *,
+    config_override: dict | None = None,
+) -> str:
     """Create a CSV parser config and return its ID."""
     h = csrf_headers(client)
     parser_config = {
@@ -55,6 +77,8 @@ async def _create_parser(client: AsyncClient) -> str:
             ],
         },
     }
+    if config_override:
+        parser_config["config"].update(config_override)
     resp = await client.post("/api/csv-parsers", json=parser_config, headers=h)
     assert resp.status_code == 201
     return resp.json()["id"]
@@ -167,6 +191,25 @@ class TestCsvPreview:
         assert row0["description"] == "Grocery Store"
         assert row0["date"] == "2026-01-15"
         assert float(row0["amount"]) == -50.0
+
+    async def test_preview_with_parser_returns_account_identifier(self, authed_client: AsyncClient):
+        parser_id = await _create_parser(
+            authed_client,
+            config_override={
+                "skipRows": 2,
+                "accountPattern": "IBAN",
+            },
+        )
+
+        resp = await authed_client.post(
+            "/api/import/preview",
+            files=[_make_upload_file(CSV_WITH_IBAN_HEADER)],
+            params={"parserId": parser_id},
+        )
+
+        assert resp.status_code == 200
+        data = resp.json()
+        assert data["account_identifier"] == "CH93 0076 2011 6238 5295 7"
 
     async def test_preview_parser_not_found(self, authed_client: AsyncClient):
         resp = await authed_client.post(
@@ -356,6 +399,64 @@ class TestCsvImport:
         assert existing_linked["transfer_pair_id"] == grocery_txn["transfer_pair_id"]
         assert existing_linked["transfer_pair_role"] == "destination"
 
+    async def test_import_transfer_links_use_transfer_category_for_uncategorized(self, authed_client: AsyncClient):
+        acct_id = await _create_account(authed_client)
+        linked_acct_id = await _create_account(authed_client, name="Transfer Destination")
+        parser_id = await _create_parser(authed_client)
+        categories = await _seed_minimal_categories(authed_client)
+
+        transfer_category_id = next(
+            category["id"]
+            for category in categories
+            if category["name"] == "Transfer"
+        )
+        uncategorized_category_id = next(
+            category["id"]
+            for category in categories
+            if category["name"] == "Uncategorized"
+        )
+
+        existing_txn = await _create_transaction(
+            authed_client,
+            account_id=linked_acct_id,
+            amount="50.00",
+            date="2026-01-15",
+            description="Transfer arrival",
+        )
+        assert existing_txn["category_id"] is None
+
+        resp = await _post_import_with_payload(
+            authed_client,
+            SIMPLE_CSV,
+            {
+                "accountId": acct_id,
+                "parserId": parser_id,
+                "selectedRowIndexes": [0],
+                "transferLinks": [
+                    {
+                        "rowIndex": 0,
+                        "matchedTransactionId": existing_txn["id"],
+                    }
+                ],
+            },
+        )
+
+        assert resp.status_code == 201
+        data = resp.json()
+        assert len(data) == 1
+        imported_txn = data[0]
+        assert imported_txn["transfer_pair_id"] is not None
+        assert imported_txn["transfer_pair_role"] == "source"
+        assert imported_txn["category_id"] == transfer_category_id
+        assert imported_txn["category_id"] != uncategorized_category_id
+
+        existing_txn_resp = await authed_client.get(f"/api/transactions/{existing_txn['id']}")
+        assert existing_txn_resp.status_code == 200
+        existing_linked = existing_txn_resp.json()
+        assert existing_linked["transfer_pair_id"] == imported_txn["transfer_pair_id"]
+        assert existing_linked["transfer_pair_role"] == "destination"
+        assert existing_linked["category_id"] == transfer_category_id
+
     async def test_import_rejects_invalid_selected_row_index(self, authed_client: AsyncClient):
         acct_id = await _create_account(authed_client)
         parser_id = await _create_parser(authed_client)
@@ -404,6 +505,71 @@ class TestCsvImport:
         )
         assert resp.status_code == 400
         assert "already belongs to a transfer pair" in resp.json()["detail"]
+
+    async def test_import_can_relink_after_deleting_import_batch(self, authed_client: AsyncClient):
+        h = csrf_headers(authed_client)
+        acct_id = await _create_account(authed_client)
+        linked_acct_id = await _create_account(authed_client, name="Relink Target")
+        parser_id = await _create_parser(authed_client)
+
+        existing_txn = await _create_transaction(
+            authed_client,
+            account_id=linked_acct_id,
+            amount="50.00",
+            date="2026-01-15",
+            description="Existing relink target",
+        )
+
+        first_import = await _post_import_with_payload(
+            authed_client,
+            SIMPLE_CSV,
+            {
+                "accountId": acct_id,
+                "parserId": parser_id,
+                "selectedRowIndexes": [0],
+                "transferLinks": [
+                    {
+                        "rowIndex": 0,
+                        "matchedTransactionId": existing_txn["id"],
+                    }
+                ],
+            },
+        )
+        assert first_import.status_code == 201
+        first_imported_txn = first_import.json()[0]
+        assert first_imported_txn["transfer_pair_id"] is not None
+
+        delete_batch_resp = await authed_client.delete(
+            f"/api/import-batches/{first_imported_txn['import_batch_id']}",
+            headers=h,
+        )
+        assert delete_batch_resp.status_code == 204
+
+        existing_txn_resp = await authed_client.get(f"/api/transactions/{existing_txn['id']}")
+        assert existing_txn_resp.status_code == 200
+        existing_cleared = existing_txn_resp.json()
+        assert existing_cleared["transfer_pair_id"] is None
+        assert existing_cleared["transfer_pair_role"] is None
+
+        second_import = await _post_import_with_payload(
+            authed_client,
+            SIMPLE_CSV,
+            {
+                "accountId": acct_id,
+                "parserId": parser_id,
+                "selectedRowIndexes": [0],
+                "transferLinks": [
+                    {
+                        "rowIndex": 0,
+                        "matchedTransactionId": existing_txn["id"],
+                    }
+                ],
+            },
+        )
+        assert second_import.status_code == 201
+        second_imported_txn = second_import.json()[0]
+        assert second_imported_txn["transfer_pair_id"] is not None
+        assert second_imported_txn["transfer_pair_role"] == "source"
 
     async def test_import_csrf_required(self, authed_client: AsyncClient):
         """Import should require CSRF token."""

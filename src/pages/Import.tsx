@@ -152,7 +152,7 @@ export function Import() {
       setStep('complete');
     } catch (error) {
       console.error('Import failed:', error);
-      toast.error('Failed to import transactions');
+      toast.error(error instanceof Error ? error.message : 'Failed to import transactions');
     }
   }, [selectedParser, previewRows, fileName, accounts, file, csvImportMutation]);
 

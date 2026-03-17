@@ -165,6 +165,56 @@ class TestDeleteImportBatch:
         get_txn = await authed_client.get(f"/api/transactions/{txn_id}")
         assert get_txn.status_code == 404
 
+    async def test_delete_clears_counterpart_transfer_links(self, authed_client: AsyncClient):
+        """Deleting an import batch should unlink surviving transfer counterparts."""
+        h = csrf_headers(authed_client)
+        source_account_id = await _create_account(authed_client)
+        destination_account_id = await _create_account(authed_client)
+        batch = await _create_import_batch(authed_client, account_id=source_account_id)
+
+        source_txn_resp = await authed_client.post(
+            "/api/transactions",
+            json={
+                "amount": "-10",
+                "currency": "CHF",
+                "description": "Imported transfer",
+                "date": "2026-01-01",
+                "account_id": source_account_id,
+                "import_batch_id": batch["id"],
+                "transfer_pair_id": "transfer-pair-import-batch",
+                "transfer_pair_role": "source",
+            },
+            headers=h,
+        )
+        assert source_txn_resp.status_code == 201
+
+        destination_txn_resp = await authed_client.post(
+            "/api/transactions",
+            json={
+                "amount": "10",
+                "currency": "CHF",
+                "description": "Existing transfer",
+                "date": "2026-01-01",
+                "account_id": destination_account_id,
+                "transfer_pair_id": "transfer-pair-import-batch",
+                "transfer_pair_role": "destination",
+            },
+            headers=h,
+        )
+        assert destination_txn_resp.status_code == 201
+        destination_txn_id = destination_txn_resp.json()["id"]
+
+        resp = await authed_client.delete(
+            f"/api/import-batches/{batch['id']}", headers=h
+        )
+        assert resp.status_code == 204
+
+        counterpart_resp = await authed_client.get(f"/api/transactions/{destination_txn_id}")
+        assert counterpart_resp.status_code == 200
+        counterpart = counterpart_resp.json()
+        assert counterpart["transfer_pair_id"] is None
+        assert counterpart["transfer_pair_role"] is None
+
     async def test_delete_not_found(self, authed_client: AsyncClient):
         h = csrf_headers(authed_client)
         resp = await authed_client.delete(

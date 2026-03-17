@@ -355,3 +355,25 @@ class TestParseCsvFile:
         result = parse_csv_file(csv_content, config)
         assert result.account_identifier is not None
         assert result.account_identifier.startswith("CH")
+
+    def test_account_identifier_extraction_from_label_cell(self):
+        csv_content = "Report,Example\niban,CH93 0076 2011 6238 5295 7\nDate,Desc,Amt\n2026-01-15,Test,-50\n"
+        config = {
+            "delimiter": ",",
+            "hasHeaderRow": True,
+            "skipRows": 2,
+            "dateFormat": "YYYY-MM-DD",
+            "decimalSeparator": ".",
+            "amountFormat": "single",
+            "timeMode": "none",
+            "columnMappings": [
+                {"field": "date", "columnIndices": [0]},
+                {"field": "description", "columnIndices": [1]},
+                {"field": "amount", "columnIndices": [2]},
+            ],
+            "accountPattern": r"IBAN",
+        }
+
+        result = parse_csv_file(csv_content, config)
+
+        assert result.account_identifier == "CH93 0076 2011 6238 5295 7"

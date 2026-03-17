@@ -20,6 +20,7 @@ from app.schemas.transaction import (
     TransactionResponse,
     TransactionUpdate,
 )
+from app.services.transfer_pairs import clear_counterpart_transfer_links
 
 router = APIRouter(prefix="/api/transactions", tags=["transactions"])
 
@@ -331,6 +332,8 @@ async def bulk_delete_transactions(
             detail="One or more transaction IDs not found",
         )
 
+    await clear_counterpart_transfer_links(db, user.id, transactions)
+
     for txn in transactions:
         await db.delete(txn)
 
@@ -414,5 +417,6 @@ async def delete_transaction(
             status_code=status.HTTP_404_NOT_FOUND, detail="Transaction not found"
         )
 
+    await clear_counterpart_transfer_links(db, user.id, [txn])
     await db.delete(txn)
     await db.commit()

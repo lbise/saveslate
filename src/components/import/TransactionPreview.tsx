@@ -10,6 +10,13 @@ import {
 } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
+import {
+  Dialog,
+  DialogContent,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import {
@@ -24,7 +31,13 @@ import {
   DEFAULT_ACCOUNT_FORM_STATE,
   type AccountFormSubmitPayload,
 } from "../accounts";
-import { useAccounts, useCreateAccount, useTransactions } from "../../hooks/api";
+import { Badge } from "../ui/Badge";
+import {
+  useAccounts,
+  useCreateAccount,
+  useTransactions,
+} from "../../hooks/api";
+import { normalizeAccountIdentifier } from "../../lib/csv";
 import { cn, formatDate } from "../../lib/utils";
 import { useFormatCurrency } from "../../hooks";
 import { Card } from "../ui/Card";
@@ -46,9 +59,77 @@ interface TransactionPreviewProps {
 
 const PREVIEW_PAGE_SIZES = [20, 25, 50] as const;
 const DUPLICATE_WARNING_TEXT = "Duplicate transaction detected";
-const POSSIBLE_MATCH_WARNING_TEXT = "Possible existing match (no transaction ID)";
+const POSSIBLE_MATCH_WARNING_TEXT =
+  "Possible existing match (no transaction ID)";
+const ALREADY_LINKED_TRANSFER_WARNING_TEXT =
+  "Matched transaction already belongs to another transfer pair";
 
 type TransferLinkDecision = "link" | "separate";
+
+interface TransferPairCandidate {
+  matchedTransactionId: string;
+  accountName: string;
+  amount: number;
+  currency: string;
+  date: string;
+  time?: string;
+  description: string;
+  transactionId?: string;
+  isAlreadyLinked: boolean;
+}
+
+interface PreviewFieldProps {
+  label: string;
+  value: string;
+  mono?: boolean;
+}
+
+function PreviewField({ label, value, mono = false }: PreviewFieldProps) {
+  return (
+    <div>
+      <Label className="mb-1.5 block">{label}</Label>
+      <Input
+        readOnly
+        value={value}
+        className={cn("cursor-default", mono && "font-mono")}
+      />
+    </div>
+  );
+}
+
+function getDefaultTransferDecision(candidate?: {
+  isAlreadyLinked: boolean;
+}): TransferLinkDecision {
+  return candidate?.isAlreadyLinked ? "separate" : "link";
+}
+
+function getParsedRowType(
+  row: ParsedRow,
+  transferCandidate: TransferPairCandidate | undefined,
+  isLinkEnabled: boolean,
+): string {
+  if (transferCandidate && isLinkEnabled) {
+    return "Transfer";
+  }
+
+  return row.amount < 0 ? "Expense" : "Income";
+}
+
+function getParsedRowCategory(
+  row: ParsedRow,
+  transferCandidate: TransferPairCandidate | undefined,
+  isLinkEnabled: boolean,
+): string {
+  if (row.category?.trim()) {
+    return row.category.trim();
+  }
+
+  if (transferCandidate && isLinkEnabled) {
+    return "Transfer (applied on import)";
+  }
+
+  return "Uncategorized";
+}
 
 function normalizeDescription(description: string): string {
   return description.trim().replace(/\s+/g, " ").toLowerCase();
@@ -92,7 +173,9 @@ function getDateDistanceInDays(left: string, right: string): number {
     return Number.MAX_SAFE_INTEGER;
   }
   const dayMs = 1000 * 60 * 60 * 24;
-  return Math.abs(Math.round((leftDate.getTime() - rightDate.getTime()) / dayMs));
+  return Math.abs(
+    Math.round((leftDate.getTime() - rightDate.getTime()) / dayMs),
+  );
 }
 
 export function TransactionPreview({
@@ -107,7 +190,9 @@ export function TransactionPreview({
   const createAccountMutation = useCreateAccount();
   const [isCreateAccountModalOpen, setIsCreateAccountModalOpen] =
     useState(false);
-  const { data: existingTransactionsData } = useTransactions({ pageSize: 10000 });
+  const { data: existingTransactionsData } = useTransactions({
+    pageSize: 10000,
+  });
   const existingTransactions = useMemo(
     () => existingTransactionsData?.items ?? [],
     [existingTransactionsData],
@@ -129,28 +214,24 @@ export function TransactionPreview({
   const [showWarningsOnly, setShowWarningsOnly] = useState(false);
   const [showMatchesOnly, setShowMatchesOnly] = useState(false);
   const [importName, setImportName] = useState(fileName ?? "");
-  const [expandedMatchRowIndex, setExpandedMatchRowIndex] = useState<number | null>(null);
+  const [detailRowIndex, setDetailRowIndex] = useState<number | null>(null);
 
   // Find matching account ID based on detected identifier
   const matchedAccountId = useMemo(() => {
-    if (!detectedIdentifier) return undefined;
-    const normalized = detectedIdentifier.replace(/\s/g, "");
+    const normalized = normalizeAccountIdentifier(detectedIdentifier);
+    if (!normalized) return undefined;
+
     return accounts.find(
-      (acc) => acc.accountIdentifier?.replace(/\s/g, "") === normalized,
+      (acc) => normalizeAccountIdentifier(acc.accountIdentifier) === normalized,
     )?.id;
   }, [accounts, detectedIdentifier]);
 
-  const effectiveAccountId = accountId || matchedAccountId || accounts[0]?.id || "";
-
-  const hasCurrency = useMemo(() => rows.some((r) => r.currency), [rows]);
-  const hasTime = useMemo(() => rows.some((r) => r.time), [rows]);
-  const hasTransactionId = useMemo(
-    () => rows.some((r) => Boolean(normalizeTransactionId(r.transactionId))),
-    [rows],
-  );
+  const effectiveAccountId =
+    accountId || matchedAccountId || accounts[0]?.id || "";
 
   const selectedAccountCurrency = useMemo(
-    () => accounts.find((acc) => acc.id === effectiveAccountId)?.currency ?? "CHF",
+    () =>
+      accounts.find((acc) => acc.id === effectiveAccountId)?.currency ?? "CHF",
     [accounts, effectiveAccountId],
   );
 
@@ -253,18 +334,10 @@ export function TransactionPreview({
   ]);
 
   const transferPairCandidatesByIndex = useMemo(() => {
-    const candidates = new Map<number, {
-      matchedTransactionId: string;
-      accountName: string;
-      amount: number;
-      currency: string;
-      date: string;
-      time?: string;
-      description: string;
-      transactionId?: string;
-      isAlreadyLinked: boolean;
-    }>();
-    const accountsById = new Map(accounts.map((account) => [account.id, account] as const));
+    const candidates = new Map<number, TransferPairCandidate>();
+    const accountsById = new Map(
+      accounts.map((account) => [account.id, account] as const),
+    );
 
     rows.forEach((row, idx) => {
       if (row.errors.length > 0 || duplicateIndexes.has(idx)) {
@@ -278,36 +351,47 @@ export function TransactionPreview({
 
       const expectedCurrency = row.currency || selectedAccountCurrency;
 
-      const matchingTransactions = existingTransactions.filter((transaction) => {
-        if (transaction.accountId === effectiveAccountId) {
-          return false;
-        }
+      const matchingTransactions = existingTransactions.filter(
+        (transaction) => {
+          if (transaction.accountId === effectiveAccountId) {
+            return false;
+          }
 
-        const existingTransactionId = normalizeTransactionId(transaction.transactionId);
-        if (!existingTransactionId || existingTransactionId !== normalizedTransactionId) {
-          return false;
-        }
-        if (transaction.currency !== expectedCurrency) {
-          return false;
-        }
-        if (Math.abs(transaction.amount) !== Math.abs(row.amount)) {
-          return false;
-        }
-        if (transaction.amount * row.amount >= 0) {
-          return false;
-        }
+          const existingTransactionId = normalizeTransactionId(
+            transaction.transactionId,
+          );
+          if (
+            !existingTransactionId ||
+            existingTransactionId !== normalizedTransactionId
+          ) {
+            return false;
+          }
+          if (transaction.currency !== expectedCurrency) {
+            return false;
+          }
+          if (Math.abs(transaction.amount) !== Math.abs(row.amount)) {
+            return false;
+          }
+          if (transaction.amount * row.amount >= 0) {
+            return false;
+          }
 
-        const dayDistance = getDateDistanceInDays(transaction.date, row.date);
-        return dayDistance <= 2;
-      });
+          const dayDistance = getDateDistanceInDays(transaction.date, row.date);
+          return dayDistance <= 2;
+        },
+      );
 
       if (matchingTransactions.length === 0) {
         return;
       }
 
-      const bestMatch = matchingTransactions
-        .sort((left, right) => getDateDistanceInDays(left.date, row.date) - getDateDistanceInDays(right.date, row.date))[0];
-      const accountName = accountsById.get(bestMatch.accountId)?.name ?? 'Unknown account';
+      const bestMatch = matchingTransactions.sort(
+        (left, right) =>
+          getDateDistanceInDays(left.date, row.date) -
+          getDateDistanceInDays(right.date, row.date),
+      )[0];
+      const accountName =
+        accountsById.get(bestMatch.accountId)?.name ?? "Unknown account";
       candidates.set(idx, {
         matchedTransactionId: bestMatch.id,
         accountName,
@@ -331,28 +415,45 @@ export function TransactionPreview({
     selectedAccountCurrency,
   ]);
 
-  const [transferLinkDecisions, setTransferLinkDecisions] = useState<Map<number, TransferLinkDecision>>(new Map());
+  const [transferLinkDecisions, setTransferLinkDecisions] = useState<
+    Map<number, TransferLinkDecision>
+  >(new Map());
 
-  const getTransferDecision = useCallback((rowIndex: number): TransferLinkDecision => {
-    return transferLinkDecisions.get(rowIndex) ?? 'link';
-  }, [transferLinkDecisions]);
-
-  const toggleTransferLinkDecision = useCallback((rowIndex: number) => {
-    setTransferLinkDecisions((previous) => {
-      const next = new Map(previous);
-      const current = next.get(rowIndex) ?? 'link';
-      if (current === 'link') {
-        next.set(rowIndex, 'separate');
-      } else {
-        next.delete(rowIndex);
+  const getTransferDecision = useCallback(
+    (rowIndex: number): TransferLinkDecision => {
+      const explicitDecision = transferLinkDecisions.get(rowIndex);
+      if (explicitDecision) {
+        return explicitDecision;
       }
-      return next;
-    });
-  }, []);
 
-  const toggleMatchPreview = useCallback((rowIndex: number) => {
-    setExpandedMatchRowIndex((current) => (current === rowIndex ? null : rowIndex));
-  }, []);
+      return getDefaultTransferDecision(
+        transferPairCandidatesByIndex.get(rowIndex),
+      );
+    },
+    [transferLinkDecisions, transferPairCandidatesByIndex],
+  );
+
+  const toggleTransferLinkDecision = useCallback(
+    (rowIndex: number) => {
+      const candidate = transferPairCandidatesByIndex.get(rowIndex);
+      if (!candidate || candidate.isAlreadyLinked) {
+        return;
+      }
+
+      setTransferLinkDecisions((previous) => {
+        const next = new Map(previous);
+        const current =
+          next.get(rowIndex) ?? getDefaultTransferDecision(candidate);
+        if (current === "link") {
+          next.set(rowIndex, "separate");
+        } else {
+          next.delete(rowIndex);
+        }
+        return next;
+      });
+    },
+    [transferPairCandidatesByIndex],
+  );
 
   const warningsByIndex = useMemo(() => {
     const warnings = new Map<number, string[]>();
@@ -365,6 +466,9 @@ export function TransactionPreview({
       if (possibleMatchIndexes.has(idx)) {
         rowWarnings.push(POSSIBLE_MATCH_WARNING_TEXT);
       }
+      if (transferPairCandidatesByIndex.get(idx)?.isAlreadyLinked) {
+        rowWarnings.push(ALREADY_LINKED_TRANSFER_WARNING_TEXT);
+      }
 
       if (rowWarnings.length > 0) {
         warnings.set(idx, rowWarnings);
@@ -376,6 +480,7 @@ export function TransactionPreview({
     duplicateIndexes,
     possibleMatchIndexes,
     rows,
+    transferPairCandidatesByIndex,
   ]);
 
   const selectedWithoutDuplicates = useMemo(() => {
@@ -445,8 +550,9 @@ export function TransactionPreview({
     const duplicateCount = duplicateIndexes.size;
     const possibleMatchCount = possibleMatchIndexes.size;
     const transferMatchCount = transferPairCandidatesByIndex.size;
-    const linkedTransferCount = Array.from(transferPairCandidatesByIndex.keys())
-      .filter((idx) => getTransferDecision(idx) === 'link').length;
+    const linkedTransferCount = Array.from(
+      transferPairCandidatesByIndex.keys(),
+    ).filter((idx) => getTransferDecision(idx) === "link").length;
 
     for (const [i, row] of rows.entries()) {
       if (!selectedIndexes.has(i)) continue;
@@ -485,7 +591,7 @@ export function TransactionPreview({
       .filter((index) => selectedIndexes.has(index));
 
     const transferLinks = selectedRowIndexes
-      .filter((rowIndex) => getTransferDecision(rowIndex) === 'link')
+      .filter((rowIndex) => getTransferDecision(rowIndex) === "link")
       .map((rowIndex) => {
         const candidate = transferPairCandidatesByIndex.get(rowIndex);
         if (!candidate) {
@@ -496,12 +602,22 @@ export function TransactionPreview({
           matchedTransactionId: candidate.matchedTransactionId,
         };
       })
-      .filter((entry): entry is { rowIndex: number; matchedTransactionId: string } => entry !== null);
+      .filter(
+        (entry): entry is { rowIndex: number; matchedTransactionId: string } =>
+          entry !== null,
+      );
 
-    onConfirm(selectedRowIndexes, effectiveAccountId, importName, transferLinks);
+    onConfirm(
+      selectedRowIndexes,
+      effectiveAccountId,
+      importName,
+      transferLinks,
+    );
   };
 
-  const handleCreateAccount = async (accountPayload: AccountFormSubmitPayload) => {
+  const handleCreateAccount = async (
+    accountPayload: AccountFormSubmitPayload,
+  ) => {
     try {
       const result = await createAccountMutation.mutateAsync(accountPayload);
       const createdAccount = result as { id: string; name: string };
@@ -512,6 +628,23 @@ export function TransactionPreview({
       toast.error("Failed to create account");
     }
   };
+
+  const selectedAccount = accounts.find(
+    (account) => account.id === effectiveAccountId,
+  );
+  const detailRow = detailRowIndex !== null ? rows[detailRowIndex] : null;
+  const detailWarnings =
+    detailRowIndex !== null ? (warningsByIndex.get(detailRowIndex) ?? []) : [];
+  const detailTransferPairCandidate =
+    detailRowIndex !== null
+      ? transferPairCandidatesByIndex.get(detailRowIndex)
+      : undefined;
+  const detailIsLinkEnabled =
+    detailRowIndex !== null
+      ? getTransferDecision(detailRowIndex) === "link"
+      : false;
+  const detailRawEntries = detailRow ? Object.entries(detailRow.raw) : [];
+  const detailMetadata = detailRow?.metadata ?? [];
 
   return (
     <div className="space-y-5">
@@ -562,7 +695,10 @@ export function TransactionPreview({
           {hasAccounts ? (
             <div className="flex items-center gap-3">
               <Label className="whitespace-nowrap">Import into</Label>
-              <Select value={effectiveAccountId} onValueChange={(value) => setAccountId(value)}>
+              <Select
+                value={effectiveAccountId}
+                onValueChange={(value) => setAccountId(value)}
+              >
                 <SelectTrigger className="text-sm max-w-xs">
                   <SelectValue />
                 </SelectTrigger>
@@ -579,7 +715,8 @@ export function TransactionPreview({
           ) : (
             <Card className="p-3 border-warning/30 space-y-3">
               <p className="text-sm text-warning">
-                No accounts yet. Create an account to choose where these transactions will be imported.
+                No accounts yet. Create an account to choose where these
+                transactions will be imported.
               </p>
               <Button
                 type="button"
@@ -646,7 +783,8 @@ export function TransactionPreview({
           >
             <Link2 size={14} className="text-dimmed" />
             <span className="text-sm text-dimmed font-medium hover:underline">
-              {stats.transferMatchCount} transfer match{stats.transferMatchCount !== 1 ? "es" : ""}
+              {stats.transferMatchCount} transfer match
+              {stats.transferMatchCount !== 1 ? "es" : ""}
               {stats.linkedTransferCount > 0
                 ? ` · ${stats.linkedTransferCount} link${stats.linkedTransferCount !== 1 ? "s" : ""} enabled`
                 : ""}
@@ -659,7 +797,6 @@ export function TransactionPreview({
 
       {/* Transaction table */}
       {(() => {
-        // Filter rows if warnings-only mode is active
         const filteredRows = rows
           .map((row, idx) => ({ row, idx }))
           .filter(({ idx }) => {
@@ -685,10 +822,6 @@ export function TransactionPreview({
         const start = currentPage * pageSize;
         const end = Math.min(start + pageSize, filteredRows.length);
         const displayRows = filteredRows.slice(start, end);
-        const columnCount = 7
-          + (hasTime ? 1 : 0)
-          + (hasTransactionId ? 1 : 0)
-          + (hasCurrency ? 1 : 0);
 
         return (
           <div className="rounded-(--radius-md) border border-border overflow-hidden">
@@ -705,37 +838,16 @@ export function TransactionPreview({
                       />
                     </th>
                     <th className="px-3 py-2.5 text-left text-dimmed font-medium">
-                      Date
-                    </th>
-                    {hasTime && (
-                      <th className="px-3 py-2.5 text-left text-dimmed font-medium">
-                        Time
-                      </th>
-                    )}
-                    <th className="px-3 py-2.5 text-left text-dimmed font-medium">
                       Description
                     </th>
-                    {hasTransactionId && (
-                      <th className="px-3 py-2.5 text-left text-dimmed font-medium">
-                        Transaction ID
-                      </th>
-                    )}
-                    <th className="px-3 py-2.5 text-left text-dimmed font-medium">
-                      Category
-                    </th>
-                    <th className="px-3 py-2.5 text-left text-dimmed font-medium">
-                      Transfer
-                    </th>
-                    {hasCurrency && (
-                      <th className="px-3 py-2.5 text-left text-dimmed font-medium">
-                        Currency
-                      </th>
-                    )}
                     <th className="px-3 py-2.5 text-right text-dimmed font-medium">
                       Amount
                     </th>
-                    <th className="px-3 py-2.5 text-center text-dimmed font-medium w-10">
+                    <th className="px-3 py-2.5 text-left text-dimmed font-medium">
                       Status
+                    </th>
+                    <th className="px-3 py-2.5 text-right text-dimmed font-medium">
+                      Details
                     </th>
                   </tr>
                 </thead>
@@ -745,17 +857,60 @@ export function TransactionPreview({
                     const isDuplicate = duplicateIndexes.has(idx);
                     const rowWarnings = warningsByIndex.get(idx) ?? [];
                     const hasWarnings = rowWarnings.length > 0;
-                    const transferPairCandidate = transferPairCandidatesByIndex.get(idx);
+                    const transferPairCandidate =
+                      transferPairCandidatesByIndex.get(idx);
                     const transferDecision = getTransferDecision(idx);
-                    const isLinkEnabled = transferDecision === 'link';
-                    const isMatchPreviewOpen = expandedMatchRowIndex === idx;
+                    const isLinkEnabled = transferDecision === "link";
+                    const rowType = getParsedRowType(
+                      row,
+                      transferPairCandidate,
+                      isLinkEnabled,
+                    );
+                    const statusBadges = [
+                      row.errors.length > 0 ? (
+                        <Badge key="parser-issue" color="var(--warning)">
+                          Parser issue
+                        </Badge>
+                      ) : null,
+                      isDuplicate ? (
+                        <Badge key="duplicate" color="var(--warning)">
+                          Duplicate
+                        </Badge>
+                      ) : null,
+                      possibleMatchIndexes.has(idx) ? (
+                        <Badge key="possible-match" color="var(--warning)">
+                          Possible match
+                        </Badge>
+                      ) : null,
+                      transferPairCandidate ? (
+                        <Badge key="transfer-match" variant="transfer">
+                          Transfer match
+                        </Badge>
+                      ) : null,
+                      transferPairCandidate?.isAlreadyLinked ? (
+                        <Badge key="already-linked" color="var(--warning)">
+                          Already linked elsewhere
+                        </Badge>
+                      ) : null,
+                      transferPairCandidate &&
+                      !transferPairCandidate.isAlreadyLinked ? (
+                        <Badge
+                          key="link-decision"
+                          variant={isLinkEnabled ? "transfer" : "muted"}
+                        >
+                          {isLinkEnabled ? "Link on import" : "Keep separate"}
+                        </Badge>
+                      ) : null,
+                    ].filter(Boolean);
 
                     return (
                       <Fragment key={idx}>
                         <tr
                           onClick={() => toggleRow(idx)}
                           className={cn(
-                            "border-b border-border transition-colors",
+                            hasWarnings
+                              ? "transition-colors"
+                              : "border-b border-border transition-colors",
                             isSelected
                               ? "hover:bg-secondary/50"
                               : isDuplicate
@@ -773,71 +928,17 @@ export function TransactionPreview({
                               className="cursor-pointer accent-text"
                             />
                           </td>
-                          <td className="px-3 py-2.5 text-muted-foreground whitespace-nowrap">
-                            {row.date ? formatDate(row.date) : "—"}
-                          </td>
-                          {hasTime && (
-                            <td className="px-3 py-2.5 text-muted-foreground whitespace-nowrap">
-                              {row.time ? row.time.slice(0, 5) : "—"}
-                            </td>
-                          )}
                           <td className="px-3 py-2.5 text-foreground">
-                            <span className="break-words">
-                              {row.description || "—"}
-                            </span>
+                            <div className="min-w-0">
+                              <p className="break-words font-medium text-foreground">
+                                {row.description || "—"}
+                              </p>
+                              <p className="mt-1 text-sm text-dimmed">
+                                {row.date ? formatDate(row.date) : "—"} ·{" "}
+                                {rowType}
+                              </p>
+                            </div>
                           </td>
-                          {hasTransactionId && (
-                            <td className="px-3 py-2.5 text-dimmed font-mono whitespace-nowrap">
-                              {row.transactionId || "—"}
-                            </td>
-                          )}
-                          <td className="px-3 py-2.5 text-dimmed">
-                            {row.category || "—"}
-                          </td>
-                          <td className="px-3 py-2.5 text-dimmed">
-                            {transferPairCandidate ? (
-                              <div className="flex items-center gap-2" onClick={(event) => event.stopPropagation()}>
-                                <button
-                                  type="button"
-                                  aria-pressed={isLinkEnabled}
-                                  onClick={() => toggleTransferLinkDecision(idx)}
-                                  title={isLinkEnabled
-                                    ? "Linked on import. Click to keep transactions separate."
-                                    : "Keep separate. Click to link this row with the matched transfer."
-                                  }
-                                  aria-label={isLinkEnabled
-                                    ? "Linked on import. Click to keep separate"
-                                    : "Keep separate. Click to link"
-                                  }
-                                  className={cn(
-                                    "inline-flex items-center gap-1 rounded-(--radius-sm) border px-2 py-0.5 text-sm transition-colors",
-                                    isLinkEnabled
-                                      ? "border-transfer/40 bg-transfer/10 text-transfer"
-                                      : "border-border bg-transparent text-dimmed hover:text-foreground",
-                                  )}
-                                >
-                                  {isLinkEnabled ? <Link2 size={12} /> : <Link2Off size={12} />}
-                                  <span>Link</span>
-                                </button>
-                                <button
-                                  type="button"
-                                  onClick={() => toggleMatchPreview(idx)}
-                                  className="inline-flex items-center justify-center h-6 w-6 rounded-(--radius-sm) border border-border bg-transparent text-dimmed hover:text-foreground hover:border-dimmed transition-colors"
-                                  title={`View matched transaction in ${transferPairCandidate.accountName}`}
-                                  aria-label={`View matched transaction in ${transferPairCandidate.accountName}`}
-                                >
-                                  <Eye size={12} />
-                                </button>
-                              </div>
-                            ) : (
-                              <span className="text-sm text-dimmed">—</span>
-                            )}
-                          </td>
-                          {hasCurrency && (
-                            <td className="px-3 py-2.5 text-dimmed">
-                              {row.currency || "—"}
-                            </td>
-                          )}
                           <td
                             className={cn(
                               "px-3 py-2.5 text-right font-medium whitespace-nowrap",
@@ -850,50 +951,50 @@ export function TransactionPreview({
                               row.currency || selectedAccountCurrency,
                             )}
                           </td>
-                          <td className="px-3 py-2.5 text-center">
-                            {hasWarnings ? (
-                              <span title={rowWarnings.join(", ")}>
-                                <AlertTriangle
-                                  size={14}
-                                  className="text-warning inline"
-                                />
-                              </span>
+                          <td className="px-3 py-2.5">
+                            {statusBadges.length > 0 ? (
+                              <div className="flex flex-wrap gap-2">
+                                {statusBadges}
+                              </div>
                             ) : (
-                              <Check size={14} className="text-income inline" />
+                              <span className="inline-flex items-center text-income" title="Ready">
+                                <Check size={14} />
+                              </span>
                             )}
+                          </td>
+                          <td className="px-3 py-2.5 text-right">
+                            <Button
+                              type="button"
+                              variant="outline"
+                              size="sm"
+                              title="View transaction details"
+                              aria-label="View transaction details"
+                              onClick={(event) => {
+                                event.stopPropagation();
+                                setDetailRowIndex(idx);
+                              }}
+                            >
+                              <Eye size={14} />
+                            </Button>
                           </td>
                         </tr>
 
-                        {transferPairCandidate && isMatchPreviewOpen && (
-                          <tr className="border-b border-border bg-card/40">
-                            <td colSpan={columnCount} className="px-3 py-2.5">
-                              <div className="rounded-(--radius-sm) border border-border bg-background p-3 space-y-2">
-                                <div className="flex items-center justify-between gap-2">
-                                  <span className="text-base text-foreground">Matched transaction</span>
-                                  {transferPairCandidate.isAlreadyLinked && (
-                                    <span className="text-sm text-warning">Existing link (will overwrite)</span>
-                                  )}
-                                </div>
-                                <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-4 gap-y-1">
-                                  <div className="text-sm text-dimmed">
-                                    Account: <span className="text-foreground">{transferPairCandidate.accountName}</span>
+                        {hasWarnings && (
+                          <tr className="border-b border-border bg-warning/[0.04]">
+                            <td colSpan={5} className="px-3 py-3">
+                              <div className="space-y-2">
+                                {rowWarnings.map((warning, warningIndex) => (
+                                  <div
+                                    key={`${idx}-${warningIndex}`}
+                                    className="flex items-start gap-2 text-sm text-warning"
+                                  >
+                                    <AlertTriangle
+                                      size={14}
+                                      className="mt-0.5 shrink-0"
+                                    />
+                                    <span>{warning}</span>
                                   </div>
-                                  <div className="text-sm text-dimmed">
-                                    Date: <span className="text-foreground">{formatDate(transferPairCandidate.date)}</span>
-                                  </div>
-                                  <div className="text-sm text-dimmed">
-                                    Time: <span className="text-foreground">{transferPairCandidate.time ? transferPairCandidate.time.slice(0, 5) : "—"}</span>
-                                  </div>
-                                  <div className="text-sm text-dimmed">
-                                    Amount: <span className="text-foreground" style={{ fontFamily: "var(--font-display)" }}>{formatSignedCurrency(transferPairCandidate.amount, transferPairCandidate.currency)}</span>
-                                  </div>
-                                  <div className="text-sm text-dimmed sm:col-span-2">
-                                    Description: <span className="text-foreground">{transferPairCandidate.description || "—"}</span>
-                                  </div>
-                                  <div className="text-sm text-dimmed sm:col-span-2">
-                                    Transaction ID: <span className="text-foreground font-mono">{transferPairCandidate.transactionId || "—"}</span>
-                                  </div>
-                                </div>
+                                ))}
                               </div>
                             </td>
                           </tr>
@@ -909,11 +1010,17 @@ export function TransactionPreview({
               <div className="flex items-center justify-between px-3 py-2 text-sm text-dimmed bg-card border-t border-border">
                 <div className="flex items-center gap-1.5">
                   <span>Rows</span>
-                  <Select value={String(pageSize)} onValueChange={(value) => {
-                    setPageSize(Number(value));
-                    setPage(0);
-                  }}>
-                    <SelectTrigger size="sm" className="w-auto bg-transparent border-border px-1 py-0.5 h-auto text-sm text-muted-foreground">
+                  <Select
+                    value={String(pageSize)}
+                    onValueChange={(value) => {
+                      setPageSize(Number(value));
+                      setPage(0);
+                    }}
+                  >
+                    <SelectTrigger
+                      size="sm"
+                      className="w-auto bg-transparent border-border px-1 py-0.5 h-auto text-sm text-muted-foreground"
+                    >
                       <SelectValue />
                     </SelectTrigger>
                     <SelectContent>
@@ -928,12 +1035,255 @@ export function TransactionPreview({
                 <span>
                   {start + 1}–{end} of {filteredRows.length}
                 </span>
-                <PaginationButtons page={currentPage} totalPages={totalPages} onPageChange={setPage} />
+                <PaginationButtons
+                  page={currentPage}
+                  totalPages={totalPages}
+                  onPageChange={setPage}
+                />
               </div>
             )}
           </div>
         );
       })()}
+
+      {detailRow && (
+        <Dialog
+          open
+          onOpenChange={(open) => {
+            if (!open) setDetailRowIndex(null);
+          }}
+        >
+          <DialogContent className="max-w-3xl" showCloseButton={false}>
+            <DialogHeader>
+              <DialogTitle>Transaction Details</DialogTitle>
+            </DialogHeader>
+
+            <div className="max-h-[70vh] space-y-4 overflow-y-auto pr-1">
+              {detailWarnings.length > 0 && (
+                <Card className="border-warning/30 bg-warning/[0.06] p-3 space-y-2">
+                  <div className="flex items-center gap-2 text-warning">
+                    <AlertTriangle size={16} />
+                    <span className="text-base text-foreground">Warnings</span>
+                  </div>
+                  {detailWarnings.map((warning, warningIndex) => (
+                    <div
+                      key={`detail-warning-${warningIndex}`}
+                      className="flex items-start gap-2 text-sm text-warning"
+                    >
+                      <AlertTriangle size={14} className="mt-0.5 shrink-0" />
+                      <span>{warning}</span>
+                    </div>
+                  ))}
+                </Card>
+              )}
+
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <PreviewField
+                  label="Description"
+                  value={detailRow.description || "—"}
+                />
+                <PreviewField
+                  label="Transaction reference"
+                  value={detailRow.transactionId || "—"}
+                  mono
+                />
+              </div>
+
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                <PreviewField
+                  label="Type"
+                  value={getParsedRowType(
+                    detailRow,
+                    detailTransferPairCandidate,
+                    detailIsLinkEnabled,
+                  )}
+                />
+                <PreviewField
+                  label="Amount"
+                  value={formatSignedCurrency(
+                    detailRow.amount,
+                    detailRow.currency || selectedAccountCurrency,
+                  )}
+                />
+                <PreviewField
+                  label="Currency"
+                  value={detailRow.currency || selectedAccountCurrency}
+                />
+              </div>
+
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                <PreviewField
+                  label="Date"
+                  value={detailRow.date ? formatDate(detailRow.date) : "—"}
+                />
+                <PreviewField
+                  label="Time"
+                  value={detailRow.time ? detailRow.time.slice(0, 5) : "—"}
+                />
+                <PreviewField
+                  label="Account"
+                  value={
+                    selectedAccount
+                      ? `${selectedAccount.name} (${selectedAccount.currency})`
+                      : "—"
+                  }
+                />
+              </div>
+
+              <PreviewField
+                label="Category"
+                value={getParsedRowCategory(
+                  detailRow,
+                  detailTransferPairCandidate,
+                  detailIsLinkEnabled,
+                )}
+              />
+
+              {detailTransferPairCandidate && detailRowIndex !== null && (
+                <Card className="p-3 space-y-3">
+                  <div className="flex flex-wrap items-start justify-between gap-3">
+                    <div className="space-y-1">
+                      <div className="flex flex-wrap items-center gap-2">
+                        <Badge variant="transfer">Transfer match</Badge>
+                        {detailTransferPairCandidate.isAlreadyLinked && (
+                          <Badge color="var(--warning)">
+                            Already linked elsewhere
+                          </Badge>
+                        )}
+                      </div>
+                      <p className="text-sm text-dimmed">
+                        Matched against an existing transaction in{" "}
+                        {detailTransferPairCandidate.accountName}.
+                      </p>
+                    </div>
+
+                    {detailTransferPairCandidate.isAlreadyLinked ? (
+                      <span className="text-sm text-warning">
+                        This row will stay separate until that existing link is
+                        removed.
+                      </span>
+                    ) : (
+                      <Button
+                        type="button"
+                        variant={detailIsLinkEnabled ? "default" : "outline"}
+                        onClick={() =>
+                          toggleTransferLinkDecision(detailRowIndex)
+                        }
+                      >
+                        {detailIsLinkEnabled ? (
+                          <Link2 size={14} />
+                        ) : (
+                          <Link2Off size={14} />
+                        )}
+                        {detailIsLinkEnabled
+                          ? "Linked on Import"
+                          : "Keep Separate"}
+                      </Button>
+                    )}
+                  </div>
+
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <PreviewField
+                      label="Matched account"
+                      value={detailTransferPairCandidate.accountName}
+                    />
+                    <PreviewField
+                      label="Matched amount"
+                      value={formatSignedCurrency(
+                        detailTransferPairCandidate.amount,
+                        detailTransferPairCandidate.currency,
+                      )}
+                    />
+                    <PreviewField
+                      label="Matched date"
+                      value={formatDate(detailTransferPairCandidate.date)}
+                    />
+                    <PreviewField
+                      label="Matched time"
+                      value={
+                        detailTransferPairCandidate.time
+                          ? detailTransferPairCandidate.time.slice(0, 5)
+                          : "—"
+                      }
+                    />
+                    <PreviewField
+                      label="Matched description"
+                      value={detailTransferPairCandidate.description || "—"}
+                    />
+                    <PreviewField
+                      label="Matched transaction reference"
+                      value={detailTransferPairCandidate.transactionId || "—"}
+                      mono
+                    />
+                  </div>
+                </Card>
+              )}
+
+              {detailMetadata.length > 0 && (
+                <Card className="p-3 space-y-3">
+                  <div>
+                    <h3 className="text-base text-foreground">
+                      Imported metadata
+                    </h3>
+                    <p className="text-sm text-dimmed">
+                      Metadata extracted by the parser for this row.
+                    </p>
+                  </div>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                    {detailMetadata.map((entry, metadataIndex) => (
+                      <div
+                        key={`${entry.key}-${metadataIndex}`}
+                        className="rounded-(--radius-sm) border border-border p-3"
+                      >
+                        <p className="text-sm text-dimmed">{entry.key}</p>
+                        <p className="mt-1 text-sm text-foreground break-words">
+                          {entry.value || "—"}
+                        </p>
+                      </div>
+                    ))}
+                  </div>
+                </Card>
+              )}
+
+              {detailRawEntries.length > 0 && (
+                <Card className="p-3 space-y-3">
+                  <div>
+                    <h3 className="text-base text-foreground">
+                      Raw import fields
+                    </h3>
+                    <p className="text-sm text-dimmed">
+                      Original values from the CSV row before import.
+                    </p>
+                  </div>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                    {detailRawEntries.map(([key, value]) => (
+                      <div
+                        key={key}
+                        className="rounded-(--radius-sm) border border-border p-3"
+                      >
+                        <p className="text-sm text-dimmed break-all">{key}</p>
+                        <p className="mt-1 text-sm text-foreground break-words">
+                          {value || "—"}
+                        </p>
+                      </div>
+                    ))}
+                  </div>
+                </Card>
+              )}
+            </div>
+
+            <DialogFooter>
+              <Button
+                type="button"
+                variant="outline"
+                onClick={() => setDetailRowIndex(null)}
+              >
+                Close
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
+      )}
 
       {/* Actions */}
       <div className="flex gap-3">

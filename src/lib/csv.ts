@@ -148,6 +148,15 @@ export function extractAccountIdentifier(skippedRows: string[][], pattern: strin
   return null;
 }
 
+export function normalizeAccountIdentifier(value: string | null | undefined): string | null {
+  if (typeof value !== 'string') {
+    return null;
+  }
+
+  const normalized = value.toUpperCase().replace(/[^A-Z0-9]/g, '');
+  return normalized || null;
+}
+
 // ─── Parser Matching ─────────────────────────────────────────
 
 export interface MatchResult {

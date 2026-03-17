@@ -15,6 +15,7 @@ from app.schemas.import_batch import (
     ImportBatchResponse,
     ImportBatchUpdate,
 )
+from app.services.transfer_pairs import clear_counterpart_transfer_links
 
 router = APIRouter(prefix="/api/import-batches", tags=["import-batches"])
 
@@ -112,7 +113,10 @@ async def delete_import_batch(
     linked = await db.execute(
         select(Transaction).where(Transaction.import_batch_id == batch_id)
     )
-    for txn in linked.scalars().all():
+    linked_transactions = list(linked.scalars().all())
+    await clear_counterpart_transfer_links(db, user.id, linked_transactions)
+
+    for txn in linked_transactions:
         await db.delete(txn)
 
     await db.delete(batch)

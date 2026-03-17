@@ -9,7 +9,7 @@ from typing import Any
 
 from fastapi import APIRouter, Depends, Form, HTTPException, Query, UploadFile, status
 from pydantic import BaseModel, Field, ValidationError
-from sqlalchemy import func, select
+from sqlalchemy import case, func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
@@ -17,6 +17,7 @@ from app.deps import get_current_user, get_db, verify_csrf
 from app.models.account import Account
 from app.models.automation_rule import AutomationRule
 from app.models.category import Category
+from app.models.category_group import CategoryGroup
 from app.models.csv_parser import CsvParser
 from app.models.import_batch import ImportBatch
 from app.models.transaction import Transaction
@@ -179,6 +180,29 @@ async def _load_uncategorized_category_id(
     return result.scalar_one_or_none()
 
 
+async def _load_default_transfer_category_id(
+    db: AsyncSession,
+    user_id: uuid.UUID,
+) -> uuid.UUID | None:
+    result = await db.execute(
+        select(Category.id)
+        .join(CategoryGroup, Category.group_id == CategoryGroup.id)
+        .where(
+            Category.user_id == user_id,
+            CategoryGroup.user_id == user_id,
+            CategoryGroup.type == "transfer",
+            Category.is_hidden.is_(False),
+        )
+        .order_by(
+            case((func.lower(Category.name) == "transfer", 0), else_=1),
+            Category.is_default.desc(),
+            Category.created_at,
+        )
+        .limit(1)
+    )
+    return result.scalar_one_or_none()
+
+
 def _parse_time(value: str | None, row_index: int) -> time_type | None:
     if not value:
         return None
@@ -283,12 +307,44 @@ def _apply_uncategorized_fallback(
             txn_dict["category_id"] = uncategorized_category_id_str
 
 
+def _is_uncategorized_or_empty_category(
+    category_id: str | uuid.UUID | None,
+    uncategorized_category_id: uuid.UUID | None,
+) -> bool:
+    if category_id is None:
+        return True
+    if uncategorized_category_id is None:
+        return False
+    return str(category_id) == str(uncategorized_category_id)
+
+
+def _apply_transfer_category_fallback(
+    txn_dicts: list[dict[str, Any]],
+    transfer_category_id: uuid.UUID | None,
+    uncategorized_category_id: uuid.UUID | None,
+) -> None:
+    if transfer_category_id is None:
+        return
+
+    transfer_category_id_str = str(transfer_category_id)
+    for txn_dict in txn_dicts:
+        if not txn_dict.get("transfer_pair_id"):
+            continue
+        if _is_uncategorized_or_empty_category(
+            txn_dict.get("category_id"),
+            uncategorized_category_id,
+        ):
+            txn_dict["category_id"] = transfer_category_id_str
+
+
 async def _apply_transfer_links(
     db: AsyncSession,
     user: User,
     transfer_links: list[ImportTransferLink],
     selected_row_indexes: list[int],
     txn_dicts_by_row_index: dict[int, dict[str, Any]],
+    transfer_category_id: uuid.UUID | None,
+    uncategorized_category_id: uuid.UUID | None,
 ) -> None:
     if not transfer_links:
         return
@@ -372,6 +428,11 @@ async def _apply_transfer_links(
         imported_txn["transfer_pair_role"] = imported_role
         matched_transaction.transfer_pair_id = pair_id
         matched_transaction.transfer_pair_role = matched_role
+        if _is_uncategorized_or_empty_category(
+            matched_transaction.category_id,
+            uncategorized_category_id,
+        ) and transfer_category_id is not None:
+            matched_transaction.category_id = transfer_category_id
 
         seen_row_indexes.add(link.row_index)
         seen_transaction_ids.add(link.matched_transaction_id)
@@ -432,6 +493,7 @@ async def import_csv(
     content = (await file.read()).decode("utf-8-sig")
     parser_config, parser_name = await _load_parser_config(db, user.id, import_request.parser_id)
     uncategorized_category_id = await _load_uncategorized_category_id(db, user.id)
+    transfer_category_id = await _load_default_transfer_category_id(db, user.id)
 
     parse_result = parse_csv_file(content, parser_config)
     if not parse_result.rows:
@@ -508,6 +570,13 @@ async def import_csv(
         import_request.transfer_links,
         selected_row_indexes,
         txn_dicts_by_row_index,
+        transfer_category_id,
+        uncategorized_category_id,
+    )
+    _apply_transfer_category_fallback(
+        txn_dicts,
+        transfer_category_id,
+        uncategorized_category_id,
     )
     _apply_uncategorized_fallback(txn_dicts, uncategorized_category_id)
 

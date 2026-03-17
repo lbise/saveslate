@@ -1,11 +1,15 @@
-"""Transfer pair validation and normalization logic.
+"""Transfer pair validation, normalization, and cleanup helpers."""
 
-Ported from frontend src/lib/transaction-storage.ts normalizeTransferPairs().
-"""
-
+import uuid
+from collections.abc import Sequence
 from datetime import timedelta
 from decimal import Decimal
 from typing import Any
+
+from sqlalchemy import select
+from sqlalchemy.ext.asyncio import AsyncSession
+
+from app.models.transaction import Transaction
 
 
 def normalize_transfer_pairs(
@@ -124,3 +128,32 @@ def validate_transfer_pair(txn_a: dict[str, Any], txn_b: dict[str, Any]) -> list
             pass
 
     return errors
+
+
+async def clear_counterpart_transfer_links(
+    db: AsyncSession,
+    user_id: uuid.UUID,
+    transactions: Sequence[Transaction],
+) -> None:
+    """Clear transfer metadata on surviving counterparts of deleted transactions."""
+    transaction_ids = [txn.id for txn in transactions]
+    pair_ids = {
+        txn.transfer_pair_id
+        for txn in transactions
+        if txn.transfer_pair_id
+    }
+
+    if not transaction_ids or not pair_ids:
+        return
+
+    result = await db.execute(
+        select(Transaction).where(
+            Transaction.user_id == user_id,
+            Transaction.transfer_pair_id.in_(pair_ids),
+            Transaction.id.not_in(transaction_ids),
+        )
+    )
+
+    for counterpart in result.scalars().all():
+        counterpart.transfer_pair_id = None
+        counterpart.transfer_pair_role = None
