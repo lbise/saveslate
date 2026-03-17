@@ -1307,7 +1307,7 @@ export function Transactions() {
               <button
                 type="button"
                 className={cn(
-                  "flex h-10 items-center gap-2 rounded-md border border-border bg-card px-4 text-left text-sm text-foreground transition-colors cursor-pointer",
+                  "flex h-10 min-w-0 items-center gap-2 rounded-md border border-border bg-card px-4 text-left text-sm text-foreground transition-colors cursor-pointer",
                   activeSourceFilterIds.length > 0 && "border-primary/40",
                   "w-full lg:flex-1 lg:min-w-0",
                 )}
@@ -1315,7 +1315,7 @@ export function Transactions() {
                 <span className={cn("shrink-0", activeSourceFilterIds.length > 0 ? "text-primary" : "text-dimmed")}>
                   <Upload size={14} />
                 </span>
-                <span className="flex-1 truncate">{sourceFilterLabel}</span>
+                <span className="min-w-0 flex-1 truncate">{sourceFilterLabel}</span>
                 <ChevronDown
                   size={14}
                   className={cn(
@@ -1343,7 +1343,7 @@ export function Transactions() {
                   checked={activeSourceFilterIds.length === 0}
                   onCheckedChange={() => setSourceFilterIds([])}
                 />
-                <span className="text-sm text-muted-foreground flex-1 truncate">Sources</span>
+                <span className="min-w-0 flex-1 truncate text-sm text-muted-foreground">Sources</span>
               </label>
 
               <Separator className="mx-1 my-1 w-auto" />
@@ -1355,10 +1355,10 @@ export function Transactions() {
                   sourceOptions.map((source) => {
                     const isSelected = activeSourceFilterIds.includes(source.id);
                     return (
-                      <div key={source.id} className="group flex items-center gap-1">
+                      <div key={source.id} className="group flex min-w-0 items-center gap-1">
                         <label
                           className={cn(
-                            "flex items-center gap-2 flex-1 px-2 py-2 rounded-sm cursor-pointer transition-colors",
+                            "flex min-w-0 flex-1 items-center gap-2 rounded-sm px-2 py-2 transition-colors cursor-pointer",
                             isSelected
                               ? "bg-foreground/10 text-foreground"
                               : "text-muted-foreground hover:text-foreground hover:bg-secondary",
@@ -1368,7 +1368,7 @@ export function Transactions() {
                             checked={isSelected}
                             onCheckedChange={() => toggleSourceFilter(source.id)}
                           />
-                          <span className="text-sm text-muted-foreground flex-1 truncate">{source.label}</span>
+                          <span className="min-w-0 flex-1 truncate text-sm text-muted-foreground">{source.label}</span>
                           <span className="text-sm text-dimmed">{source.count}</span>
                         </label>
 

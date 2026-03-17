@@ -72,13 +72,13 @@ export function MultiSelectDropdown({
         <button
           type="button"
           className={cn(
-            "flex h-10 items-center gap-2 rounded-md border border-border bg-card px-4 text-left text-sm text-foreground transition-colors cursor-pointer",
+            "flex h-10 min-w-0 items-center gap-2 rounded-md border border-border bg-card px-4 text-left text-sm text-foreground transition-colors cursor-pointer",
             hasSelection && "border-primary/40",
             className,
           )}
         >
           {icon && <span className={cn("shrink-0", hasSelection ? "text-primary" : "text-dimmed")}>{icon}</span>}
-          <span className="flex-1 truncate">{placeholder && selectedIds.length === 0 ? placeholder : displayLabel}</span>
+          <span className="min-w-0 flex-1 truncate">{placeholder && selectedIds.length === 0 ? placeholder : displayLabel}</span>
           <ChevronDown
             size={14}
             className={cn(
@@ -106,7 +106,7 @@ export function MultiSelectDropdown({
             checked={selectedIds.length === 0}
             onCheckedChange={() => onChange([])}
           />
-          <span className="text-sm text-muted-foreground flex-1 truncate">{allLabel}</span>
+          <span className="min-w-0 flex-1 truncate text-sm text-muted-foreground">{allLabel}</span>
         </label>
 
         <Separator className="mx-1 my-1 w-auto" />
@@ -136,7 +136,7 @@ export function MultiSelectDropdown({
                         checked={isSelected}
                         onCheckedChange={() => toggle(option.id)}
                       />
-                      <span className="text-sm text-muted-foreground flex-1 truncate">{option.label}</span>
+                      <span className="min-w-0 flex-1 truncate text-sm text-muted-foreground">{option.label}</span>
                     </label>
                   );
                 })}
@@ -159,7 +159,7 @@ export function MultiSelectDropdown({
                     checked={isSelected}
                     onCheckedChange={() => toggle(option.id)}
                   />
-                  <span className="text-sm text-muted-foreground flex-1 truncate">{option.label}</span>
+                  <span className="min-w-0 flex-1 truncate text-sm text-muted-foreground">{option.label}</span>
                 </label>
               );
             })
