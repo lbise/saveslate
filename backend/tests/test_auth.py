@@ -254,6 +254,7 @@ class TestCategorySeed:
             group_list = groups.scalars().all()
             assert len(group_list) == 1
             assert group_list[0].name == "System"
+            assert group_list[0].type == "expense"
             assert group_list[0].is_hidden is True
 
             # Check category

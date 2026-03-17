@@ -125,7 +125,7 @@ export function buildMonthlyIncomeExpenseSeries(
 ): MonthlyIncomeExpensePoint[] {
   const { start, end } = getDateRange(period);
   const filtered = getFilteredTransactions(transactions, period).filter(
-    (transaction) => transaction.type === 'income' || transaction.type === 'expense',
+    (transaction) => transaction.categoryType === 'income' || transaction.categoryType === 'expense',
   );
 
   if (filtered.length === 0) {
@@ -167,9 +167,9 @@ export function buildMonthlyIncomeExpenseSeries(
       continue;
     }
 
-    if (transaction.type === 'income') {
+    if (transaction.categoryType === 'income') {
       point.income += transaction.amount;
-    } else if (transaction.type === 'expense') {
+    } else if (transaction.categoryType === 'expense') {
       point.expenses += Math.abs(transaction.amount);
     }
   }
@@ -185,7 +185,8 @@ export function buildCategoryPieSeries(
   period: DateRangePeriod,
   type: 'income' | 'expense',
 ): AnalyticsPieDatum[] {
-  const filtered = getFilteredTransactions(transactions, period).filter((transaction) => transaction.type === type);
+  const filtered = getFilteredTransactions(transactions, period)
+    .filter((transaction) => transaction.categoryType === type);
 
   const totalsByCategory = new Map<string, { label: string; value: number }>();
   for (const transaction of filtered) {
@@ -282,9 +283,9 @@ export function buildSankeyData(
   const filtered = transactions.filter((t) => t.date >= start && t.date <= end);
 
   // 2. Separate by type
-  const incomeTxs = filtered.filter((t) => t.type === 'income');
-  const expenseTxs = filtered.filter((t) => t.type === 'expense');
-  const transferTxs = filtered.filter((t) => t.type === 'transfer');
+  const incomeTxs = filtered.filter((t) => t.categoryType === 'income');
+  const expenseTxs = filtered.filter((t) => t.categoryType === 'expense');
+  const transferTxs = filtered.filter((t) => t.categoryType === 'transfer');
 
   // 3. Aggregate income by category
   const incomeByCategory = new Map<string, { name: string; amount: number }>();

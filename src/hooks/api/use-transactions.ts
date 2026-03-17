@@ -99,7 +99,10 @@ export function useUpdateTransaction() {
   const queryClient = useQueryClient();
 
   return useMutation({
-    mutationFn: ({ id, ...data }: { id: string } & Partial<Transaction>) =>
+    mutationFn: ({ id, ...data }: {
+      id: string;
+      goalId?: string | null;
+    } & Partial<Omit<Transaction, 'goalId'>>) =>
       api.put<Record<string, unknown>>(`/api/transactions/${id}`, data),
     onSuccess: (_, variables) => {
       queryClient.invalidateQueries({ queryKey: ['accounts'] });

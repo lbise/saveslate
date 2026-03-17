@@ -143,7 +143,7 @@ export function TransactionRow({
     transaction.category,
   )
     ? UNCATEGORIZED_ICON_STYLE
-    : iconBoxStyles[type];
+    : iconBoxStyles[transaction.categoryType];
   const transferFlow =
     type === "transfer" && transaction.destinationAccount
       ? resolveTransferFlowAccounts({

@@ -16,9 +16,14 @@ import type {
 } from '../../types';
 import { getTransactionsSorted } from './transactions';
 import { getCategoryById } from '../../lib/category-storage';
+import { getCategoryGroupById } from '../../lib/category-group-storage';
 import { getAccountById } from './accounts';
 import { getActiveGoals, getGoalById } from './goals';
-import { inferTransactionType, UNCATEGORIZED_CATEGORY_ID } from '../../lib/transaction-type';
+import {
+  inferTransactionType,
+  resolveTransactionCategoryType,
+  UNCATEGORIZED_CATEGORY_ID,
+} from '../../lib/transaction-type';
 
 function createTransferCounterpartyMap(transactions: Transaction[]): Map<string, string> {
   const transactionsByPairId = new Map<string, Transaction[]>();
@@ -69,6 +74,12 @@ function toTransactionWithDetails(
   };
 
   const goal = transaction.goalId ? getGoalById(transaction.goalId) : undefined;
+  const categoryGroup = category.groupId ? getCategoryGroupById(category.groupId) : undefined;
+  const categoryType = resolveTransactionCategoryType(
+    transaction,
+    category,
+    new Map(category.groupId && categoryGroup ? [[category.groupId, categoryGroup]] : []),
+  );
 
   const counterpartyAccountId = counterpartyByTransactionId.get(transaction.id);
 
@@ -86,6 +97,7 @@ function toTransactionWithDetails(
   return {
     ...transaction,
     type,
+    categoryType,
     category,
     account,
     destinationAccount,
@@ -110,16 +122,16 @@ export const getMonthlyStats = (): MonthlyStats => {
   );
 
   const totalIncome = monthTransactions
-    .filter((t) => t.type === 'income')
+    .filter((t) => t.categoryType === 'income')
     .reduce((sum, t) => sum + t.amount, 0);
 
   const totalExpenses = monthTransactions
-    .filter((t) => t.type === 'expense')
+    .filter((t) => t.categoryType === 'expense')
     .reduce((sum, t) => sum + t.amount, 0);
 
   const seenTransferPairIds = new Set<string>();
   const totalTransfers = monthTransactions
-    .filter((t) => t.type === 'transfer')
+    .filter((t) => t.categoryType === 'transfer')
     .reduce((sum, t) => {
       if (t.transferPairId) {
         if (seenTransferPairIds.has(t.transferPairId)) {
@@ -149,7 +161,7 @@ export const getCategorySpending = (): CategorySpending[] => {
     .split('T')[0];
 
   const monthExpenses = getTransactionsWithDetails().filter(
-    (t) => t.type === 'expense' && t.date >= startOfMonth
+    (t) => t.categoryType === 'expense' && t.date >= startOfMonth
   );
 
   const totalExpenses = monthExpenses.reduce((sum, t) => sum + t.amount, 0);

@@ -57,6 +57,7 @@ export interface CategoryGroup {
   name: string;
   icon: string;
   order: number;
+  type: TransactionType;
   isDefault?: boolean;
   hidden?: boolean;
   isHidden?: boolean; // API field name (alias for hidden)
@@ -233,6 +234,7 @@ export interface RulesRouteState {
 // Computed/derived types
 export interface TransactionWithDetails extends Transaction {
   type: TransactionType; // Inferred from amount sign + transfer linkage
+  categoryType: TransactionType; // Resolved from category group type with uncategorized fallback
   category: Category;
   account: Account;
   destinationAccount?: Account; // Resolved counterpart account for linked transfers

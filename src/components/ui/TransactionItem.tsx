@@ -1,4 +1,5 @@
 import { ArrowUpRight, ArrowDownLeft, ArrowLeftRight } from 'lucide-react';
+import { getAmountColorClass, iconBoxStyles } from '../../lib/transaction-utils';
 import { cn, resolveTransferFlowAccounts } from '../../lib/utils';
 import { useFormatCurrency } from '../../hooks';
 import type { TransactionType } from '../../types';
@@ -6,6 +7,7 @@ import type { TransactionType } from '../../types';
 interface TransactionItemProps {
   description: string;
   type: TransactionType;
+  categoryType: TransactionType;
   amount: number;
   currency?: string;
   categoryName: string;
@@ -22,34 +24,10 @@ const typeIcons = {
   transfer: ArrowLeftRight,
 };
 
-const iconBoxStyles = {
-  income: 'bg-income/10 text-income',
-  expense: 'bg-expense/10 text-expense',
-  transfer: 'bg-transfer/10 text-transfer',
-};
-
-const amountColors = {
-  income: 'text-income',
-  expense: 'text-expense',
-  transfer: 'text-foreground',
-};
-
-function getAmountColorClass(type: TransactionType, amount: number): string {
-  if (type !== 'transfer') {
-    return amountColors[type];
-  }
-  if (amount > 0) {
-    return 'text-income';
-  }
-  if (amount < 0) {
-    return 'text-expense';
-  }
-  return 'text-foreground';
-}
-
 export function TransactionItem({
   description,
   type,
+  categoryType,
   amount,
   currency,
   categoryName,
@@ -74,7 +52,7 @@ export function TransactionItem({
   return (
     <div className="flex items-center gap-3.5 py-3.5 border-b border-border last:border-b-0 transition-opacity duration-150 hover:opacity-80">
       {/* Icon */}
-      <div className={cn('w-[34px] h-[34px] rounded-(--radius-md) flex items-center justify-center shrink-0', iconBoxStyles[type])}>
+      <div className={cn('w-[34px] h-[34px] rounded-(--radius-md) flex items-center justify-center shrink-0', iconBoxStyles[categoryType])}>
         <TxIcon size={16} />
       </div>
 

@@ -27,6 +27,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
+import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import type { EntityCardTone } from '../components/ui';
 import { cn } from '../lib/utils';
@@ -39,8 +40,10 @@ import {
   useDeleteCategory,
   useCategoryGroups,
   useCreateCategoryGroup,
+  useDeleteCategoryGroup,
+  useUpdateCategoryGroup,
 } from '../hooks/api';
-import type { Category, CategoryGroup } from '../types';
+import type { Category, CategoryGroup, TransactionType } from '../types';
 
 const LOCKED_CATEGORY_IDS = new Set(['transfer']);
 const UNGROUPED_CATEGORY_GROUP_ID = 'ungrouped';
@@ -54,6 +57,58 @@ const GROUP_ENTITY_TONES: Record<string, EntityCardTone> = {
   [UNGROUPED_CATEGORY_GROUP_ID]: 'neutral',
 };
 
+const CATEGORY_TYPE_TONES: Record<TransactionType, EntityCardTone> = {
+  expense: 'expense',
+  income: 'income',
+  transfer: 'transfer',
+};
+
+const CATEGORY_TYPE_OPTIONS: Array<{
+  value: TransactionType;
+  label: string;
+  description: string;
+}> = [
+  {
+    value: 'expense',
+    label: 'Expense',
+    description: 'Counts toward spending analytics.',
+  },
+  {
+    value: 'income',
+    label: 'Income',
+    description: 'Counts toward income analytics.',
+  },
+  {
+    value: 'transfer',
+    label: 'Transfer',
+    description: 'Ignored in analytics as internal movement.',
+  },
+];
+
+function inferCategoryGroupType(value: Record<string, unknown>): TransactionType {
+  if (value.type === 'expense' || value.type === 'income' || value.type === 'transfer') {
+    return value.type;
+  }
+
+  const hints = [value.id, value.name]
+    .filter((entry): entry is string => typeof entry === 'string')
+    .map((entry) => entry.trim().toLowerCase());
+
+  if (hints.some((entry) => entry === 'income')) {
+    return 'income';
+  }
+
+  if (hints.some((entry) => entry.includes('transfer'))) {
+    return 'transfer';
+  }
+
+  return 'expense';
+}
+
+function getCategoryGroupTone(group: Pick<CategoryGroup, 'id' | 'type'> | { id: string; type?: TransactionType }): EntityCardTone {
+  return GROUP_ENTITY_TONES[group.id] ?? (group.type ? CATEGORY_TYPE_TONES[group.type] : 'neutral');
+}
+
 interface ExportedCategoriesFile {
   schemaVersion: number;
   exportedAt: string;
@@ -64,6 +119,16 @@ interface ExportedCategoriesFile {
 }
 
 const CATEGORIES_EXPORT_SCHEMA_VERSION = 1;
+
+interface CategoryGroupSection {
+  id: string;
+  name: string;
+  icon: string;
+  type?: TransactionType;
+  source?: CategoryGroup['source'];
+  order: number;
+  categories: Category[];
+}
 
 function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === 'object' && value !== null;
@@ -115,6 +180,7 @@ function parseImportedCategoryGroup(entry: unknown, index: number): CategoryGrou
     order: typeof entry.order === 'number' && Number.isFinite(entry.order)
       ? entry.order
       : index + 1,
+    type: inferCategoryGroupType(entry),
     isDefault: false,
   };
 }
@@ -175,6 +241,8 @@ export function Categories() {
   const updateCategoryMutation = useUpdateCategory();
   const deleteCategoryMutation = useDeleteCategory();
   const createCategoryGroupMutation = useCreateCategoryGroup();
+  const updateCategoryGroupMutation = useUpdateCategoryGroup();
+  const deleteCategoryGroupMutation = useDeleteCategoryGroup();
 
   const allCategories = useMemo(() => categoriesResult.data ?? [], [categoriesResult.data]);
   const allCategoryGroups = useMemo(
@@ -183,12 +251,20 @@ export function Categories() {
   );
 
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
+  const [isGroupModalOpen, setIsGroupModalOpen] = useState(false);
   const [editingCategoryId, setEditingCategoryId] = useState<string | null>(null);
+  const [editingGroupId, setEditingGroupId] = useState<string | null>(null);
   const [categoryToDelete, setCategoryToDelete] = useState<Category | null>(null);
+  const [groupToDelete, setGroupToDelete] = useState<{ id: string; name: string } | null>(null);
   const [form, setForm] = useState<{ name: string; icon: string; groupId: string }>({
     name: '',
     icon: 'CircleDot',
     groupId: UNGROUPED_CATEGORY_GROUP_ID,
+  });
+  const [groupForm, setGroupForm] = useState<{ name: string; icon: string; type: TransactionType }>({
+    name: '',
+    icon: 'Folder',
+    type: 'expense',
   });
 
   const categories = useMemo(
@@ -215,6 +291,7 @@ export function Categories() {
             name: group.name,
             icon: group.icon,
             order: group.order,
+            type: group.type,
             isDefault: false,
           });
           // Map old group ID to newly created server ID
@@ -260,10 +337,13 @@ export function Categories() {
   );
 
   const groupedCategories = useMemo(() => {
-    const groups = orderedGroups.map((group) => ({
+    const groups: CategoryGroupSection[] = orderedGroups.map((group) => ({
       id: group.id,
       name: group.name,
       icon: group.icon,
+      type: group.type,
+      source: group.source,
+      order: group.order,
       categories: [] as Category[],
     }));
 
@@ -285,6 +365,9 @@ export function Categories() {
         id: UNGROUPED_CATEGORY_GROUP_ID,
         name: 'Ungrouped',
         icon: 'FolderOpen',
+        type: undefined,
+        source: undefined,
+        order: Number.MAX_SAFE_INTEGER,
         categories: ungrouped,
       });
     }
@@ -309,6 +392,18 @@ export function Categories() {
     setIsCreateModalOpen(true);
   };
 
+  const openCreateGroupModal = () => {
+    setGroupForm({
+      name: '',
+      icon: 'Folder',
+      type: 'expense',
+    });
+    setEditingGroupId(null);
+    iconPicker.setIconSearchQuery('');
+    iconPicker.setIsIconPickerOpen(false);
+    setIsGroupModalOpen(true);
+  };
+
   const openEditModal = (category: Category) => {
     if (LOCKED_CATEGORY_IDS.has(category.id)) {
       return;
@@ -325,9 +420,27 @@ export function Categories() {
     setIsCreateModalOpen(true);
   };
 
+  const openEditGroupModal = (group: Pick<CategoryGroupSection, 'id' | 'name' | 'icon' | 'type'>) => {
+    setGroupForm({
+      name: group.name,
+      icon: group.icon,
+      type: group.type ?? 'expense',
+    });
+    setEditingGroupId(group.id);
+    iconPicker.setIconSearchQuery('');
+    iconPicker.setIsIconPickerOpen(false);
+    setIsGroupModalOpen(true);
+  };
+
   const closeModal = () => {
     setIsCreateModalOpen(false);
     setEditingCategoryId(null);
+    iconPicker.setIsIconPickerOpen(false);
+  };
+
+  const closeGroupModal = () => {
+    setIsGroupModalOpen(false);
+    setEditingGroupId(null);
     iconPicker.setIsIconPickerOpen(false);
   };
 
@@ -337,6 +450,10 @@ export function Categories() {
     }
 
     setCategoryToDelete(category);
+  };
+
+  const requestDeleteGroup = (group: Pick<CategoryGroupSection, 'id' | 'name'>) => {
+    setGroupToDelete({ id: group.id, name: group.name });
   };
 
   const handleConfirmDeleteCategory = () => {
@@ -357,6 +474,23 @@ export function Categories() {
         toast.success("Category deleted");
       },
       onError: (err) => toast.error(err instanceof Error ? err.message : 'Failed to delete category'),
+    });
+  };
+
+  const handleConfirmDeleteGroup = () => {
+    if (!groupToDelete) {
+      return;
+    }
+
+    deleteCategoryGroupMutation.mutate(groupToDelete.id, {
+      onSuccess: () => {
+        if (editingGroupId === groupToDelete.id) {
+          closeGroupModal();
+        }
+        setGroupToDelete(null);
+        toast.success('Category group deleted');
+      },
+      onError: (err) => toast.error(err instanceof Error ? err.message : 'Failed to delete category group'),
     });
   };
 
@@ -399,6 +533,52 @@ export function Categories() {
           toast.success("Category created");
         },
         onError: (err) => toast.error(err instanceof Error ? err.message : 'Failed to create category'),
+      },
+    );
+  };
+
+  const handleCreateGroup = (event: FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+    const groupName = groupForm.name.trim();
+    if (!groupName) {
+      return;
+    }
+
+    if (editingGroupId) {
+      const currentGroup = orderedGroups.find((group) => group.id === editingGroupId);
+      updateCategoryGroupMutation.mutate(
+        {
+          id: editingGroupId,
+          name: groupName,
+          icon: groupForm.icon,
+          type: groupForm.type,
+          order: currentGroup?.order,
+        },
+        {
+          onSuccess: () => {
+            closeGroupModal();
+            toast.success('Category group updated');
+          },
+          onError: (err) => toast.error(err instanceof Error ? err.message : 'Failed to update category group'),
+        },
+      );
+      return;
+    }
+
+    createCategoryGroupMutation.mutate(
+      {
+        name: groupName,
+        icon: groupForm.icon,
+        type: groupForm.type,
+        order: (orderedGroups[orderedGroups.length - 1]?.order ?? 0) + 1,
+        isDefault: false,
+      },
+      {
+        onSuccess: () => {
+          closeGroupModal();
+          toast.success('Category group created');
+        },
+        onError: (err) => toast.error(err instanceof Error ? err.message : 'Failed to create category group'),
       },
     );
   };
@@ -460,6 +640,20 @@ export function Categories() {
           confirmLabel="Delete category"
           onConfirm={handleConfirmDeleteCategory}
           onClose={() => setCategoryToDelete(null)}
+        />
+      )}
+
+      {groupToDelete && (
+        <DeleteConfirmationModal
+          title="Delete category group?"
+          description={(
+            <>
+              This will delete <span className="text-foreground">{groupToDelete.name}</span>. Categories in this group will stay in place and become ungrouped.
+            </>
+          )}
+          confirmLabel="Delete group"
+          onConfirm={handleConfirmDeleteGroup}
+          onClose={() => setGroupToDelete(null)}
         />
       )}
 
@@ -583,11 +777,145 @@ export function Categories() {
         </Dialog>
       )}
 
+      {isGroupModalOpen && (
+        <Dialog open onOpenChange={(open) => { if (!open) closeGroupModal(); }}>
+          <DialogContent className="max-w-xl" showCloseButton={false}>
+            <DialogHeader>
+              <DialogTitle>
+                {editingGroupId ? 'Edit Category Group' : 'Create Category Group'}
+              </DialogTitle>
+            </DialogHeader>
+
+            <form className="space-y-4" onSubmit={handleCreateGroup}>
+              <div>
+                <Label className="mb-1.5 block" htmlFor="group-name">Name</Label>
+                <Input
+                  id="group-name"
+                  placeholder="Lifestyle"
+                  value={groupForm.name}
+                  onChange={(event) => setGroupForm((current) => ({ ...current, name: event.target.value }))}
+                  required
+                />
+              </div>
+
+              <div>
+                <Label className="mb-2 block">Type</Label>
+                <RadioGroup
+                  value={groupForm.type}
+                  onValueChange={(value) => {
+                    if (value === 'expense' || value === 'income' || value === 'transfer') {
+                      setGroupForm((current) => ({ ...current, type: value }));
+                    }
+                  }}
+                  className="gap-2"
+                >
+                  {CATEGORY_TYPE_OPTIONS.map((option) => (
+                    <label
+                      key={option.value}
+                      className={cn(
+                        'flex cursor-pointer items-start gap-3 rounded-(--radius-md) border border-border p-3 transition-colors',
+                        groupForm.type === option.value && 'border-primary/50 bg-secondary/40',
+                      )}
+                    >
+                      <RadioGroupItem value={option.value} id={`group-type-${option.value}`} className="mt-0.5" />
+                      <span className="min-w-0">
+                        <Badge variant={option.value}>{option.label}</Badge>
+                        <span className="mt-1 block text-sm text-dimmed">{option.description}</span>
+                      </span>
+                    </label>
+                  ))}
+                </RadioGroup>
+              </div>
+
+              <div className="relative">
+                <Label className="mb-1.5 block" htmlFor="group-icon-search">Icon</Label>
+                <button
+                  type="button"
+                  className="flex items-center justify-between w-full h-10 rounded-md border border-border bg-card px-4 text-base text-foreground transition-all duration-150 cursor-pointer"
+                  onClick={() => iconPicker.setIsIconPickerOpen((current) => !current)}
+                  aria-expanded={iconPicker.isIconPickerOpen}
+                  aria-controls="group-icon-picker"
+                >
+                  <span className="flex items-center gap-2 min-w-0">
+                    <Icon name={groupForm.icon} size={16} className="text-foreground" />
+                    <span className="text-base text-foreground truncate">{groupForm.icon}</span>
+                  </span>
+                  <ChevronDown size={16} className="text-dimmed" />
+                </button>
+
+                {iconPicker.isIconPickerOpen && (
+                  <Card id="group-icon-picker" className="absolute z-20 mt-2 w-full p-3">
+                    <div className="relative mb-3">
+                      <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-dimmed" />
+                      <Input
+                        id="group-icon-search"
+                        className="pl-9"
+                        placeholder="Search icon"
+                        value={iconPicker.iconSearchQuery}
+                        onChange={(event) => iconPicker.setIconSearchQuery(event.target.value)}
+                      />
+                    </div>
+
+                    <ScrollArea className="max-h-64 rounded-(--radius-md) border border-border">
+                      {iconPicker.filteredIconNames.map((iconName) => {
+                        const isSelected = groupForm.icon === iconName;
+                        return (
+                          <button
+                            key={iconName}
+                            type="button"
+                            onClick={() => {
+                              setGroupForm((current) => ({ ...current, icon: iconName }));
+                              iconPicker.setIsIconPickerOpen(false);
+                            }}
+                            className={cn(
+                              'w-full flex items-center gap-2 px-3 py-2 text-left border-none bg-transparent',
+                              'transition-colors duration-150',
+                              isSelected
+                                ? 'bg-secondary text-foreground'
+                                : 'text-muted-foreground hover:bg-secondary hover:text-foreground',
+                            )}
+                          >
+                            <Icon name={iconName} size={16} />
+                            <span className="text-sm text-muted-foreground">{iconName}</span>
+                          </button>
+                        );
+                      })}
+
+                      {iconPicker.filteredIconNames.length === 0 && (
+                        <div className="px-3 py-4 text-sm text-dimmed">No icons found.</div>
+                      )}
+                    </ScrollArea>
+                  </Card>
+                )}
+              </div>
+
+              <DialogFooter>
+                <Button
+                  type="button"
+                  variant="outline"
+                  onClick={closeGroupModal}
+                >
+                  Cancel
+                </Button>
+                <Button type="submit">
+                  {editingGroupId ? 'Save Changes' : 'Create Group'}
+                </Button>
+              </DialogFooter>
+            </form>
+          </DialogContent>
+        </Dialog>
+      )}
+
       {/* Categories grouped by CategoryGroup */}
       <section>
         <div className="flex items-center justify-between mb-3">
           <h2 className="font-display text-base font-medium text-muted-foreground">Category Groups</h2>
-          <span className="text-sm text-dimmed">{categories.length} categories</span>
+          <div className="flex items-center gap-2">
+            <span className="text-sm text-dimmed">{categories.length} categories</span>
+            <Button type="button" variant="outline" size="sm" onClick={openCreateGroupModal}>
+              New Group
+            </Button>
+          </div>
         </div>
 
         <div className="space-y-4">
@@ -598,24 +926,55 @@ export function Categories() {
             >
               <div className="mb-3 flex items-center justify-between gap-3">
                 <div className="flex min-w-0 items-center gap-2.5">
-                  <div className="w-9 h-9 rounded-(--radius-md) flex items-center justify-center shrink-0 bg-foreground/10 text-muted-foreground">
+                  <div className={cn(
+                    'w-9 h-9 rounded-(--radius-md) flex items-center justify-center shrink-0',
+                    getCategoryGroupTone(group) === 'neutral'
+                      ? 'bg-foreground/10 text-muted-foreground'
+                      : getCategoryGroupTone(group) === 'expense'
+                        ? 'bg-expense/16 text-expense'
+                        : getCategoryGroupTone(group) === 'income'
+                          ? 'bg-income/16 text-income'
+                          : getCategoryGroupTone(group) === 'transfer'
+                            ? 'bg-transfer/16 text-transfer'
+                            : getCategoryGroupTone(group) === 'accent'
+                              ? 'bg-primary/16 text-primary'
+                              : getCategoryGroupTone(group) === 'goal'
+                                ? 'bg-goal/16 text-goal'
+                                : 'bg-warning/16 text-warning',
+                  )}>
                     <Icon name={group.icon} size={16} />
                   </div>
-                  <div className="min-w-0">
-                    <h3 className="font-display text-base font-medium text-foreground">{group.name}</h3>
-                    <p className="text-sm text-dimmed">{group.categories.length} categories</p>
-                  </div>
+                    <div className="min-w-0">
+                      <h3 className="font-display text-base font-medium text-foreground">{group.name}</h3>
+                      <div className="mt-1 flex flex-wrap items-center gap-2">
+                        <p className="text-sm text-dimmed">{group.categories.length} categories</p>
+                        {group.type && (
+                          <Badge variant={group.type}>
+                            {CATEGORY_TYPE_OPTIONS.find((option) => option.value === group.type)?.label ?? group.type}
+                          </Badge>
+                        )}
+                      </div>
+                    </div>
                 </div>
 
-                <Badge variant="muted" className="shrink-0">
-                  {group.categories.length}
-                </Badge>
+                <div className="flex items-center gap-2 shrink-0">
+                  <Badge variant="muted">{group.categories.length}</Badge>
+                  {group.id !== UNGROUPED_CATEGORY_GROUP_ID && (
+                    <EntityCardOverflowMenu
+                      label={`Actions for ${group.name}`}
+                      actions={[
+                        { label: 'Edit', icon: Pencil, onClick: () => openEditGroupModal(group) },
+                        { label: 'Delete', icon: Trash2, onClick: () => requestDeleteGroup(group), tone: 'danger' },
+                      ]}
+                    />
+                  )}
+                </div>
               </div>
 
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
                 {group.categories.map((cat) => {
                   const isLocked = LOCKED_CATEGORY_IDS.has(cat.id);
-                  const entityTone = GROUP_ENTITY_TONES[group.id] ?? 'neutral';
+                  const entityTone = getCategoryGroupTone(group);
 
                   return (
                     <EntityCard

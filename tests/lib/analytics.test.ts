@@ -26,6 +26,8 @@ const defaultAccount: Account = {
 };
 
 function makeTxn(overrides: Partial<TransactionWithDetails> = {}): TransactionWithDetails {
+  const type = overrides.type ?? 'expense';
+
   return {
     id: 'tx-1',
     amount: -50,
@@ -34,7 +36,8 @@ function makeTxn(overrides: Partial<TransactionWithDetails> = {}): TransactionWi
     description: 'Test transaction',
     date: '2025-06-10',
     accountId: 'acc-1',
-    type: 'expense',
+    type,
+    categoryType: overrides.categoryType ?? type,
     category: defaultCategory,
     account: defaultAccount,
     ...overrides,
@@ -285,6 +288,19 @@ describe('analytics', () => {
       expect(result[0].income).toBe(5000);
       expect(result[0].expenses).toBe(200);
       expect(result[0].net).toBe(4800);
+    });
+
+    it('uses categoryType for analytics inclusion', () => {
+      const txns = [
+        makeTxn({ id: 'tx-1', date: '2025-06-10', type: 'transfer', categoryType: 'expense', amount: -120 }),
+      ];
+
+      const result = buildMonthlyIncomeExpenseSeries(txns, 'this-month');
+
+      expect(result).toHaveLength(1);
+      expect(result[0].income).toBe(0);
+      expect(result[0].expenses).toBe(120);
+      expect(result[0].net).toBe(-120);
     });
 
     it('spans multiple months correctly', () => {

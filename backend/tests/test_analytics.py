@@ -23,6 +23,40 @@ async def _create_account(
     return resp.json()["id"]
 
 
+async def _create_category_group(
+    client: AsyncClient,
+    name: str,
+    *,
+    type: str = "expense",
+    icon: str = "Folder",
+    order: int = 0,
+) -> str:
+    h = csrf_headers(client)
+    resp = await client.post(
+        "/api/category-groups",
+        json={"name": name, "type": type, "icon": icon, "order": order},
+        headers=h,
+    )
+    assert resp.status_code == 201
+    return resp.json()["id"]
+
+
+async def _create_category(
+    client: AsyncClient,
+    name: str,
+    *,
+    group_id: str | None = None,
+    icon: str = "Tag",
+) -> str:
+    h = csrf_headers(client)
+    payload = {"name": name, "icon": icon}
+    if group_id is not None:
+        payload["group_id"] = group_id
+    resp = await client.post("/api/categories", json=payload, headers=h)
+    assert resp.status_code == 201
+    return resp.json()["id"]
+
+
 async def _create_transaction(
     client: AsyncClient,
     account_id: str,
@@ -137,6 +171,63 @@ class TestAnalyticsSummary:
         )
         assert resp.status_code == 200
         assert resp.json()["transaction_count"] == 0
+
+    async def test_transfer_group_transactions_are_excluded(self, authed_client: AsyncClient):
+        acct_id = await _create_account(authed_client)
+        transfer_group_id = await _create_category_group(
+            authed_client,
+            "Internal Moves",
+            type="transfer",
+            icon="ArrowLeftRight",
+        )
+        transfer_category_id = await _create_category(
+            authed_client,
+            "Broker Transfer",
+            group_id=transfer_group_id,
+            icon="ArrowLeftRight",
+        )
+
+        await _create_transaction(
+            authed_client,
+            acct_id,
+            amount="-250.00",
+            description="Broker Transfer",
+            category_id=transfer_category_id,
+        )
+
+        resp = await authed_client.get("/api/analytics/summary")
+        assert resp.status_code == 200
+        data = resp.json()
+        assert float(data["total_income"]) == 0.0
+        assert float(data["total_expenses"]) == 0.0
+        assert float(data["net"]) == 0.0
+        assert data["transaction_count"] == 0
+
+    async def test_system_uncategorized_transactions_use_amount_fallback(self, authed_client: AsyncClient):
+        acct_id = await _create_account(authed_client)
+        categories_resp = await authed_client.get("/api/categories")
+        assert categories_resp.status_code == 200
+        uncategorized_id = next(
+            category["id"]
+            for category in categories_resp.json()
+            if category["source"] == "system"
+        )
+
+        await _create_transaction(
+            authed_client,
+            acct_id,
+            amount="1200.00",
+            description="Uncategorized Salary",
+            category_id=uncategorized_id,
+        )
+
+        resp = await authed_client.get("/api/analytics/summary")
+        assert resp.status_code == 200
+        data = resp.json()
+        assert float(data["total_income"]) == 1200.0
+        assert float(data["total_expenses"]) == 0.0
+        assert float(data["net"]) == 1200.0
+        assert data["transaction_count"] == 1
 
 
 # ============================================================================

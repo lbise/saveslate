@@ -48,6 +48,7 @@ import { toast } from "sonner";
 import {
   useAccounts,
   useCategories,
+  useCategoryGroups,
   useGoals,
   useTransactions as useTransactionsQuery,
   useCreateTransaction,
@@ -67,6 +68,7 @@ import {
 import {
   inferTransactionType,
   isUncategorizedCategory,
+  resolveTransactionCategoryType,
   UNCATEGORIZED_CATEGORY_ID,
   UNCATEGORIZED_CATEGORY_NAME,
 } from "../lib/transaction-type";
@@ -130,6 +132,7 @@ export function Transactions() {
   // Data from API
   const transactionsResult = useTransactionsQuery({ pageSize: 10000 });
   const categoriesResult = useCategories();
+  const { data: categoryGroups = [] } = useCategoryGroups();
   const { data: accounts = [] } = useAccounts();
   const { data: goals = [] } = useGoals();
   const { data: tags = [] } = useTags();
@@ -168,6 +171,7 @@ export function Transactions() {
     if (items.length === 0) return [];
 
     const categoriesById = new Map(allCategories.map(c => [c.id, c]));
+    const categoryGroupsById = new Map(categoryGroups.map((group) => [group.id, group]));
     const accountsById = new Map(accounts.map(a => [a.id, a]));
     const goalsById = new Map(goals.map(g => [g.id, g]));
     const counterpartyMap = createTransferCounterpartyMap(items);
@@ -197,13 +201,14 @@ export function Transactions() {
       return {
         ...tx,
         type: inferTransactionType(tx),
+        categoryType: resolveTransactionCategoryType(tx, category, categoryGroupsById),
         category,
         account,
         destinationAccount,
         goal,
       } as TxDetails;
     });
-  }, [rawTransactionsData, allCategories, uncategorizedCategory, accounts, goals]);
+  }, [rawTransactionsData, allCategories, categoryGroups, uncategorizedCategory, accounts, goals]);
 
   // Filters (extracted to hook)
   const filters = useTransactionFilters({
@@ -472,7 +477,7 @@ export function Transactions() {
 
   const handleGoalChange = (txId: string, goalId: string | null) => {
     updateTransactionMutation.mutate(
-      { id: txId, goalId: goalId ?? undefined },
+      { id: txId, goalId },
       {
         onError: () => toast.error("Failed to update goal"),
       },

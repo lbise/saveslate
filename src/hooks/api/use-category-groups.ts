@@ -39,10 +39,13 @@ export function useCreateCategoryGroup() {
       name: string;
       icon?: string;
       order?: number;
+      type: CategoryGroup['type'];
       isDefault?: boolean;
     }) => api.post<Record<string, unknown>>('/api/category-groups', data),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: categoryGroupKeys.all });
+      queryClient.invalidateQueries({ queryKey: ['categories'] });
+      queryClient.invalidateQueries({ queryKey: ['analytics'] });
     },
   });
 }
@@ -57,11 +60,14 @@ export function useUpdateCategoryGroup() {
       name?: string;
       icon?: string;
       order?: number;
+      type?: CategoryGroup['type'];
       isDefault?: boolean;
       isHidden?: boolean;
     }) => api.put<Record<string, unknown>>(`/api/category-groups/${id}`, data),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: categoryGroupKeys.all });
+      queryClient.invalidateQueries({ queryKey: ['categories'] });
+      queryClient.invalidateQueries({ queryKey: ['analytics'] });
     },
   });
 }
@@ -74,6 +80,8 @@ export function useDeleteCategoryGroup() {
     mutationFn: (id: string) => api.delete(`/api/category-groups/${id}`),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: categoryGroupKeys.all });
+      queryClient.invalidateQueries({ queryKey: ['categories'] });
+      queryClient.invalidateQueries({ queryKey: ['analytics'] });
     },
   });
 }

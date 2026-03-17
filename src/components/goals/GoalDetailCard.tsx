@@ -191,6 +191,7 @@ export function GoalDetailCard({
                 key={tx.id}
                 description={tx.description}
                 type={tx.type}
+                categoryType={tx.categoryType}
                 amount={tx.amount}
                 currency={tx.currency}
                 categoryName={tx.category.name}

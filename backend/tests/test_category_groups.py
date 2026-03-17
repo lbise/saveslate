@@ -20,6 +20,7 @@ class TestListCategoryGroups:
         data = resp.json()
         assert len(data) == 1
         assert data[0]["name"] == "System"
+        assert data[0]["type"] == "expense"
         assert data[0]["source"] == "system"
         assert data[0]["is_hidden"] is True
 
@@ -44,7 +45,18 @@ class TestCreateCategoryGroup:
         assert data["name"] == "Expenses"
         assert data["icon"] == "Wallet"
         assert data["order"] == 1
+        assert data["type"] == "expense"
         assert data["source"] == "custom"
+
+    async def test_create_with_explicit_type(self, authed_client: AsyncClient):
+        h = csrf_headers(authed_client)
+        resp = await authed_client.post(
+            "/api/category-groups",
+            json={"name": "Transfers", "type": "transfer"},
+            headers=h,
+        )
+        assert resp.status_code == 201
+        assert resp.json()["type"] == "transfer"
 
     async def test_create_defaults(self, authed_client: AsyncClient):
         h = csrf_headers(authed_client)
@@ -57,6 +69,7 @@ class TestCreateCategoryGroup:
         data = resp.json()
         assert data["icon"] == "Folder"  # default
         assert data["order"] == 0  # default
+        assert data["type"] == "expense"  # default
 
 
 # ============================================================================
@@ -78,12 +91,13 @@ class TestUpdateCategoryGroup:
 
         resp = await authed_client.put(
             f"/api/category-groups/{group_id}",
-            json={"name": "New Group", "order": 5},
+            json={"name": "New Group", "order": 5, "type": "income"},
             headers=h,
         )
         assert resp.status_code == 200
         assert resp.json()["name"] == "New Group"
         assert resp.json()["order"] == 5
+        assert resp.json()["type"] == "income"
 
     async def test_update_system_blocked(self, authed_client: AsyncClient):
         h = csrf_headers(authed_client)

@@ -3,13 +3,23 @@
 import uuid
 from datetime import datetime
 
-from sqlalchemy import String, Boolean, Integer, DateTime, ForeignKey, CheckConstraint, Index, func
+from sqlalchemy import (
+    Boolean,
+    CheckConstraint,
+    DateTime,
+    ForeignKey,
+    Index,
+    Integer,
+    String,
+    func,
+)
 from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.database import Base
 
 CATEGORY_GROUP_SOURCES = ("system", "preset", "custom")
+CATEGORY_GROUP_TYPES = ("expense", "income", "transfer")
 
 
 class CategoryGroup(Base):
@@ -18,6 +28,10 @@ class CategoryGroup(Base):
         CheckConstraint(
             f"source IN ({', '.join(repr(s) for s in CATEGORY_GROUP_SOURCES)})",
             name="ck_category_groups_source",
+        ),
+        CheckConstraint(
+            f"type IN ({', '.join(repr(t) for t in CATEGORY_GROUP_TYPES)})",
+            name="ck_category_groups_type",
         ),
         Index("ix_category_groups_user_id", "user_id"),
     )
@@ -31,6 +45,7 @@ class CategoryGroup(Base):
     name: Mapped[str] = mapped_column(String(255), nullable=False)
     icon: Mapped[str] = mapped_column(String(50), nullable=False, default="Folder")
     order: Mapped[int] = mapped_column(Integer, nullable=False, default=0, server_default="0")
+    type: Mapped[str] = mapped_column(String(10), nullable=False, default="expense", server_default="expense")
     is_default: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False, server_default="false")
     source: Mapped[str] = mapped_column(String(10), nullable=False, default="custom", server_default="custom")
     is_hidden: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False, server_default="false")

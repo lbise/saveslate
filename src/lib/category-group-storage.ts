@@ -4,10 +4,11 @@ import {
   getCategoryGroupById as getTemplateCategoryGroupById,
   getCategoryGroupSeedForPreset,
 } from '../data/mock/category-groups';
-import type { CategoryGroup, CategoryPreset, CategorySource } from '../types';
+import type { CategoryGroup, CategoryPreset, CategorySource, TransactionType } from '../types';
 
 const CATEGORY_GROUPS_KEY = 'saveslate:category-groups';
 const CATEGORY_SOURCES = new Set<CategorySource>(['system', 'preset', 'custom']);
+const CATEGORY_GROUP_TYPES = new Set<TransactionType>(['expense', 'income', 'transfer']);
 
 function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === 'object' && value !== null;
@@ -23,6 +24,30 @@ function normalizeSource(value: unknown, isDefault: boolean): CategorySource {
   }
 
   return isDefault ? 'preset' : 'custom';
+}
+
+function isTransactionType(value: unknown): value is TransactionType {
+  return typeof value === 'string' && CATEGORY_GROUP_TYPES.has(value as TransactionType);
+}
+
+function inferCategoryGroupType(value: Record<string, unknown>): TransactionType {
+  if (isTransactionType(value.type)) {
+    return value.type;
+  }
+
+  const typeHint = [value.id, value.name]
+    .filter((entry): entry is string => typeof entry === 'string')
+    .map((entry) => entry.trim().toLowerCase());
+
+  if (typeHint.some((entry) => entry === 'income')) {
+    return 'income';
+  }
+
+  if (typeHint.some((entry) => entry.includes('transfer'))) {
+    return 'transfer';
+  }
+
+  return 'expense';
 }
 
 export function parseCategoryGroup(value: unknown): CategoryGroup | null {
@@ -48,6 +73,7 @@ export function parseCategoryGroup(value: unknown): CategoryGroup | null {
     name,
     icon,
     order,
+    type: inferCategoryGroupType(value),
     isDefault,
     hidden,
     source: normalizeSource(value.source, isDefault),

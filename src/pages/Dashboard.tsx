@@ -9,15 +9,16 @@ import { Progress } from '@/components/ui/progress';
 import {
   useAccounts,
   useAccountBalances,
-  useGoalProgress,
   useAnalyticsSummary,
   useAnalyticsByCategory,
-  useTransactions,
   useCategories,
+  useCategoryGroups,
+  useGoalProgress,
+  useTransactions,
   useGoals,
 } from '../hooks/api';
 import { useFormatCurrency } from '../hooks';
-import { inferTransactionType } from '../lib/transaction-type';
+import { inferTransactionType, resolveTransactionCategoryType } from '../lib/transaction-type';
 import type { Account } from '../types';
 
 const MAX_GOALS = 3;
@@ -44,6 +45,7 @@ export function Dashboard() {
   const { data: categorySpending = [] } = useAnalyticsByCategory({ startDate, endDate, type: 'expense' });
   const { data: recentTxData } = useTransactions({ pageSize: MAX_RECENT_TRANSACTIONS, sortBy: 'date', sortOrder: 'desc' });
   const { data: categories = [] } = useCategories();
+  const { data: categoryGroups = [] } = useCategoryGroups();
   const { data: goals = [] } = useGoals();
 
   const accounts = useMemo(() => accountsQuery.data ?? [], [accountsQuery.data]);
@@ -86,6 +88,7 @@ export function Dashboard() {
   const transactions = useMemo(() => {
     if (!recentTxData?.items) return [];
     const categoryMap = new Map(categories.map(c => [c.id, c]));
+    const categoryGroupMap = new Map(categoryGroups.map((group) => [group.id, group]));
     const accountMap = new Map(accounts.map(a => [a.id, a]));
     const goalMap = new Map(goals.map(g => [g.id, g]));
 
@@ -93,10 +96,13 @@ export function Dashboard() {
       const category = categoryMap.get(tx.categoryId ?? '');
       const account = accountMap.get(tx.accountId);
       const goal = tx.goalId ? goalMap.get(tx.goalId) : undefined;
+      const type = inferTransactionType(tx);
+
       return {
         id: tx.id,
         description: tx.description,
-        type: inferTransactionType(tx),
+        type,
+        categoryType: resolveTransactionCategoryType(tx, category, categoryGroupMap),
         amount: tx.amount,
         currency: tx.currency,
         categoryName: category?.name ?? 'Uncategorized',
@@ -106,7 +112,7 @@ export function Dashboard() {
         isSplit: !!(tx.split || tx.splitInfo),
       };
     });
-  }, [recentTxData, categories, accounts, goals]);
+  }, [recentTxData, categories, categoryGroups, accounts, goals]);
 
   // Top spending categories
   const topSpending = useMemo(
@@ -219,6 +225,7 @@ export function Dashboard() {
                   key={tx.id}
                   description={tx.description}
                   type={tx.type}
+                  categoryType={tx.categoryType}
                   amount={tx.amount}
                   currency={tx.currency}
                   categoryName={tx.categoryName}
