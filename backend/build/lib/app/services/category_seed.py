@@ -19,11 +19,11 @@ from app.models.category_group import CategoryGroup
 # ---------------------------------------------------------------------------
 
 _PRESET_GROUPS: list[dict] = [
-    {"name": "Living",     "icon": "Home",          "order": 1, "is_default": True, "source": "preset"},
-    {"name": "Lifestyle",  "icon": "Sparkles",      "order": 2, "is_default": True, "source": "preset"},
-    {"name": "Finance",    "icon": "Landmark",       "order": 3, "is_default": True, "source": "preset"},
-    {"name": "Income",     "icon": "Briefcase",     "order": 4, "is_default": True, "source": "preset"},
-    {"name": "Transfers",  "icon": "ArrowLeftRight", "order": 5, "is_default": True, "source": "preset"},
+    {"name": "Living",     "icon": "Home",           "order": 1, "type": "expense",  "is_default": True, "source": "preset"},
+    {"name": "Lifestyle",  "icon": "Sparkles",       "order": 2, "type": "expense",  "is_default": True, "source": "preset"},
+    {"name": "Finance",    "icon": "Landmark",       "order": 3, "type": "expense",  "is_default": True, "source": "preset"},
+    {"name": "Income",     "icon": "Briefcase",      "order": 4, "type": "income",   "is_default": True, "source": "preset"},
+    {"name": "Transfers",  "icon": "ArrowLeftRight", "order": 5, "type": "transfer", "is_default": True, "source": "preset"},
 ]
 
 # Categories reference groups by name → resolved to group_id at seed time
@@ -78,6 +78,7 @@ async def seed_system_categories(db: AsyncSession, user_id: uuid.UUID) -> None:
         name="System",
         icon="Settings2",
         order=0,
+        type="expense",
         is_default=True,
         source="system",
         is_hidden=True,
@@ -124,6 +125,7 @@ async def seed_preset_categories(
             name=gd["name"],
             icon=gd["icon"],
             order=gd["order"],
+            type=gd["type"],
             is_default=gd["is_default"],
             source=gd["source"],
         )

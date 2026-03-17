@@ -447,15 +447,29 @@ def extract_account_identifier(
         return None
 
     try:
-        regex = re.compile(pattern)
+        normalized_pattern = _normalize_regex_pattern(pattern)
+        regex = re.compile(normalized_pattern, re.IGNORECASE)
     except re.error:
+        return None
+
+    has_capture_group = "(" in normalized_pattern and ")" in normalized_pattern
+
+    if not has_capture_group:
+        for row in skipped_rows:
+            for index, cell in enumerate(row):
+                if regex.search(cell) and index + 1 < len(row):
+                    value = row[index + 1].strip()
+                    if value:
+                        return value
         return None
 
     for row in skipped_rows:
         for cell in row:
-            m = regex.search(cell)
-            if m:
-                return m.group(0) if not m.groups() else m.group(1)
+            match = regex.search(cell)
+            if match and match.groups():
+                value = match.group(1).strip()
+                if value:
+                    return value
 
     return None
 

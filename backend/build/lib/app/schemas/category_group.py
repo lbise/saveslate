@@ -2,8 +2,12 @@
 
 import uuid
 from datetime import datetime
+from typing import Literal
 
 from pydantic import BaseModel, Field
+
+
+CategoryGroupType = Literal["expense", "income", "transfer"]
 
 
 class CategoryGroupCreate(BaseModel):
@@ -12,6 +16,7 @@ class CategoryGroupCreate(BaseModel):
     name: str = Field(min_length=1, max_length=255)
     icon: str = Field(default="Folder", max_length=50)
     order: int = Field(default=0, ge=0)
+    type: CategoryGroupType = "expense"
     is_default: bool = False
 
 
@@ -21,6 +26,7 @@ class CategoryGroupUpdate(BaseModel):
     name: str | None = Field(default=None, min_length=1, max_length=255)
     icon: str | None = Field(default=None, max_length=50)
     order: int | None = Field(default=None, ge=0)
+    type: CategoryGroupType | None = None
     is_default: bool | None = None
     is_hidden: bool | None = None
 
@@ -32,6 +38,7 @@ class CategoryGroupResponse(BaseModel):
     name: str
     icon: str
     order: int
+    type: CategoryGroupType
     is_default: bool
     source: str
     is_hidden: bool

@@ -5,12 +5,13 @@ from datetime import date
 from decimal import Decimal
 
 from fastapi import APIRouter, Depends, HTTPException, Query, status
-from sqlalchemy import case, extract, func, select
+from sqlalchemy import and_, case, extract, func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.deps import get_current_user, get_db
 from app.models.account import Account
 from app.models.category import Category
+from app.models.category_group import CategoryGroup
 from app.models.goal import Goal
 from app.models.transaction import Transaction
 from app.models.user import User
@@ -23,6 +24,28 @@ from app.schemas.analytics import (
 )
 
 router = APIRouter(prefix="/api/analytics", tags=["analytics"])
+
+
+def _fallback_transaction_type_expr():
+    return case(
+        (Transaction.transfer_pair_id.is_not(None), "transfer"),
+        (Transaction.amount < 0, "expense"),
+        else_="income",
+    )
+
+
+def _analytics_transaction_type_expr():
+    fallback_type = _fallback_transaction_type_expr()
+    is_system_uncategorized = and_(
+        Category.source == "system",
+        Category.is_hidden.is_(True),
+    )
+
+    return case(
+        (is_system_uncategorized, fallback_type),
+        (CategoryGroup.type.is_not(None), CategoryGroup.type),
+        else_=fallback_type,
+    )
 
 
 # ---------------------------------------------------------------------------
@@ -39,11 +62,8 @@ async def get_summary(
     db: AsyncSession = Depends(get_db),
 ) -> AnalyticsSummary:
     """Compute income, expenses, net, and averages for a date range."""
-    # Base filter: user's non-transfer transactions
-    filters = [
-        Transaction.user_id == user.id,
-        Transaction.transfer_pair_id.is_(None),
-    ]
+    analytics_type = _analytics_transaction_type_expr()
+    filters = [Transaction.user_id == user.id]
     if start_date:
         filters.append(Transaction.date >= start_date)
     if end_date:
@@ -51,24 +71,35 @@ async def get_summary(
     if account_id:
         filters.append(Transaction.account_id == account_id)
 
-    stmt = select(
-        func.coalesce(
-            func.sum(case((Transaction.amount > 0, Transaction.amount), else_=Decimal("0"))),
-            Decimal("0"),
-        ).label("income"),
-        func.coalesce(
-            func.sum(case((Transaction.amount < 0, Transaction.amount), else_=Decimal("0"))),
-            Decimal("0"),
-        ).label("expenses"),
-        func.coalesce(func.sum(Transaction.amount), Decimal("0")).label("net"),
-        func.count().label("count"),
-    ).where(*filters)
+    stmt = (
+        select(
+            func.coalesce(
+                func.sum(case((analytics_type == "income", Transaction.amount), else_=Decimal("0"))),
+                Decimal("0"),
+            ).label("income"),
+            func.coalesce(
+                func.sum(case((analytics_type == "expense", Transaction.amount), else_=Decimal("0"))),
+                Decimal("0"),
+            ).label("expenses"),
+            func.coalesce(
+                func.sum(case((analytics_type == "transfer", Decimal("0")), else_=Transaction.amount)),
+                Decimal("0"),
+            ).label("net"),
+            func.coalesce(
+                func.sum(case((analytics_type != "transfer", 1), else_=0)),
+                0,
+            ).label("count"),
+        )
+        .outerjoin(Category, Transaction.category_id == Category.id)
+        .outerjoin(CategoryGroup, Category.group_id == CategoryGroup.id)
+        .where(*filters)
+    )
 
     result = await db.execute(stmt)
     row = result.one()
 
     total_income = Decimal(str(row.income))
-    total_expenses = Decimal(str(row.expenses))
+    total_expenses = abs(Decimal(str(row.expenses)))
     net = Decimal(str(row.net))
     count = row.count
     avg = net / count if count > 0 else Decimal("0")
@@ -97,11 +128,9 @@ async def get_monthly_breakdown(
     user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
 ) -> list[MonthlyBreakdown]:
-    """Group non-transfer transactions by month."""
-    filters = [
-        Transaction.user_id == user.id,
-        Transaction.transfer_pair_id.is_(None),
-    ]
+    """Group analytics transactions by month."""
+    analytics_type = _analytics_transaction_type_expr()
+    filters = [Transaction.user_id == user.id]
     if start_date:
         filters.append(Transaction.date >= start_date)
     if end_date:
@@ -117,16 +146,22 @@ async def get_monthly_breakdown(
             year_col,
             month_col,
             func.coalesce(
-                func.sum(case((Transaction.amount > 0, Transaction.amount), else_=Decimal("0"))),
+                func.sum(case((analytics_type == "income", Transaction.amount), else_=Decimal("0"))),
                 Decimal("0"),
             ).label("income"),
             func.coalesce(
-                func.sum(case((Transaction.amount < 0, Transaction.amount), else_=Decimal("0"))),
+                func.sum(case((analytics_type == "expense", Transaction.amount), else_=Decimal("0"))),
                 Decimal("0"),
             ).label("expenses"),
-            func.count().label("count"),
+            func.coalesce(
+                func.sum(case((analytics_type != "transfer", 1), else_=0)),
+                0,
+            ).label("count"),
         )
+        .outerjoin(Category, Transaction.category_id == Category.id)
+        .outerjoin(CategoryGroup, Category.group_id == CategoryGroup.id)
         .where(*filters)
+        .where(analytics_type != "transfer")
         .group_by(year_col, month_col)
         .order_by(year_col, month_col)
     )
@@ -134,16 +169,20 @@ async def get_monthly_breakdown(
     result = await db.execute(stmt)
     rows = result.all()
 
-    return [
-        MonthlyBreakdown(
-            month=f"{int(r.yr)}-{int(r.mo):02d}",
-            income=Decimal(str(r.income)),
-            expenses=Decimal(str(r.expenses)),
-            net=Decimal(str(r.income)) + Decimal(str(r.expenses)),
-            transaction_count=r.count,
+    breakdowns = []
+    for r in rows:
+        income = Decimal(str(r.income))
+        raw_expenses = Decimal(str(r.expenses))
+        breakdowns.append(
+            MonthlyBreakdown(
+                month=f"{int(r.yr)}-{int(r.mo):02d}",
+                income=income,
+                expenses=abs(raw_expenses),
+                net=income + raw_expenses,
+                transaction_count=r.count,
+            )
         )
-        for r in rows
-    ]
+    return breakdowns
 
 
 # ---------------------------------------------------------------------------
@@ -160,11 +199,9 @@ async def get_category_breakdown(
     user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
 ) -> list[CategoryBreakdown]:
-    """Group non-transfer transactions by category."""
-    filters = [
-        Transaction.user_id == user.id,
-        Transaction.transfer_pair_id.is_(None),
-    ]
+    """Group analytics transactions by category."""
+    analytics_type = _analytics_transaction_type_expr()
+    filters = [Transaction.user_id == user.id]
     if start_date:
         filters.append(Transaction.date >= start_date)
     if end_date:
@@ -172,9 +209,11 @@ async def get_category_breakdown(
     if account_id:
         filters.append(Transaction.account_id == account_id)
     if transaction_type == "income":
-        filters.append(Transaction.amount > 0)
+        filters.append(analytics_type == "income")
     elif transaction_type == "expense":
-        filters.append(Transaction.amount < 0)
+        filters.append(analytics_type == "expense")
+    else:
+        filters.append(analytics_type != "transfer")
 
     stmt = (
         select(
@@ -185,6 +224,7 @@ async def get_category_breakdown(
             func.count().label("count"),
         )
         .outerjoin(Category, Transaction.category_id == Category.id)
+        .outerjoin(CategoryGroup, Category.group_id == CategoryGroup.id)
         .where(*filters)
         .group_by(Transaction.category_id, Category.name, Category.icon)
         .order_by(func.abs(func.sum(Transaction.amount)).desc())
@@ -201,7 +241,7 @@ async def get_category_breakdown(
             category_id=r.category_id,
             category_name=r.category_name,
             category_icon=r.category_icon,
-            total=Decimal(str(r.total)),
+            total=abs(Decimal(str(r.total))),
             count=r.count,
             percentage=round(abs(Decimal(str(r.total))) / grand_total * 100, 2),
         )
