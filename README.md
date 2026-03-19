@@ -164,3 +164,4 @@ tests/                  # Frontend tests
 - [] Handle savings properly
 - [] Mass transaction tool (edit transactions based on some rules)
 - [] Improve rules (and and or depending on the condition instead of globally)
+- [] Clean-up description and suggest category using AI :robot:

@@ -4,7 +4,6 @@ import { cn } from "../../lib/utils";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Separator } from "@/components/ui/separator";
-import { ScrollArea } from "@/components/ui/scroll-area";
 import type { ReactNode } from "react";
 
 export interface MultiSelectOption {
@@ -91,12 +90,12 @@ export function MultiSelectDropdown({
 
       <PopoverContent
         align="start"
-        className="w-[var(--radix-popover-trigger-width)] min-w-[220px] p-1"
+        className="w-[var(--radix-popover-trigger-width)] min-w-[220px] overflow-hidden p-1"
       >
         {/* All option */}
         <label
           className={cn(
-            "flex items-center gap-2 px-2 py-2 rounded-sm cursor-pointer transition-colors",
+            "flex w-full min-w-0 items-center gap-2 rounded-sm px-2 py-2 transition-colors cursor-pointer",
             selectedIds.length === 0
               ? "bg-foreground/10 text-foreground"
               : "text-muted-foreground hover:text-foreground hover:bg-secondary",
@@ -111,7 +110,7 @@ export function MultiSelectDropdown({
 
         <Separator className="mx-1 my-1 w-auto" />
 
-        <ScrollArea className="max-h-64">
+        <div className="max-h-64 overflow-x-hidden overflow-y-auto">
           {hasGroups ? (
             groups.map((group) => (
               <div key={group.key}>
@@ -126,7 +125,7 @@ export function MultiSelectDropdown({
                     <label
                       key={option.id}
                       className={cn(
-                        "flex items-center gap-2 px-2 py-2 rounded-sm cursor-pointer transition-colors",
+                        "flex w-full min-w-0 items-center gap-2 rounded-sm px-2 py-2 transition-colors cursor-pointer",
                         isSelected
                           ? "bg-foreground/10 text-foreground"
                           : "text-muted-foreground hover:text-foreground hover:bg-secondary",
@@ -149,7 +148,7 @@ export function MultiSelectDropdown({
                 <label
                   key={option.id}
                   className={cn(
-                    "flex items-center gap-2 px-2 py-2 rounded-sm cursor-pointer transition-colors",
+                    "flex w-full min-w-0 items-center gap-2 rounded-sm px-2 py-2 transition-colors cursor-pointer",
                     isSelected
                       ? "bg-foreground/10 text-foreground"
                       : "text-muted-foreground hover:text-foreground hover:bg-secondary",
@@ -164,7 +163,7 @@ export function MultiSelectDropdown({
               );
             })
           )}
-        </ScrollArea>
+        </div>
       </PopoverContent>
     </Popover>
   );

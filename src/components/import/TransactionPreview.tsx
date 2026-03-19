@@ -4,7 +4,6 @@ import {
   Eye,
   Link2,
   Link2Off,
-  Check,
   Filter,
   X,
 } from "lucide-react";
@@ -31,7 +30,6 @@ import {
   DEFAULT_ACCOUNT_FORM_STATE,
   type AccountFormSubmitPayload,
 } from "../accounts";
-import { Badge } from "../ui/Badge";
 import {
   useAccounts,
   useCreateAccount,
@@ -215,6 +213,7 @@ export function TransactionPreview({
   const [showMatchesOnly, setShowMatchesOnly] = useState(false);
   const [importName, setImportName] = useState(fileName ?? "");
   const [detailRowIndex, setDetailRowIndex] = useState<number | null>(null);
+  const [matchDetailRowIndex, setMatchDetailRowIndex] = useState<number | null>(null);
 
   // Find matching account ID based on detected identifier
   const matchedAccountId = useMemo(() => {
@@ -645,6 +644,14 @@ export function TransactionPreview({
       : false;
   const detailRawEntries = detailRow ? Object.entries(detailRow.raw) : [];
   const detailMetadata = detailRow?.metadata ?? [];
+  const matchDetailTransferPairCandidate =
+    matchDetailRowIndex !== null
+      ? transferPairCandidatesByIndex.get(matchDetailRowIndex)
+      : undefined;
+
+  const handleTransferDecisionToggle = useCallback((rowIndex: number) => {
+    toggleTransferLinkDecision(rowIndex);
+  }, [toggleTransferLinkDecision]);
 
   return (
     <div className="space-y-5">
@@ -843,11 +850,8 @@ export function TransactionPreview({
                     <th className="px-3 py-2.5 text-right text-dimmed font-medium">
                       Amount
                     </th>
-                    <th className="px-3 py-2.5 text-left text-dimmed font-medium">
-                      Status
-                    </th>
                     <th className="px-3 py-2.5 text-right text-dimmed font-medium">
-                      Details
+                      <span className="sr-only">Details</span>
                     </th>
                   </tr>
                 </thead>
@@ -861,54 +865,15 @@ export function TransactionPreview({
                       transferPairCandidatesByIndex.get(idx);
                     const transferDecision = getTransferDecision(idx);
                     const isLinkEnabled = transferDecision === "link";
-                    const rowType = getParsedRowType(
-                      row,
-                      transferPairCandidate,
-                      isLinkEnabled,
-                    );
-                    const statusBadges = [
-                      row.errors.length > 0 ? (
-                        <Badge key="parser-issue" color="var(--warning)">
-                          Parser issue
-                        </Badge>
-                      ) : null,
-                      isDuplicate ? (
-                        <Badge key="duplicate" color="var(--warning)">
-                          Duplicate
-                        </Badge>
-                      ) : null,
-                      possibleMatchIndexes.has(idx) ? (
-                        <Badge key="possible-match" color="var(--warning)">
-                          Possible match
-                        </Badge>
-                      ) : null,
-                      transferPairCandidate ? (
-                        <Badge key="transfer-match" variant="transfer">
-                          Transfer match
-                        </Badge>
-                      ) : null,
-                      transferPairCandidate?.isAlreadyLinked ? (
-                        <Badge key="already-linked" color="var(--warning)">
-                          Already linked elsewhere
-                        </Badge>
-                      ) : null,
-                      transferPairCandidate &&
-                      !transferPairCandidate.isAlreadyLinked ? (
-                        <Badge
-                          key="link-decision"
-                          variant={isLinkEnabled ? "transfer" : "muted"}
-                        >
-                          {isLinkEnabled ? "Link on import" : "Keep separate"}
-                        </Badge>
-                      ) : null,
-                    ].filter(Boolean);
+                    const hasTransferInfo = Boolean(transferPairCandidate);
+                    const hasSubrows = hasWarnings || hasTransferInfo;
 
                     return (
                       <Fragment key={idx}>
                         <tr
                           onClick={() => toggleRow(idx)}
                           className={cn(
-                            hasWarnings
+                            hasSubrows
                               ? "transition-colors"
                               : "border-b border-border transition-colors",
                             isSelected
@@ -929,15 +894,9 @@ export function TransactionPreview({
                             />
                           </td>
                           <td className="px-3 py-2.5 text-foreground">
-                            <div className="min-w-0">
-                              <p className="break-words font-medium text-foreground">
-                                {row.description || "—"}
-                              </p>
-                              <p className="mt-1 text-sm text-dimmed">
-                                {row.date ? formatDate(row.date) : "—"} ·{" "}
-                                {rowType}
-                              </p>
-                            </div>
+                            <p className="break-words font-medium text-foreground">
+                              {row.description || "—"}
+                            </p>
                           </td>
                           <td
                             className={cn(
@@ -949,17 +908,6 @@ export function TransactionPreview({
                             {formatSignedCurrency(
                               row.amount,
                               row.currency || selectedAccountCurrency,
-                            )}
-                          </td>
-                          <td className="px-3 py-2.5">
-                            {statusBadges.length > 0 ? (
-                              <div className="flex flex-wrap gap-2">
-                                {statusBadges}
-                              </div>
-                            ) : (
-                              <span className="inline-flex items-center text-income" title="Ready">
-                                <Check size={14} />
-                              </span>
                             )}
                           </td>
                           <td className="px-3 py-2.5 text-right">
@@ -980,8 +928,11 @@ export function TransactionPreview({
                         </tr>
 
                         {hasWarnings && (
-                          <tr className="border-b border-border bg-warning/[0.04]">
-                            <td colSpan={5} className="px-3 py-3">
+                          <tr className={cn(
+                            "bg-warning/[0.04]",
+                            hasTransferInfo ? "" : "border-b border-border",
+                          )}>
+                            <td colSpan={4} className="px-3 py-3">
                               <div className="space-y-2">
                                 {rowWarnings.map((warning, warningIndex) => (
                                   <div
@@ -995,6 +946,56 @@ export function TransactionPreview({
                                     <span>{warning}</span>
                                   </div>
                                 ))}
+                              </div>
+                            </td>
+                          </tr>
+                        )}
+
+                        {transferPairCandidate && (
+                          <tr className="border-b border-border bg-transfer/[0.05]">
+                            <td colSpan={4} className="px-3 py-3">
+                              <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+                                <div className="space-y-1">
+                                  <p className="text-sm text-foreground">
+                                    Matched with an existing transaction in {transferPairCandidate.accountName}.
+                                  </p>
+                                  <p className="text-sm text-dimmed">
+                                    {transferPairCandidate.isAlreadyLinked
+                                      ? "This matched transaction is already linked elsewhere, so this row will stay separate."
+                                      : isLinkEnabled
+                                        ? "This row will be linked as a transfer on import."
+                                        : "This row will be imported separately."}
+                                  </p>
+                                </div>
+
+                                <div className="flex flex-wrap items-center gap-2">
+                                  {!transferPairCandidate.isAlreadyLinked && (
+                                    <Button
+                                      type="button"
+                                      variant={isLinkEnabled ? "default" : "outline"}
+                                      size="sm"
+                                      onClick={(event) => {
+                                        event.stopPropagation();
+                                        handleTransferDecisionToggle(idx);
+                                      }}
+                                    >
+                                      {isLinkEnabled ? <Link2 size={14} /> : <Link2Off size={14} />}
+                                      {isLinkEnabled ? "Linked on import" : "Keep separate"}
+                                    </Button>
+                                  )}
+
+                                  <Button
+                                    type="button"
+                                    variant="outline"
+                                    size="sm"
+                                    onClick={(event) => {
+                                      event.stopPropagation();
+                                      setMatchDetailRowIndex(idx);
+                                    }}
+                                  >
+                                    Show match
+                                  </Button>
+                                </div>
                               </div>
                             </td>
                           </tr>
@@ -1139,86 +1140,6 @@ export function TransactionPreview({
                 )}
               />
 
-              {detailTransferPairCandidate && detailRowIndex !== null && (
-                <Card className="p-3 space-y-3">
-                  <div className="flex flex-wrap items-start justify-between gap-3">
-                    <div className="space-y-1">
-                      <div className="flex flex-wrap items-center gap-2">
-                        <Badge variant="transfer">Transfer match</Badge>
-                        {detailTransferPairCandidate.isAlreadyLinked && (
-                          <Badge color="var(--warning)">
-                            Already linked elsewhere
-                          </Badge>
-                        )}
-                      </div>
-                      <p className="text-sm text-dimmed">
-                        Matched against an existing transaction in{" "}
-                        {detailTransferPairCandidate.accountName}.
-                      </p>
-                    </div>
-
-                    {detailTransferPairCandidate.isAlreadyLinked ? (
-                      <span className="text-sm text-warning">
-                        This row will stay separate until that existing link is
-                        removed.
-                      </span>
-                    ) : (
-                      <Button
-                        type="button"
-                        variant={detailIsLinkEnabled ? "default" : "outline"}
-                        onClick={() =>
-                          toggleTransferLinkDecision(detailRowIndex)
-                        }
-                      >
-                        {detailIsLinkEnabled ? (
-                          <Link2 size={14} />
-                        ) : (
-                          <Link2Off size={14} />
-                        )}
-                        {detailIsLinkEnabled
-                          ? "Linked on Import"
-                          : "Keep Separate"}
-                      </Button>
-                    )}
-                  </div>
-
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    <PreviewField
-                      label="Matched account"
-                      value={detailTransferPairCandidate.accountName}
-                    />
-                    <PreviewField
-                      label="Matched amount"
-                      value={formatSignedCurrency(
-                        detailTransferPairCandidate.amount,
-                        detailTransferPairCandidate.currency,
-                      )}
-                    />
-                    <PreviewField
-                      label="Matched date"
-                      value={formatDate(detailTransferPairCandidate.date)}
-                    />
-                    <PreviewField
-                      label="Matched time"
-                      value={
-                        detailTransferPairCandidate.time
-                          ? detailTransferPairCandidate.time.slice(0, 5)
-                          : "—"
-                      }
-                    />
-                    <PreviewField
-                      label="Matched description"
-                      value={detailTransferPairCandidate.description || "—"}
-                    />
-                    <PreviewField
-                      label="Matched transaction reference"
-                      value={detailTransferPairCandidate.transactionId || "—"}
-                      mono
-                    />
-                  </div>
-                </Card>
-              )}
-
               {detailMetadata.length > 0 && (
                 <Card className="p-3 space-y-3">
                   <div>
@@ -1278,6 +1199,71 @@ export function TransactionPreview({
                 variant="outline"
                 onClick={() => setDetailRowIndex(null)}
               >
+                Close
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
+      )}
+
+      {matchDetailTransferPairCandidate && (
+        <Dialog
+          open
+          onOpenChange={(open) => {
+            if (!open) setMatchDetailRowIndex(null);
+          }}
+        >
+          <DialogContent className="max-w-2xl" showCloseButton={false}>
+            <DialogHeader>
+              <DialogTitle>Matched Transaction</DialogTitle>
+            </DialogHeader>
+
+            <div className="space-y-4">
+              <Card className="p-3 space-y-2">
+                <p className="text-sm text-foreground">
+                  Matched against an existing transaction in {matchDetailTransferPairCandidate.accountName}.
+                </p>
+                <p className={cn(
+                  "text-sm",
+                  matchDetailTransferPairCandidate.isAlreadyLinked ? "text-warning" : "text-dimmed",
+                )}>
+                  {matchDetailTransferPairCandidate.isAlreadyLinked
+                    ? "This matched transaction is already linked elsewhere."
+                    : "This matched transaction can be linked on import."}
+                </p>
+              </Card>
+
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <PreviewField label="Matched account" value={matchDetailTransferPairCandidate.accountName} />
+                <PreviewField
+                  label="Matched amount"
+                  value={formatSignedCurrency(
+                    matchDetailTransferPairCandidate.amount,
+                    matchDetailTransferPairCandidate.currency,
+                  )}
+                />
+                <PreviewField
+                  label="Matched date"
+                  value={formatDate(matchDetailTransferPairCandidate.date)}
+                />
+                <PreviewField
+                  label="Matched time"
+                  value={matchDetailTransferPairCandidate.time ? matchDetailTransferPairCandidate.time.slice(0, 5) : "—"}
+                />
+                <PreviewField
+                  label="Matched description"
+                  value={matchDetailTransferPairCandidate.description || "—"}
+                />
+                <PreviewField
+                  label="Matched transaction reference"
+                  value={matchDetailTransferPairCandidate.transactionId || "—"}
+                  mono
+                />
+              </div>
+            </div>
+
+            <DialogFooter>
+              <Button type="button" variant="outline" onClick={() => setMatchDetailRowIndex(null)}>
                 Close
               </Button>
             </DialogFooter>
