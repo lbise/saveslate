@@ -111,6 +111,104 @@ npm run test:smoke:docker
 
 `npm run test:e2e:docker` and `npm run test:smoke:docker` expect the app to already be running via Docker Compose at `http://localhost`.
 
+## SwiftWave Deployment
+
+Use SwiftWave as the public ingress and keep this repo's local Docker flow unchanged.
+
+### Recommended layout
+
+- **web**: deploy from `Dockerfile.swiftwave`
+- **api**: deploy from `backend/Dockerfile`
+- **db**: deploy PostgreSQL with persistent storage
+
+SwiftWave should route the same domain by path:
+
+- `/` -> web app
+- `/api/*` -> api app
+
+This keeps the frontend's relative `/api/...` requests working without changing application code.
+
+### Why `Dockerfile.swiftwave` exists
+
+Local Docker Compose still uses `Dockerfile` + `nginx.conf`, where nginx proxies `/api` to the Compose service named `api`.
+
+SwiftWave should not rely on that internal Compose hostname, so `Dockerfile.swiftwave` uses `nginx.swiftwave.conf` instead:
+
+- serves the built frontend
+- keeps SPA fallback for React routes
+- does **not** proxy `/api`
+- returns `404` for `/api` if traffic is misrouted to the web container
+
+### API environment variables
+
+Set these for the API deployment:
+
+- `DATABASE_URL`
+- `SECRET_KEY`
+- `CSRF_SECRET_KEY`
+- `CORS_ORIGINS=https://your-domain.example`
+- `COOKIE_SECURE=true`
+
+Recommended API command override:
+
+```bash
+sh -c "alembic upgrade head && uvicorn app.main:app --host 0.0.0.0 --port 8000"
+```
+
+### Local development remains the same
+
+These commands are unchanged:
+
+```bash
+npm run dev
+npm run dev:backend
+npm run dev:full
+npm run dev:stop
+docker compose up --build -d
+```
+
+### GitHub Actions deployment via GHCR
+
+This repo includes `.github/workflows/swiftwave-deploy.yml` to automate SwiftWave deployments through GitHub Actions.
+
+Flow:
+
+```text
+push to main
+  -> GitHub Actions builds container images
+  -> pushes to GHCR
+  -> calls SwiftWave web/api webhook URLs
+  -> SwiftWave redeploys the apps
+```
+
+Images pushed by the workflow:
+
+- `ghcr.io/<owner>/saveslate-web:latest`
+- `ghcr.io/<owner>/saveslate-api:latest`
+- matching `sha-...` tags for traceability
+
+Set up SwiftWave like this:
+
+- deploy the **web** app from image `ghcr.io/<owner>/saveslate-web:latest`
+- deploy the **api** app from image `ghcr.io/<owner>/saveslate-api:latest`
+- keep the same ingress split: `/` -> web and `/api/*` -> api
+
+If your GHCR packages are private, add an image registry credential in SwiftWave for `ghcr.io`. If you make them public, no SwiftWave registry credential is needed.
+
+Add these GitHub repository secrets before relying on the workflow:
+
+- `SWIFTWAVE_WEBHOOK_WEB` — webhook URL from the web app's **Webhook CI** page
+- `SWIFTWAVE_WEBHOOK_API` — webhook URL from the api app's **Webhook CI** page
+
+The workflow uses the built-in `GITHUB_TOKEN` to publish to GHCR, so no extra registry token is required for GitHub Actions itself.
+
+Recommended first-time rollout:
+
+1. Create the web and api apps in SwiftWave from **Docker Image** sources.
+2. Point them at the `latest` GHCR tags above.
+3. Copy each app's SwiftWave webhook URL into the matching GitHub secret.
+4. Push to `main` or run the workflow manually from the GitHub Actions tab.
+
 ### Type Checking & Lint
 
 ```bash

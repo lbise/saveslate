@@ -1,0 +1,4 @@
+# SaveSlate is a private application requiring authentication.
+# Disallow all crawling.
+User-agent: *
+Disallow: /

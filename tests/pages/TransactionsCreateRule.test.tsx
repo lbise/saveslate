@@ -146,6 +146,7 @@ vi.mock('../../src/hooks/api', () => ({
     isError: false,
     refetch: vi.fn(),
   }),
+  useCategoryGroups: () => ({ data: [] }),
   useGoals: () => ({ data: [] }),
   useTransactions: () => ({
     data: {

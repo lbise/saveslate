@@ -6,6 +6,7 @@ from fastapi import APIRouter, Depends, HTTPException, Request, Response, status
 from sqlalchemy import delete, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.config import settings
 from app.deps import get_current_user, get_db, verify_csrf
 from app.limiter import limiter
 from app.models import (
@@ -33,7 +34,7 @@ router = APIRouter(prefix="/api/auth", tags=["auth"])
 
 _COOKIE_DEFAULTS: dict = {
     "httponly": True,
-    "secure": False,  # set True when behind HTTPS in production
+    "secure": settings.cookie_secure,
     "samesite": "lax",
     "path": "/",
 }

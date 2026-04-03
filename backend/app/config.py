@@ -15,6 +15,9 @@ class Settings(BaseSettings):
     jwt_expire_minutes: int = 1440  # 24 hours
     csrf_secret_key: str = "change-me-csrf-secret"
 
+    # Cookies
+    cookie_secure: bool = False  # Set True in production (requires HTTPS)
+
     # App
     cors_origins: str = "http://localhost:5173"
     api_prefix: str = "/api"

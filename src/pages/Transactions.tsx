@@ -1237,10 +1237,11 @@ export function Transactions() {
       <div className="space-y-3">
         {/* Row 1: Search (full width) */}
         <div className="relative">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-dimmed" />
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-dimmed" aria-hidden="true" />
           <Input
             type="text"
             placeholder="Search transactions and notes..."
+            aria-label="Search transactions"
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
             className="pl-10"
@@ -1305,6 +1306,7 @@ export function Transactions() {
             <PopoverTrigger asChild>
               <button
                 type="button"
+                aria-label="Filter by source"
                 className={cn(
                   "flex h-10 min-w-0 items-center gap-2 rounded-md border border-border bg-card px-4 text-left text-sm text-foreground transition-colors cursor-pointer",
                   activeSourceFilterIds.length > 0 && "border-primary/40",
@@ -1377,7 +1379,7 @@ export function Transactions() {
                               type="button"
                               onClick={() => requestRenameSource(source.id)}
                               className="w-7 h-7 flex items-center justify-center rounded bg-transparent border-none cursor-pointer text-dimmed hover:text-foreground transition-colors opacity-60 hover:opacity-100"
-                              title={`Rename source ${source.label}`}
+                              aria-label={`Rename source ${source.label}`}
                             >
                               <Pencil size={12} />
                             </button>
@@ -1385,7 +1387,7 @@ export function Transactions() {
                               type="button"
                               onClick={() => requestDeleteSource(source.id)}
                               className="w-7 h-7 flex items-center justify-center rounded bg-transparent border-none cursor-pointer text-dimmed hover:text-expense transition-colors opacity-60 hover:opacity-100"
-                              title={`Delete source ${source.label}`}
+                              aria-label={`Delete source ${source.label}`}
                             >
                               <Trash2 size={12} />
                             </button>
@@ -1404,6 +1406,8 @@ export function Transactions() {
             variant="ghost"
             type="button"
             onClick={() => setShowAdvancedFilters((prev) => !prev)}
+            aria-expanded={showAdvancedFilters}
+            aria-label="Toggle advanced filters"
             className={cn(
               "flex items-center gap-2 shrink-0",
               showAdvancedFilters && "text-primary",
@@ -1422,8 +1426,9 @@ export function Transactions() {
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 p-4 bg-card border border-border rounded-(--radius-md)">
             {/* Date from */}
             <div className="flex flex-col gap-1">
-              <label className="text-sm text-dimmed">From date</label>
+              <Label htmlFor="filter-date-from">From date</Label>
               <Input
+                id="filter-date-from"
                 type="date"
                 value={dateFrom}
                 onChange={(e) => setDateFrom(e.target.value)}
@@ -1432,8 +1437,9 @@ export function Transactions() {
 
             {/* Date to */}
             <div className="flex flex-col gap-1">
-              <label className="text-sm text-dimmed">To date</label>
+              <Label htmlFor="filter-date-to">To date</Label>
               <Input
+                id="filter-date-to"
                 type="date"
                 value={dateTo}
                 onChange={(e) => setDateTo(e.target.value)}
@@ -1442,8 +1448,9 @@ export function Transactions() {
 
             {/* Amount min */}
             <div className="flex flex-col gap-1">
-              <label className="text-sm text-dimmed">Min amount</label>
+              <Label htmlFor="filter-amount-min">Min amount</Label>
               <Input
+                id="filter-amount-min"
                 type="number"
                 placeholder="0.00"
                 value={amountMin}
@@ -1455,8 +1462,9 @@ export function Transactions() {
 
             {/* Amount max */}
             <div className="flex flex-col gap-1">
-              <label className="text-sm text-dimmed">Max amount</label>
+              <Label htmlFor="filter-amount-max">Max amount</Label>
               <Input
+                id="filter-amount-max"
                 type="number"
                 placeholder="0.00"
                 value={amountMax}
@@ -1469,7 +1477,7 @@ export function Transactions() {
         )}
 
         {/* Row 3: Type filter pills + active filter badges */}
-        <div className="flex items-center gap-2 flex-wrap">
+        <div className="flex items-center gap-2 flex-wrap" role="group" aria-label="Transaction type filters">
           {TYPE_LABELS.map((t) => {
             const isActive = typeFilter === t.value;
             return (
@@ -1479,6 +1487,7 @@ export function Transactions() {
                   setTypeFilter(t.value);
                   setCategoryFilterIds([]);
                 }}
+                aria-pressed={isActive}
                 className={cn(
                   "px-3 py-1.5 rounded-full text-sm font-medium transition-all duration-150 border cursor-pointer",
                   isActive
@@ -1498,6 +1507,7 @@ export function Transactions() {
             <button
               type="button"
               onClick={() => setCategoryFilterIds([])}
+              aria-label="Clear category filter"
               className="flex items-center gap-1 px-2 py-1 rounded-full text-sm bg-primary/10 text-primary border border-primary/20 cursor-pointer transition-opacity hover:opacity-80"
             >
               {categoryFilterIds.length === 1
@@ -1510,6 +1520,7 @@ export function Transactions() {
             <button
               type="button"
               onClick={() => setTagFilterIds([])}
+              aria-label="Clear tag filter"
               className="flex items-center gap-1 px-2 py-1 rounded-full text-sm bg-primary/10 text-primary border border-primary/20 cursor-pointer transition-opacity hover:opacity-80"
             >
               {tagFilterIds.length === 1
@@ -1522,6 +1533,7 @@ export function Transactions() {
             <button
               type="button"
               onClick={() => setGoalFilterIds([])}
+              aria-label="Clear goal filter"
               className="flex items-center gap-1 px-2 py-1 rounded-full text-sm bg-primary/10 text-primary border border-primary/20 cursor-pointer transition-opacity hover:opacity-80"
             >
               {goalFilterIds.length === 1
@@ -1534,6 +1546,7 @@ export function Transactions() {
             <button
               type="button"
               onClick={() => setAccountFilterIds([])}
+              aria-label="Clear account filter"
               className="flex items-center gap-1 px-2 py-1 rounded-full text-sm bg-primary/10 text-primary border border-primary/20 cursor-pointer transition-opacity hover:opacity-80"
             >
               {accountFilterIds.length === 1
@@ -1546,6 +1559,7 @@ export function Transactions() {
             <button
               type="button"
               onClick={() => setSourceFilterIds([])}
+              aria-label="Clear source filter"
               className="flex items-center gap-1 px-2 py-1 rounded-full text-sm bg-primary/10 text-primary border border-primary/20 cursor-pointer transition-opacity hover:opacity-80"
             >
               {activeSourceFilterIds.length === 1
@@ -1558,6 +1572,7 @@ export function Transactions() {
             <button
               type="button"
               onClick={() => { setDateFrom(""); setDateTo(""); }}
+              aria-label="Clear date filter"
               className="flex items-center gap-1 px-2 py-1 rounded-full text-sm bg-primary/10 text-primary border border-primary/20 cursor-pointer transition-opacity hover:opacity-80"
             >
               {dateFrom && dateTo ? `${dateFrom} - ${dateTo}` : dateFrom ? `From ${dateFrom}` : `To ${dateTo}`}
@@ -1568,6 +1583,7 @@ export function Transactions() {
             <button
               type="button"
               onClick={() => { setAmountMin(""); setAmountMax(""); }}
+              aria-label="Clear amount filter"
               className="flex items-center gap-1 px-2 py-1 rounded-full text-sm bg-primary/10 text-primary border border-primary/20 cursor-pointer transition-opacity hover:opacity-80"
             >
               {amountMin && amountMax ? `${amountMin} - ${amountMax}` : amountMin ? `Min ${amountMin}` : `Max ${amountMax}`}
@@ -1591,6 +1607,7 @@ export function Transactions() {
           <button
             type="button"
             onClick={() => setShowUncategorizedOnly((prev) => !prev)}
+            aria-pressed={showUncategorizedOnly}
             className={cn(
               "flex items-center gap-2 bg-transparent border-none cursor-pointer transition-opacity px-0 py-0",
               showUncategorizedOnly ? "opacity-100" : "opacity-60 hover:opacity-100",
@@ -1613,6 +1630,7 @@ export function Transactions() {
         <div className="flex-1">Description</div>
         <button
           onClick={() => toggleSort("date")}
+          aria-label={`Sort by date ${sortField === "date" ? (sortDirection === "desc" ? "ascending" : "descending") : ""}`}
           className="flex items-center gap-1 w-24 bg-transparent border-none text-dimmed hover:text-foreground cursor-pointer transition-colors text-sm uppercase tracking-wider"
         >
           Date
@@ -1620,6 +1638,7 @@ export function Transactions() {
         </button>
         <button
           onClick={() => toggleSort("amount")}
+          aria-label={`Sort by amount ${sortField === "amount" ? (sortDirection === "desc" ? "ascending" : "descending") : ""}`}
           className="flex items-center gap-1 w-28 justify-end bg-transparent border-none text-dimmed hover:text-foreground cursor-pointer transition-colors text-sm uppercase tracking-wider"
         >
           Amount
@@ -1685,6 +1704,7 @@ export function Transactions() {
             <select
               value={pageSize}
               onChange={(e) => { setPageSize(Number(e.target.value)); setPage(0); }}
+              aria-label="Rows per page"
               className="text-sm bg-transparent border border-border rounded px-1 py-0.5 text-muted-foreground cursor-pointer"
             >
               {pageSizes.map((size) => (

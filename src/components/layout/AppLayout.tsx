@@ -21,6 +21,13 @@ export function AppLayout() {
 
   return (
     <div className="min-h-screen flex bg-background">
+      <a
+        href="#main-content"
+        className="sr-only focus:not-sr-only focus:fixed focus:top-4 focus:left-4 focus:z-[200] focus:px-4 focus:py-2 focus:bg-primary focus:text-primary-foreground focus:rounded-md focus:text-sm focus:font-medium"
+      >
+        Skip to main content
+      </a>
+
       <Sidebar
         collapsed={sidebarCollapsed}
         onToggleCollapse={() => setSidebarCollapsed((prev) => !prev)}
@@ -35,7 +42,7 @@ export function AppLayout() {
             : 'var(--sidebar-width)',
         }}
       >
-        <main className="overflow-auto">
+        <main id="main-content" className="overflow-auto">
           <ErrorBoundary>
             <Outlet />
           </ErrorBoundary>
