@@ -112,6 +112,21 @@ jobs:
             --data '{"trigger":"github-actions","app":"web"}' \
             "$WEBHOOK_URL"
 
+      - name: Trigger Dokploy web webhook
+        env:
+          WEBHOOK_URL: ${{ secrets.DOKPLOY_WEBHOOK_WEB }}
+        run: |
+          if [ -z "$WEBHOOK_URL" ]; then
+            echo "DOKPLOY_WEBHOOK_WEB is not set; skipping web redeploy."
+            exit 0
+          fi
+
+          curl --fail --show-error --silent \
+            -X POST \
+            -H "Content-Type: application/json" \
+            --data '{"trigger":"github-actions","app":"web"}' \
+            "$WEBHOOK_URL"
+
   deploy-api:
     name: Trigger api redeploy
     runs-on: ubuntu-latest
@@ -123,6 +138,21 @@ jobs:
         run: |
           if [ -z "$WEBHOOK_URL" ]; then
             echo "SWIFTWAVE_WEBHOOK_API is not set; skipping api redeploy."
+            exit 0
+          fi
+
+          curl --fail --show-error --silent \
+            -X POST \
+            -H "Content-Type: application/json" \
+            --data '{"trigger":"github-actions","app":"api"}' \
+            "$WEBHOOK_URL"
+
+      - name: Trigger Dokploy api webhook
+        env:
+          WEBHOOK_URL: ${{ secrets.DOKPLOY_WEBHOOK_API }}
+        run: |
+          if [ -z "$WEBHOOK_URL" ]; then
+            echo "DOKPLOY_WEBHOOK_API is not set; skipping api redeploy."
             exit 0
           fi
 
