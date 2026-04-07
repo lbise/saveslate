@@ -97,21 +97,6 @@ jobs:
     runs-on: ubuntu-latest
     needs: build-web
     steps:
-      - name: Trigger SwiftWave web webhook
-        env:
-          WEBHOOK_URL: ${{ secrets.SWIFTWAVE_WEBHOOK_WEB }}
-        run: |
-          if [ -z "$WEBHOOK_URL" ]; then
-            echo "SWIFTWAVE_WEBHOOK_WEB is not set; skipping web redeploy."
-            exit 0
-          fi
-
-          curl --fail --show-error --silent \
-            -X POST \
-            -H "Content-Type: application/json" \
-            --data '{"trigger":"github-actions","app":"web"}' \
-            "$WEBHOOK_URL"
-
       - name: Trigger Dokploy web webhook
         env:
           WEBHOOK_URL: ${{ secrets.DOKPLOY_WEBHOOK_WEB }}
@@ -132,21 +117,6 @@ jobs:
     runs-on: ubuntu-latest
     needs: build-api
     steps:
-      - name: Trigger SwiftWave api webhook
-        env:
-          WEBHOOK_URL: ${{ secrets.SWIFTWAVE_WEBHOOK_API }}
-        run: |
-          if [ -z "$WEBHOOK_URL" ]; then
-            echo "SWIFTWAVE_WEBHOOK_API is not set; skipping api redeploy."
-            exit 0
-          fi
-
-          curl --fail --show-error --silent \
-            -X POST \
-            -H "Content-Type: application/json" \
-            --data '{"trigger":"github-actions","app":"api"}' \
-            "$WEBHOOK_URL"
-
       - name: Trigger Dokploy api webhook
         env:
           WEBHOOK_URL: ${{ secrets.DOKPLOY_WEBHOOK_API }}
