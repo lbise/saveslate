@@ -121,10 +121,7 @@ Use SwiftWave as the public ingress and keep this repo's local Docker flow uncha
 - **api**: deploy from `backend/Dockerfile`
 - **db**: deploy PostgreSQL with persistent storage
 
-SwiftWave should route the same domain by path:
-
-- `/` -> web app
-- `/api/*` -> api app
+SwiftWave should expose the same domain to the web app, and the web app's nginx will forward `/api/*` to the API app over the internal network.
 
 This keeps the frontend's relative `/api/...` requests working without changing application code.
 
@@ -132,12 +129,11 @@ This keeps the frontend's relative `/api/...` requests working without changing 
 
 Local Docker Compose still uses `Dockerfile` + `nginx.conf`, where nginx proxies `/api` to the Compose service named `api`.
 
-SwiftWave should not rely on that internal Compose hostname, so `Dockerfile.swiftwave` uses `nginx.swiftwave.conf` instead:
+SwiftWave should not rely on the local Compose hostname, so `Dockerfile.swiftwave` uses an environment-templated nginx config instead:
 
 - serves the built frontend
 - keeps SPA fallback for React routes
-- does **not** proxy `/api`
-- returns `404` for `/api` if traffic is misrouted to the web container
+- proxies `/api` to the API app using `API_UPSTREAM_HOST` and `API_UPSTREAM_PORT`
 
 ### API environment variables
 
@@ -148,6 +144,15 @@ Set these for the API deployment:
 - `CSRF_SECRET_KEY`
 - `CORS_ORIGINS=https://your-domain.example`
 - `COOKIE_SECURE=true`
+
+### Web environment variables
+
+Set these for the SwiftWave web deployment:
+
+- `API_UPSTREAM_HOST` — internal hostname or service name for the API app on the SwiftWave network
+- `API_UPSTREAM_PORT=8000`
+
+Example: if SwiftWave exposes the API app internally as `saveslate-api`, set `API_UPSTREAM_HOST=saveslate-api` on the web app.
 
 Recommended API command override:
 
@@ -191,7 +196,8 @@ Set up SwiftWave like this:
 
 - deploy the **web** app from image `ghcr.io/<owner>/saveslate-web:latest`
 - deploy the **api** app from image `ghcr.io/<owner>/saveslate-api:latest`
-- keep the same ingress split: `/` -> web and `/api/*` -> api
+- point your public domain ingress at the **web** app
+- set the web app's `API_UPSTREAM_HOST` to the API app's internal SwiftWave hostname
 
 If your GHCR packages are private, add an image registry credential in SwiftWave for `ghcr.io`. If you make them public, no SwiftWave registry credential is needed.
 

@@ -106,7 +106,11 @@ jobs:
             exit 0
           fi
 
-          curl --fail --show-error --silent -X POST "$WEBHOOK_URL"
+          curl --fail --show-error --silent \
+            -X POST \
+            -H "Content-Type: application/json" \
+            --data '{"trigger":"github-actions","app":"web"}' \
+            "$WEBHOOK_URL"
 
   deploy-api:
     name: Trigger api redeploy
@@ -122,4 +126,8 @@ jobs:
             exit 0
           fi
 
-          curl --fail --show-error --silent -X POST "$WEBHOOK_URL"
+          curl --fail --show-error --silent \
+            -X POST \
+            -H "Content-Type: application/json" \
+            --data '{"trigger":"github-actions","app":"api"}' \
+            "$WEBHOOK_URL"
