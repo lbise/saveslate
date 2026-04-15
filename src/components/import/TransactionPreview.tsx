@@ -1,4 +1,4 @@
-import { Fragment, useCallback, useMemo, useState } from "react";
+import { Fragment, useCallback, useMemo, useRef, useState } from "react";
 import {
   AlertTriangle,
   Eye,
@@ -6,7 +6,7 @@ import {
   Link2Off,
   Filter,
   Loader2,
-  Sparkles,
+  Play,
   X,
 } from "lucide-react";
 import { toast } from "sonner";
@@ -287,6 +287,8 @@ export function TransactionPreview({
     useState<Set<number>>(new Set());
   const [isRunningAiAssist, setIsRunningAiAssist] = useState(false);
   const [aiAssistProgress, setAiAssistProgress] = useState<AiAssistProgress | null>(null);
+  const [hasRunAiAssistContextKey, setHasRunAiAssistContextKey] = useState<string | null>(null);
+  const aiAssistAbortControllerRef = useRef<AbortController | null>(null);
   const availableCategories = useMemo(
     () => [...categories].sort((left, right) => left.name.localeCompare(right.name)),
     [categories],
@@ -602,6 +604,7 @@ export function TransactionPreview({
     [rows],
   );
   const currentAiContextKey = `${effectiveAccountId}|${parserId}|${rowsSignature}`;
+  const hasRunAiAssistForCurrentImport = hasRunAiAssistContextKey === currentAiContextKey;
   const currentAiSuggestionsByIndex = useMemo(
     () => aiSuggestionContextKey === currentAiContextKey ? aiSuggestionsByIndex : new Map<number, ImportAiSuggestion>(),
     [aiSuggestionContextKey, aiSuggestionsByIndex, currentAiContextKey],
@@ -646,7 +649,6 @@ export function TransactionPreview({
   }, [currentAiSuggestionsByIndex, ignoredAiSuggestionIndexes]);
 
   const aiSuggestionCount = currentAiSuggestionsByIndex.size;
-  const acceptedAiSuggestionCount = acceptedAiSuggestions.size;
   const pendingReviewAiSuggestionCount = useMemo(
     () => Array.from(currentAiSuggestionsByIndex.keys()).filter(
       (idx) => !acceptedAiSuggestions.has(idx) && !ignoredAiSuggestions.has(idx),
@@ -660,14 +662,6 @@ export function TransactionPreview({
     )).length,
     [acceptedAiSuggestions, currentAiSuggestionsByIndex],
   );
-  const aiAssistProgressLabel = useMemo(() => {
-    if (!aiAssistProgress) {
-      return null;
-    }
-
-    return `${aiAssistProgress.completedRowCount}/${aiAssistProgress.totalRowCount} rows`;
-  }, [aiAssistProgress]);
-
   const acceptAiSuggestion = useCallback((rowIndex: number) => {
     setAcceptedAiSuggestionIndexes((previous) => new Set(previous).add(rowIndex));
     setIgnoredAiSuggestionIndexes((previous) => {
@@ -786,6 +780,15 @@ export function TransactionPreview({
   }, [automationRules, categoriesById, currentAiSuggestionsByIndex, defaultRuleCategoryId]);
 
   const handleRunAiAssist = useCallback(async () => {
+    if (isRunningAiAssist) {
+      aiAssistAbortControllerRef.current?.abort();
+      return;
+    }
+    if (hasRunAiAssistForCurrentImport) {
+      toast.info("AI assistant can only run once for this import preview.");
+      return;
+    }
+
     if (!effectiveAccountId) {
       toast.error("Select an account before running AI assist.");
       return;
@@ -805,6 +808,7 @@ export function TransactionPreview({
     let totalAutoAcceptedCount = 0;
 
     setIsRunningAiAssist(true);
+    setHasRunAiAssistContextKey(currentAiContextKey);
     setAiSuggestionContextKey(currentAiContextKey);
     setAiSuggestionsByIndex(new Map());
     setAcceptedAiSuggestionIndexes(new Set());
@@ -818,12 +822,17 @@ export function TransactionPreview({
 
     try {
       for (const rowIndexes of rowIndexBatches) {
+        const abortController = new AbortController();
+        aiAssistAbortControllerRef.current = abortController;
         const result = await importAiAssistMutation.mutateAsync({
           file,
           accountId: effectiveAccountId,
           parserId,
           rowIndexes,
+          signal: abortController.signal,
         });
+
+        aiAssistAbortControllerRef.current = null;
 
         completedBatchCount += 1;
         completedRowCount += rowIndexes.length;
@@ -865,6 +874,15 @@ export function TransactionPreview({
         `${totalSuggestionCount} AI suggestion${totalSuggestionCount !== 1 ? "s" : ""} ready${totalAutoAcceptedCount > 0 ? `, ${totalAutoAcceptedCount} auto-applied` : ""}`,
       );
     } catch (error) {
+      if (error instanceof DOMException && error.name === "AbortError") {
+        toast.info(
+          completedBatchCount > 0
+            ? `Stopped after ${completedBatchCount}/${rowIndexBatches.length} batches.`
+            : "Stopped before any suggestions were returned.",
+        );
+        return;
+      }
+
       const message = error instanceof Error ? error.message : "Failed to run AI assist";
       if (completedBatchCount > 0) {
         toast.error(
@@ -874,6 +892,7 @@ export function TransactionPreview({
         toast.error(message);
       }
     } finally {
+      aiAssistAbortControllerRef.current = null;
       setIsRunningAiAssist(false);
       setAiAssistProgress((previous) => {
         if (!previous) {
@@ -887,7 +906,7 @@ export function TransactionPreview({
         };
       });
     }
-  }, [aiEligibleRowIndexes, currentAiContextKey, effectiveAccountId, file, importAiAssistMutation, parserId]);
+  }, [aiEligibleRowIndexes, currentAiContextKey, effectiveAccountId, file, hasRunAiAssistForCurrentImport, importAiAssistMutation, isRunningAiAssist, parserId]);
 
   const toggleRow = (idx: number) => {
     if (duplicateIndexes.has(idx)) {
@@ -1130,45 +1149,50 @@ export function TransactionPreview({
         </div>
       </div>
 
-      <Card className="p-3 space-y-3 border-primary/20 bg-primary/[0.04]">
-        <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
-          <div className="space-y-1">
-            <div className="flex flex-wrap items-center gap-2">
-              <Badge variant="default">AI assist</Badge>
-              {aiAssistProgress && (
-                <>
-                  <Badge variant="outline">
-                    Batch {Math.min(aiAssistProgress.completedBatchCount, aiAssistProgress.totalBatchCount)}/{aiAssistProgress.totalBatchCount}
-                  </Badge>
-                  {aiAssistProgressLabel && (
-                    <Badge variant="outline">{aiAssistProgressLabel}</Badge>
-                  )}
-                </>
+      <div className="flex flex-col gap-3 rounded-(--radius-md) border border-border bg-card p-3 sm:flex-row sm:items-start sm:justify-between">
+        <div className="space-y-2">
+          <div className="flex flex-wrap items-center gap-2">
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              onClick={handleRunAiAssist}
+              disabled={!isRunningAiAssist && (!effectiveAccountId || aiEligibleRowIndexes.length === 0 || hasRunAiAssistForCurrentImport)}
+            >
+              {isRunningAiAssist ? (
+                <Loader2 size={14} className="animate-spin" />
+              ) : (
+                <Play size={14} />
               )}
-              {aiSuggestionCount > 0 && (
-                <>
-                  <Badge variant="outline">
-                    {aiSuggestionCount} suggestion{aiSuggestionCount !== 1 ? "s" : ""}
-                  </Badge>
-                  <Badge variant="outline">
-                    {acceptedAiSuggestionCount} accepted
-                  </Badge>
-                  {pendingReviewAiSuggestionCount > 0 && (
-                    <Badge variant="muted">
-                      {pendingReviewAiSuggestionCount} need review
-                    </Badge>
-                  )}
-                </>
-              )}
-            </div>
-            <p className="text-sm text-dimmed">
-              Suggests cleaner descriptions and categories for uncategorized rows.
-              Accepted suggestions only affect this import.
-              {isRunningAiAssist && " Suggestions appear as each batch finishes."}
-            </p>
+              AI assistant
+            </Button>
+
+            {aiAssistProgress && (
+              <Badge variant="outline">
+                Batch {Math.min(aiAssistProgress.completedBatchCount, aiAssistProgress.totalBatchCount)}/{aiAssistProgress.totalBatchCount}
+              </Badge>
+            )}
+
+            {aiSuggestionCount > 0 && (
+              <Badge variant="outline">
+                {aiSuggestionCount} suggestion{aiSuggestionCount !== 1 ? "s" : ""} ready
+              </Badge>
+            )}
+
+            {pendingReviewAiSuggestionCount > 0 && (
+              <Badge variant="muted">
+                {pendingReviewAiSuggestionCount} waiting for review
+              </Badge>
+            )}
           </div>
 
-          <div className="flex flex-wrap items-center gap-2">
+          <p className="text-sm text-dimmed">
+            Clean descriptions and suggest categories before you import.
+            {isRunningAiAssist && " Results appear batch by batch."}
+          </p>
+        </div>
+
+        <div className="flex flex-wrap items-center gap-2">
             {pendingHighConfidenceSuggestionCount > 0 && (
               <Button
                 type="button"
@@ -1180,25 +1204,8 @@ export function TransactionPreview({
                 Accept all high-confidence
               </Button>
             )}
-            <Button
-              type="button"
-              variant="outline"
-              size="sm"
-              onClick={handleRunAiAssist}
-              disabled={!effectiveAccountId || aiEligibleRowIndexes.length === 0 || isRunningAiAssist}
-            >
-              {isRunningAiAssist ? (
-                <Loader2 size={14} className="animate-spin" />
-              ) : (
-                <Sparkles size={14} />
-              )}
-              {isRunningAiAssist
-                ? `Running AI assist${aiAssistProgress ? ` (${Math.min(aiAssistProgress.completedBatchCount + 1, aiAssistProgress.totalBatchCount)}/${aiAssistProgress.totalBatchCount})` : "..."}`
-                : "Run AI assist"}
-            </Button>
-          </div>
         </div>
-      </Card>
+      </div>
 
       {/* Warnings filter */}
       {stats.warningCount > 0 && (

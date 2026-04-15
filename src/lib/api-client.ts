@@ -81,6 +81,7 @@ interface RequestOptions {
   params?: Record<string, string | number | boolean | undefined | null>;
   body?: unknown;
   headers?: Record<string, string>;
+  signal?: AbortSignal;
 }
 
 async function request<T>(
@@ -88,7 +89,7 @@ async function request<T>(
   url: string,
   options: RequestOptions = {},
 ): Promise<T> {
-  const { params, body, headers: extraHeaders } = options;
+  const { params, body, headers: extraHeaders, signal } = options;
 
   // Build URL with query params.
   // Preserve caller-provided names because the backend exposes camelCase aliases
@@ -130,6 +131,7 @@ async function request<T>(
     headers,
     body: fetchBody,
     credentials: 'same-origin',
+    signal,
   });
 
   // No-content responses
@@ -181,6 +183,7 @@ export const api = {
     file: File,
     params?: Record<string, string | number | boolean | undefined | null>,
     fields?: Record<string, unknown>,
+    signal?: AbortSignal,
   ) {
     const formData = new FormData();
     formData.append('file', file);
@@ -197,6 +200,6 @@ export const api = {
       }
     }
 
-    return request<T>('POST', url, { params, body: formData });
+    return request<T>('POST', url, { params, body: formData, signal });
   },
 };

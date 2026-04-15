@@ -9,17 +9,19 @@ export function useImportAiAssist() {
       accountId,
       parserId,
       rowIndexes,
+      signal,
     }: {
       file: File;
       accountId: string;
       parserId: string;
       rowIndexes?: number[];
+      signal?: AbortSignal;
     }) => api.upload<ImportAiAssistResponse>('/api/import/assist', file, undefined, {
       payload: {
         accountId,
         parserId,
         rowIndexes,
       },
-    }),
+    }, signal),
   });
 }
