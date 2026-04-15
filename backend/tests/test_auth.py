@@ -22,6 +22,8 @@ class TestRegister:
         assert data["email"] == TEST_USER["email"]
         assert data["name"] == TEST_USER["name"]
         assert data["default_currency"] == TEST_USER["default_currency"]
+        assert data["preferred_language"] == "en"
+        assert data["ai_translate_descriptions"] is False
         assert "id" in data
         assert "password" not in data
         assert "password_hash" not in data
@@ -64,6 +66,8 @@ class TestRegister:
         resp = await client.post("/api/auth/register", json=payload)
         assert resp.status_code == 201
         assert resp.json()["default_currency"] == "CHF"
+        assert resp.json()["preferred_language"] == "en"
+        assert resp.json()["ai_translate_descriptions"] is False
 
 
 # ============================================================================
@@ -183,6 +187,26 @@ class TestUpdateMe:
         )
         assert resp.status_code == 200
         assert resp.json()["email"] == "new@example.com"
+
+    async def test_update_language_and_ai_translation(self, authed_client: AsyncClient):
+        csrf = authed_client.cookies.get("csrf_token")
+        resp = await authed_client.put(
+            "/api/auth/me",
+            json={"preferred_language": "fr", "ai_translate_descriptions": True},
+            headers={"X-CSRF-Token": csrf},
+        )
+        assert resp.status_code == 200
+        assert resp.json()["preferred_language"] == "fr"
+        assert resp.json()["ai_translate_descriptions"] is True
+
+    async def test_update_invalid_language(self, authed_client: AsyncClient):
+        csrf = authed_client.cookies.get("csrf_token")
+        resp = await authed_client.put(
+            "/api/auth/me",
+            json={"preferred_language": "it"},
+            headers={"X-CSRF-Token": csrf},
+        )
+        assert resp.status_code == 422
 
     async def test_update_duplicate_email(self, client: AsyncClient):
         """Changing email to one already taken returns 409."""

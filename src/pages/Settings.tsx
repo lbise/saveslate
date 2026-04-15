@@ -5,10 +5,10 @@ import {
   type ReactNode,
 } from 'react';
 import { toast } from 'sonner';
-import { Globe, DollarSign, Bell, Shield, Download, Trash2 } from 'lucide-react';
+import { Globe, DollarSign, Shield, Download, Trash2, Sparkles } from 'lucide-react';
 import { PageHeader } from '../components/layout/PageHeader';
 import { Badge } from '../components/ui/Badge';
-import { Button } from '../components/ui/button';
+import { Checkbox } from '@/components/ui/checkbox';
 import {
   Select,
   SelectContent,
@@ -46,8 +46,14 @@ function SettingRow({ icon: IconComp, label, description, children }: SettingRow
 }
 
 export function Settings() {
-  const { defaultCurrency, setDefaultCurrency } = useSettings();
-  const [language, setLanguage] = useState('en');
+  const {
+    defaultCurrency,
+    preferredLanguage,
+    aiTranslateDescriptions,
+    setDefaultCurrency,
+    setPreferredLanguage,
+    setAiTranslateDescriptions,
+  } = useSettings();
   const [isClearDataModalOpen, setIsClearDataModalOpen] = useState(false);
   const [clearDataError, setClearDataError] = useState<string | null>(null);
   const clearAllData = useClearAllData();
@@ -59,6 +65,20 @@ export function Settings() {
   function handleDefaultCurrencyChange(value: string) {
     setDefaultCurrency(value);
     toast.success("Default currency updated");
+  }
+
+  function handleLanguageChange(value: 'en' | 'de' | 'fr') {
+    setPreferredLanguage(value);
+    toast.success('Language preference updated');
+  }
+
+  function handleAiTranslateDescriptionsChange(checked: boolean) {
+    setAiTranslateDescriptions(checked);
+    toast.success(
+      checked
+        ? 'AI description translation enabled'
+        : 'AI description translation disabled',
+    );
   }
 
   async function handleConfirmClearAllData() {
@@ -85,7 +105,7 @@ export function Settings() {
               This includes transactions, import batches, accounts, goals, tags, automation rules, and parser presets.
             </p>
           )}
-          note="Your account and preferences (currency, language) will be kept. This action cannot be undone."
+          note="Your account and preferences (currency, language, AI translation preference) will be kept. This action cannot be undone."
           confirmLabel={clearAllData.isPending ? 'Clearing...' : 'Clear all data'}
           onConfirm={() => {
             void handleConfirmClearAllData();
@@ -107,9 +127,9 @@ export function Settings() {
           <SettingRow
             icon={Globe}
             label="Language"
-            description="Display language for the app"
+            description="Preferred language for AI-assisted import descriptions"
           >
-            <Select value={language} onValueChange={setLanguage}>
+            <Select value={preferredLanguage} onValueChange={handleLanguageChange}>
               <SelectTrigger className="w-auto text-sm py-2 px-3">
                 <SelectValue />
               </SelectTrigger>
@@ -139,13 +159,22 @@ export function Settings() {
             </Select>
           </SettingRow>
           <SettingRow
-            icon={Bell}
-            label="Notifications"
-            description="Receive alerts for splits and goals"
+            icon={Sparkles}
+            label="AI Description Translation"
+            description="Translate AI-cleaned import descriptions into your preferred language"
           >
-            <Button variant="outline" size="sm">
-              Enabled
-            </Button>
+            <div className="flex items-center gap-3">
+              <Checkbox
+                checked={aiTranslateDescriptions}
+                onCheckedChange={(checked) => {
+                  handleAiTranslateDescriptionsChange(checked === true);
+                }}
+                aria-label="Translate AI-cleaned import descriptions"
+              />
+              <span className="text-sm text-foreground">
+                {aiTranslateDescriptions ? 'Enabled' : 'Disabled'}
+              </span>
+            </div>
           </SettingRow>
         </div>
       </section>

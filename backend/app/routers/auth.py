@@ -93,6 +93,8 @@ async def register(
         name=body.name,
         password_hash=hash_password(body.password),
         default_currency=body.default_currency,
+        preferred_language=body.preferred_language,
+        ai_translate_descriptions=body.ai_translate_descriptions,
     )
     db.add(user)
     await db.flush()  # assign UUID

@@ -2,12 +2,16 @@
 
 // ── User ──────────────────────────────────────────────────────────────
 
+export type AppLanguage = 'en' | 'de' | 'fr';
+
 export interface User {
   id: string;
   name: string;
   email: string;
   avatarUrl?: string;
   defaultCurrency?: string;
+  preferredLanguage?: AppLanguage;
+  aiTranslateDescriptions?: boolean;
   onboardingCompletedAt?: string;
   categoryPreset?: string;
   createdAt?: string;
@@ -15,6 +19,8 @@ export interface User {
 
 export interface UserSettings {
   defaultCurrency: string; // ISO 4217 code, e.g. 'CHF', 'EUR'
+  preferredLanguage: AppLanguage;
+  aiTranslateDescriptions: boolean;
 }
 
 export type CategorySource = 'system' | 'preset' | 'custom';
@@ -358,6 +364,26 @@ export interface ParsedRow {
   metadata?: TransactionMetadataEntry[];
   raw: Record<string, string>; // original row data
   errors: string[]; // per-row parsing issues
+}
+
+export interface ImportAiSuggestion {
+  rowIndex: number;
+  cleanedDescription?: string;
+  categoryId?: string;
+  categoryName?: string;
+  confidence: number;
+  reason: string;
+  ruleKeyword?: string;
+}
+
+export interface ImportAiAssistResponse {
+  suggestions: ImportAiSuggestion[];
+}
+
+export interface CsvImportRowOverride {
+  rowIndex: number;
+  description?: string;
+  categoryId?: string;
 }
 
 export type ImportStep = 'upload' | 'parser' | 'preview' | 'complete';

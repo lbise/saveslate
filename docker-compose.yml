@@ -21,6 +21,9 @@ services:
       SECRET_KEY: ${SECRET_KEY:?Set SECRET_KEY in .env}
       CSRF_SECRET_KEY: ${CSRF_SECRET_KEY:?Set CSRF_SECRET_KEY in .env}
       CORS_ORIGINS: ${CORS_ORIGINS:-http://localhost}
+      GOOGLE_AI_API_KEY: ${GOOGLE_AI_API_KEY:-}
+      GOOGLE_AI_MODEL: ${GOOGLE_AI_MODEL:-gemini-2.5-flash}
+      IMPORT_AI_TIMEOUT_SECONDS: ${IMPORT_AI_TIMEOUT_SECONDS:-45}
     depends_on:
       db:
         condition: service_healthy

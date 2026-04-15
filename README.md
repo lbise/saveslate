@@ -144,6 +144,9 @@ Set these for the API deployment:
 - `CSRF_SECRET_KEY`
 - `CORS_ORIGINS=https://your-domain.example`
 - `COOKIE_SECURE=true`
+- `GOOGLE_AI_API_KEY` if you want import AI assist enabled
+- `GOOGLE_AI_MODEL=gemini-2.5-flash` optional
+- `IMPORT_AI_TIMEOUT_SECONDS=45` optional for slower AI responses
 
 ### Web environment variables
 
@@ -233,6 +236,7 @@ See [`.env.example`](.env.example) for the full list. Key variables:
 | `SECRET_KEY`        | Yes      | JWT signing secret                            |
 | `CSRF_SECRET_KEY`   | Yes      | CSRF double-submit cookie secret              |
 | `CORS_ORIGINS`      | No       | Allowed origins (default: `http://localhost`) |
+| `GOOGLE_AI_API_KEY` | No       | Enables AI import assist in the backend       |
 | `PORT`              | No       | Host port for web service (default: `80`)     |
 
 ## Project Structure

@@ -170,12 +170,13 @@ export interface MatchResult {
  * tested against all actual headers. Score = matched / total patterns.
  */
 export function scoreParserMatch(parser: CsvParser, actualHeaders: string[]): number {
-  if (parser.headerPatterns.length === 0) return 0;
+  const headerPatterns = Array.isArray(parser.headerPatterns) ? parser.headerPatterns : [];
+  if (headerPatterns.length === 0) return 0;
 
   const normalised = actualHeaders.map((h) => h.toLowerCase().trim());
   let matched = 0;
 
-  for (const pattern of parser.headerPatterns) {
+  for (const pattern of headerPatterns) {
     try {
       const re = new RegExp(pattern, 'i');
       if (normalised.some((h) => re.test(h))) {
@@ -190,7 +191,7 @@ export function scoreParserMatch(parser: CsvParser, actualHeaders: string[]): nu
     }
   }
 
-  return matched / parser.headerPatterns.length;
+  return matched / headerPatterns.length;
 }
 
 /**

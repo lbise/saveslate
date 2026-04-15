@@ -1,6 +1,6 @@
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { api, toNumber } from '@/lib/api-client';
-import type { Transaction, ParsedRow } from '@/types';
+import type { CsvImportRowOverride, Transaction, ParsedRow } from '@/types';
 
 // ─── Response Types ──────────────────────────────────────────────────
 
@@ -67,6 +67,7 @@ export function useCsvImport() {
       importName,
       selectedRowIndexes,
       transferLinks = [],
+      rowOverrides = [],
     }: {
       file: File;
       accountId: string;
@@ -76,6 +77,7 @@ export function useCsvImport() {
       importName?: string;
       selectedRowIndexes?: number[];
       transferLinks?: CsvImportTransferLink[];
+      rowOverrides?: CsvImportRowOverride[];
     }) =>
       api.upload<Transaction[]>('/api/import', file, undefined, {
         payload: {
@@ -86,6 +88,7 @@ export function useCsvImport() {
           importName,
           selectedRowIndexes,
           transferLinks,
+          rowOverrides,
         },
       }),
     onSuccess: () => {

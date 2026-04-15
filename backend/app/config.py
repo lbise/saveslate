@@ -23,6 +23,11 @@ class Settings(BaseSettings):
     api_prefix: str = "/api"
     rate_limit_enabled: bool = True
 
+    # Import AI assist
+    google_ai_api_key: str | None = None
+    google_ai_model: str = "gemini-2.5-flash"
+    import_ai_timeout_seconds: int = 45
+
     model_config = {"env_file": ".env", "env_file_encoding": "utf-8"}
 
 

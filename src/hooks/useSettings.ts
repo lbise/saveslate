@@ -4,13 +4,18 @@ import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { api } from '../lib/api-client';
 import { authKeys } from './api/use-auth';
 
-import type { User } from '../types';
+import type { AppLanguage, User } from '../types';
 
 const FALLBACK_CURRENCY = 'CHF';
+const FALLBACK_LANGUAGE: AppLanguage = 'en';
 
 export interface SettingsValue {
   defaultCurrency: string;
+  preferredLanguage: AppLanguage;
+  aiTranslateDescriptions: boolean;
   setDefaultCurrency: (currency: string) => void;
+  setPreferredLanguage: (language: AppLanguage) => void;
+  setAiTranslateDescriptions: (enabled: boolean) => void;
 }
 
 /**
@@ -29,17 +34,36 @@ export function useSettings(): SettingsValue {
   });
 
   const defaultCurrency = user?.defaultCurrency || FALLBACK_CURRENCY;
+  const preferredLanguage = user?.preferredLanguage || FALLBACK_LANGUAGE;
+  const aiTranslateDescriptions = user?.aiTranslateDescriptions ?? false;
 
-  const setDefaultCurrency = useCallback((currency: string) => {
-    // Optimistically update the auth cache
+  const updateUserSettings = useCallback((updates: Partial<User>) => {
     queryClient.setQueryData<User | null>(authKeys.user, (old) =>
-      old ? { ...old, defaultCurrency: currency } : old,
+      old ? { ...old, ...updates } : old,
     );
-    // Persist to backend (fire-and-forget with rollback on error)
-    api.put('/api/auth/me', { defaultCurrency: currency }).catch(() => {
+    api.put('/api/auth/me', updates).catch(() => {
       queryClient.invalidateQueries({ queryKey: authKeys.user });
     });
   }, [queryClient]);
 
-  return { defaultCurrency, setDefaultCurrency };
+  const setDefaultCurrency = useCallback((currency: string) => {
+    updateUserSettings({ defaultCurrency: currency });
+  }, [updateUserSettings]);
+
+  const setPreferredLanguage = useCallback((language: AppLanguage) => {
+    updateUserSettings({ preferredLanguage: language });
+  }, [updateUserSettings]);
+
+  const setAiTranslateDescriptions = useCallback((enabled: boolean) => {
+    updateUserSettings({ aiTranslateDescriptions: enabled });
+  }, [updateUserSettings]);
+
+  return {
+    defaultCurrency,
+    preferredLanguage,
+    aiTranslateDescriptions,
+    setDefaultCurrency,
+    setPreferredLanguage,
+    setAiTranslateDescriptions,
+  };
 }

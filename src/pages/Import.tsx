@@ -19,7 +19,7 @@ import {
 } from '../lib/csv';
 import { useAccounts, useCsvImport, useCsvPreview } from '../hooks/api';
 import { useFormatCurrency } from '../hooks';
-import type { CsvParser, ImportStep, ParsedRow } from '../types';
+import type { CsvImportRowOverride, CsvParser, ImportStep, ParsedRow } from '../types';
 
 export function Import() {
   const { formatCurrency } = useFormatCurrency();
@@ -119,6 +119,7 @@ export function Import() {
     accountId: string,
     importName: string,
     transferLinks: Array<{ rowIndex: number; matchedTransactionId: string }>,
+    rowOverrides: CsvImportRowOverride[],
   ) => {
     if (!selectedParser || !file) return;
 
@@ -139,6 +140,7 @@ export function Import() {
         importName: importName || fileName,
         selectedRowIndexes,
         transferLinks,
+        rowOverrides,
       });
 
       let income = 0;
@@ -260,7 +262,7 @@ export function Import() {
       )}
 
       {/* ─── Step 3: Preview ───────────────────────────────── */}
-      {step === 'preview' && selectedParser && (
+      {step === 'preview' && selectedParser && file && (
         <div className="space-y-6">
           <div className="flex items-center gap-3 px-1">
             <FileText size={16} className="text-dimmed" />
@@ -292,6 +294,8 @@ export function Import() {
           ) : (
             <TransactionPreview
               rows={previewRows}
+              file={file}
+              parserId={selectedParser.id}
               onConfirm={handleConfirmImport}
               onBack={handleBackToParser}
               detectedIdentifier={detectedIdentifier}

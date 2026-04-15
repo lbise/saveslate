@@ -1,6 +1,6 @@
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { api } from '@/lib/api-client';
-import type { User } from '@/types';
+import type { AppLanguage, User } from '@/types';
 
 // ─── Query Keys ──────────────────────────────────────────────────────
 
@@ -36,6 +36,8 @@ export function useRegister() {
       name: string;
       password: string;
       defaultCurrency?: string;
+      preferredLanguage?: AppLanguage;
+      aiTranslateDescriptions?: boolean;
     }) => api.post<User>('/api/auth/register', data),
     onSuccess: (user) => {
       queryClient.setQueryData(authKeys.user, user);
@@ -70,6 +72,8 @@ export function useUpdateProfile() {
       email?: string;
       avatarUrl?: string;
       defaultCurrency?: string;
+      preferredLanguage?: AppLanguage;
+      aiTranslateDescriptions?: boolean;
     }) => api.put<User>('/api/auth/me', data),
     onSuccess: (user) => {
       queryClient.setQueryData(authKeys.user, user);

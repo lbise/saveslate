@@ -3,7 +3,7 @@
 import uuid
 from datetime import datetime
 
-from sqlalchemy import String, DateTime, func
+from sqlalchemy import Boolean, String, DateTime, func
 from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
@@ -21,6 +21,8 @@ class User(Base):
     password_hash: Mapped[str] = mapped_column(String(255), nullable=False)
     avatar_url: Mapped[str | None] = mapped_column(String(500), nullable=True)
     default_currency: Mapped[str] = mapped_column(String(3), nullable=False, default="CHF", server_default="CHF")
+    preferred_language: Mapped[str] = mapped_column(String(5), nullable=False, default="en", server_default="en")
+    ai_translate_descriptions: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False, server_default="false")
     onboarding_completed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
     category_preset: Mapped[str | None] = mapped_column(String(10), nullable=True)
 

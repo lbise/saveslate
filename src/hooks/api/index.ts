@@ -117,3 +117,8 @@ export {
   useCsvImport,
 } from './use-csv-import';
 export type { CsvPreviewResult } from './use-csv-import';
+
+// Import AI
+export {
+  useImportAiAssist,
+} from './use-import-ai';

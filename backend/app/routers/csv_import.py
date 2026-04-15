@@ -8,11 +8,12 @@ from decimal import Decimal
 from typing import Any
 
 from fastapi import APIRouter, Depends, Form, HTTPException, Query, UploadFile, status
-from pydantic import BaseModel, Field, ValidationError
+from pydantic import BaseModel, Field, ValidationError, field_validator
 from sqlalchemy import case, func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
+from app.config import settings
 from app.deps import get_current_user, get_db, verify_csrf
 from app.models.account import Account
 from app.models.automation_rule import AutomationRule
@@ -25,6 +26,12 @@ from app.models.user import User
 from app.schemas.transaction import TransactionResponse
 from app.services.automation_engine import apply_automation_rules
 from app.services.csv_import import CsvParseResult, parse_csv_file
+from app.services.import_ai import (
+    ImportAiConfigurationError,
+    ImportAiError,
+    ImportAiResponseError,
+    suggest_import_rows,
+)
 from app.services.transfer_pairs import normalize_transfer_pairs, validate_transfer_pair
 
 router = APIRouter(prefix="/api/import", tags=["import"])
@@ -37,6 +44,51 @@ class ImportTransferLink(BaseModel):
     matched_transaction_id: uuid.UUID
 
 
+class CsvImportRowOverride(BaseModel):
+    """Accepted per-row import overrides from the preview step."""
+
+    row_index: int = Field(ge=0)
+    description: str | None = Field(default=None, min_length=1)
+    category_id: uuid.UUID | None = None
+
+    @field_validator("description")
+    @classmethod
+    def normalize_description(cls, value: str | None) -> str | None:
+        if value is None:
+            return None
+
+        normalized = " ".join(value.strip().split())
+        return normalized or None
+
+
+class CsvImportAssistPayload(BaseModel):
+    """Structured AI assist options sent alongside the uploaded CSV file."""
+
+    account_id: uuid.UUID
+    parser_id: uuid.UUID
+    row_indexes: list[int] | None = None
+
+    model_config = {"extra": "forbid"}
+
+
+class ImportAssistSuggestionResponse(BaseModel):
+    """One AI suggestion for one parsed CSV row."""
+
+    row_index: int
+    cleaned_description: str | None = None
+    category_id: uuid.UUID | None = None
+    category_name: str | None = None
+    confidence: float
+    reason: str
+    rule_keyword: str | None = None
+
+
+class ImportAssistResponse(BaseModel):
+    """Structured AI suggestions for the selected CSV rows."""
+
+    suggestions: list[ImportAssistSuggestionResponse]
+
+
 class CsvImportPayload(BaseModel):
     """Structured import options sent alongside the uploaded CSV file."""
 
@@ -47,6 +99,7 @@ class CsvImportPayload(BaseModel):
     import_name: str | None = None
     selected_row_indexes: list[int] | None = None
     transfer_links: list[ImportTransferLink] = Field(default_factory=list)
+    row_overrides: list[CsvImportRowOverride] = Field(default_factory=list)
 
     model_config = {"extra": "forbid"}
 
@@ -113,6 +166,39 @@ def _parse_import_payload(
     )
 
 
+def _parse_import_assist_payload(
+    payload: str | None,
+    account_id: uuid.UUID | None,
+    parser_id: uuid.UUID | None,
+) -> CsvImportAssistPayload:
+    if payload is not None:
+        try:
+            raw_payload = json.loads(payload)
+        except json.JSONDecodeError as exc:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail=f"Invalid assist payload: {exc.msg}",
+            ) from exc
+
+        try:
+            return CsvImportAssistPayload.model_validate(raw_payload)
+        except ValidationError as exc:
+            raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_ENTITY, detail=exc.errors()) from exc
+
+    if account_id is None:
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            detail="accountId is required",
+        )
+    if parser_id is None:
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            detail="parserId is required",
+        )
+
+    return CsvImportAssistPayload(account_id=account_id, parser_id=parser_id)
+
+
 def _normalize_selected_row_indexes(
     total_rows: int,
     selected_row_indexes: list[int] | None,
@@ -141,6 +227,31 @@ def _normalize_selected_row_indexes(
             )
         normalized.append(row_index)
         seen_indexes.add(row_index)
+
+    return normalized
+
+
+def _normalize_row_overrides(
+    selected_row_indexes: list[int],
+    row_overrides: list[CsvImportRowOverride],
+) -> dict[int, CsvImportRowOverride]:
+    if not row_overrides:
+        return {}
+
+    selected_row_index_set = set(selected_row_indexes)
+    normalized: dict[int, CsvImportRowOverride] = {}
+    for row_override in row_overrides:
+        if row_override.row_index not in selected_row_index_set:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail=f"Row override {row_override.row_index} does not belong to the selected import rows",
+            )
+        if row_override.row_index in normalized:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail=f"Row override {row_override.row_index} appears more than once",
+            )
+        normalized[row_override.row_index] = row_override
 
     return normalized
 
@@ -201,6 +312,85 @@ async def _load_default_transfer_category_id(
         .limit(1)
     )
     return result.scalar_one_or_none()
+
+
+async def _load_rule_dicts(
+    db: AsyncSession,
+    user_id: uuid.UUID,
+) -> list[dict[str, Any]]:
+    rules_result = await db.execute(
+        select(AutomationRule).where(AutomationRule.user_id == user_id)
+    )
+    return [
+        {
+            "id": str(rule.id),
+            "name": rule.name,
+            "is_enabled": rule.is_enabled,
+            "triggers": rule.triggers,
+            "match_mode": rule.match_mode,
+            "conditions": rule.conditions,
+            "actions": rule.actions,
+            "created_at": rule.created_at.isoformat() if rule.created_at else "",
+        }
+        for rule in rules_result.scalars().all()
+    ]
+
+
+async def _load_visible_categories_for_ai(
+    db: AsyncSession,
+    user_id: uuid.UUID,
+) -> tuple[list[dict[str, str]], dict[str, str]]:
+    result = await db.execute(
+        select(Category.id, Category.name, CategoryGroup.type)
+        .join(CategoryGroup, Category.group_id == CategoryGroup.id, isouter=True)
+        .where(
+            Category.user_id == user_id,
+            Category.is_hidden.is_(False),
+        )
+        .order_by(Category.name)
+    )
+
+    categories: list[dict[str, str]] = []
+    category_names_by_id: dict[str, str] = {}
+    for category_id, name, category_type in result.all():
+        category_id_str = str(category_id)
+        categories.append(
+            {
+                "id": category_id_str,
+                "name": name,
+                "type": category_type or "expense",
+            }
+        )
+        category_names_by_id[category_id_str] = name
+
+    return categories, category_names_by_id
+
+
+async def _load_history_examples_for_ai(
+    db: AsyncSession,
+    user_id: uuid.UUID,
+) -> list[dict[str, str]]:
+    result = await db.execute(
+        select(Transaction.description, Category.name)
+        .join(Category, Transaction.category_id == Category.id)
+        .where(
+            Transaction.user_id == user_id,
+            Transaction.category_id.is_not(None),
+            Category.is_hidden.is_(False),
+            func.lower(Category.name) != "uncategorized",
+        )
+        .order_by(Transaction.date.desc(), Transaction.created_at.desc())
+        .limit(24)
+    )
+
+    return [
+        {
+            "description": description,
+            "categoryName": category_name,
+        }
+        for description, category_name in result.all()
+        if description and category_name
+    ]
 
 
 def _parse_time(value: str | None, row_index: int) -> time_type | None:
@@ -292,6 +482,50 @@ async def _build_transaction_dicts(
         )
 
     return txn_dicts, txn_dicts_by_row_index
+
+
+async def _apply_row_overrides(
+    db: AsyncSession,
+    user_id: uuid.UUID,
+    txn_dicts_by_row_index: dict[int, dict[str, Any]],
+    row_overrides: dict[int, CsvImportRowOverride],
+) -> None:
+    if not row_overrides:
+        return
+
+    requested_category_ids = {
+        row_override.category_id
+        for row_override in row_overrides.values()
+        if row_override.category_id is not None
+    }
+    if requested_category_ids:
+        result = await db.execute(
+            select(Category.id).where(
+                Category.user_id == user_id,
+                Category.id.in_(requested_category_ids),
+            )
+        )
+        valid_category_ids = {category_id for category_id in result.scalars().all()}
+        invalid_category_ids = requested_category_ids - valid_category_ids
+        if invalid_category_ids:
+            invalid_id = next(iter(invalid_category_ids))
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail=f"Category override {invalid_id} is not valid for this user",
+            )
+
+    for row_index, row_override in row_overrides.items():
+        txn_dict = txn_dicts_by_row_index.get(row_index)
+        if txn_dict is None:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail=f"Row override {row_index} could not be matched to an imported transaction",
+            )
+
+        if row_override.description is not None:
+            txn_dict["description"] = row_override.description
+        if row_override.category_id is not None:
+            txn_dict["category_id"] = str(row_override.category_id)
 
 
 def _apply_uncategorized_fallback(
@@ -439,6 +673,151 @@ async def _apply_transfer_links(
 
 
 # ---------------------------------------------------------------------------
+# AI Assist: parse CSV and return structured suggestions
+# ---------------------------------------------------------------------------
+
+
+@router.post(
+    "/assist",
+    response_model=ImportAssistResponse,
+    dependencies=[Depends(verify_csrf)],
+)
+async def assist_import_csv(
+    file: UploadFile,
+    payload: str | None = Form(default=None),
+    account_id: uuid.UUID | None = Query(default=None, alias="accountId"),
+    parser_id: uuid.UUID | None = Query(default=None, alias="parserId"),
+    user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+) -> ImportAssistResponse:
+    """Parse a CSV and return optional AI suggestions for the selected rows."""
+
+    assist_request = _parse_import_assist_payload(payload, account_id, parser_id)
+
+    acct_result = await db.execute(
+        select(Account).where(Account.id == assist_request.account_id, Account.user_id == user.id)
+    )
+    account = acct_result.scalar_one_or_none()
+    if account is None:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Account not found",
+        )
+
+    content = (await file.read()).decode("utf-8-sig")
+    parser_config, _ = await _load_parser_config(db, user.id, assist_request.parser_id)
+    parse_result = parse_csv_file(content, parser_config)
+    if not parse_result.rows:
+        return ImportAssistResponse(suggestions=[])
+
+    selected_row_indexes = _normalize_selected_row_indexes(
+        len(parse_result.rows),
+        assist_request.row_indexes,
+    )
+    analysis_row_indexes = [
+        row_index
+        for row_index in selected_row_indexes
+        if row_index < len(parse_result.rows)
+        and not parse_result.rows[row_index].errors
+        and parse_result.rows[row_index].description
+        and parse_result.rows[row_index].date
+    ]
+    if not analysis_row_indexes:
+        return ImportAssistResponse(suggestions=[])
+
+    temp_import_batch_id = uuid.uuid4()
+    txn_dicts, txn_dicts_by_row_index = await _build_transaction_dicts(
+        db,
+        user,
+        parse_result,
+        analysis_row_indexes,
+        assist_request.account_id,
+        temp_import_batch_id,
+        account.currency,
+    )
+
+    rules = await _load_rule_dicts(db, user.id)
+    if rules:
+        run_result = apply_automation_rules(txn_dicts, rules, "on-import")
+        for idx, updates in run_result.transaction_updates.items():
+            for key, value in updates.items():
+                txn_dicts[idx][key] = value
+
+    categories, category_names_by_id = await _load_visible_categories_for_ai(db, user.id)
+    history_examples = await _load_history_examples_for_ai(db, user.id)
+
+    ai_rows = []
+    for row_index in analysis_row_indexes:
+        row = parse_result.rows[row_index]
+        txn_dict = txn_dicts_by_row_index[row_index]
+        current_category_id = txn_dict.get("category_id")
+        ai_rows.append(
+            {
+                "rowIndex": row_index,
+                "description": row.description[:160],
+                "amount": str(row.amount),
+                "currency": row.currency or account.currency,
+                "date": row.date,
+                "transactionType": "expense" if row.amount < 0 else "income",
+                "currentCategoryId": current_category_id,
+                "currentCategoryName": category_names_by_id.get(current_category_id) if current_category_id else None,
+                "metadata": {
+                    str(entry.get("key"))[:48]: str(entry.get("value"))[:80]
+                    for entry in (row.metadata or [])
+                    if isinstance(entry, dict) and entry.get("key") and entry.get("value")
+                } if row.metadata else {},
+            }
+        )
+
+    try:
+        suggestions = await suggest_import_rows(
+            api_key=settings.google_ai_api_key,
+            model=settings.google_ai_model,
+            timeout_seconds=settings.import_ai_timeout_seconds,
+            account={
+                "id": str(account.id),
+                "name": account.name,
+                "currency": account.currency,
+            },
+            preferred_language=user.preferred_language,
+            translate_descriptions=user.ai_translate_descriptions,
+            categories=categories,
+            history=history_examples,
+            rows=ai_rows,
+        )
+    except ImportAiConfigurationError as exc:
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail=str(exc),
+        ) from exc
+    except ImportAiResponseError as exc:
+        raise HTTPException(
+            status_code=status.HTTP_502_BAD_GATEWAY,
+            detail=str(exc),
+        ) from exc
+    except ImportAiError as exc:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=str(exc),
+        ) from exc
+
+    return ImportAssistResponse(
+        suggestions=[
+            ImportAssistSuggestionResponse(
+                row_index=suggestion.row_index,
+                cleaned_description=suggestion.cleaned_description,
+                category_id=uuid.UUID(suggestion.category_id) if suggestion.category_id else None,
+                category_name=category_names_by_id.get(suggestion.category_id) if suggestion.category_id else None,
+                confidence=suggestion.confidence,
+                reason=suggestion.reason,
+                rule_keyword=suggestion.rule_keyword,
+            )
+            for suggestion in suggestions
+        ]
+    )
+
+
+# ---------------------------------------------------------------------------
 # Preview: parse CSV without importing
 # ---------------------------------------------------------------------------
 
@@ -506,6 +885,10 @@ async def import_csv(
         len(parse_result.rows),
         import_request.selected_row_indexes,
     )
+    row_overrides = _normalize_row_overrides(
+        selected_row_indexes,
+        import_request.row_overrides,
+    )
 
     batch_name = (
         import_request.import_name.strip()
@@ -542,27 +925,18 @@ async def import_csv(
     }
 
     if import_request.apply_rules:
-        rules_result = await db.execute(
-            select(AutomationRule).where(AutomationRule.user_id == user.id)
-        )
-        rules = [
-            {
-                "id": str(rule.id),
-                "name": rule.name,
-                "is_enabled": rule.is_enabled,
-                "triggers": rule.triggers,
-                "match_mode": rule.match_mode,
-                "conditions": rule.conditions,
-                "actions": rule.actions,
-                "created_at": rule.created_at.isoformat() if rule.created_at else "",
-            }
-            for rule in rules_result.scalars().all()
-        ]
-
+        rules = await _load_rule_dicts(db, user.id)
         run_result = apply_automation_rules(txn_dicts, rules, "on-import")
         for idx, updates in run_result.transaction_updates.items():
             for key, value in updates.items():
                 txn_dicts[idx][key] = value
+
+    await _apply_row_overrides(
+        db,
+        user.id,
+        txn_dicts_by_row_index,
+        row_overrides,
+    )
 
     await _apply_transfer_links(
         db,

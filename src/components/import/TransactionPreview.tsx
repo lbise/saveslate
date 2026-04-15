@@ -1,13 +1,16 @@
-import { Fragment, useCallback, useState, useMemo } from "react";
+import { Fragment, useCallback, useMemo, useState } from "react";
 import {
   AlertTriangle,
   Eye,
   Link2,
   Link2Off,
   Filter,
+  Loader2,
+  Sparkles,
   X,
 } from "lucide-react";
 import { toast } from "sonner";
+import { Badge } from "@/components/ui/Badge";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -32,23 +35,43 @@ import {
 } from "../accounts";
 import {
   useAccounts,
+  useAutomationRules,
+  useCategories,
   useCreateAccount,
+  useCreateAutomationRule,
+  useImportAiAssist,
   useTransactions,
+  useUpdateAutomationRule,
 } from "../../hooks/api";
+import { RuleFormModal } from "../rules";
 import { normalizeAccountIdentifier } from "../../lib/csv";
+import {
+  createDefaultRuleFormState,
+  resolveRuleFormPrefill,
+} from "../../lib/rule-utils";
 import { cn, formatDate } from "../../lib/utils";
 import { useFormatCurrency } from "../../hooks";
 import { Card } from "../ui/Card";
 import { PaginationButtons } from "../ui";
-import type { ParsedRow } from "../../types";
+import type {
+  AutomationRule,
+  AutomationRulePrefillDraft,
+  CsvImportRowOverride,
+  ImportAiSuggestion,
+  ParsedRow,
+} from "../../types";
+import type { RuleFormState } from "../../lib/rule-utils";
 
 interface TransactionPreviewProps {
   rows: ParsedRow[];
+  file: File;
+  parserId: string;
   onConfirm: (
     selectedRowIndexes: number[],
     accountId: string,
     importName: string,
     transferLinks: Array<{ rowIndex: number; matchedTransactionId: string }>,
+    rowOverrides: CsvImportRowOverride[],
   ) => void;
   onBack: () => void;
   detectedIdentifier?: string;
@@ -61,6 +84,8 @@ const POSSIBLE_MATCH_WARNING_TEXT =
   "Possible existing match (no transaction ID)";
 const ALREADY_LINKED_TRANSFER_WARNING_TEXT =
   "Matched transaction already belongs to another transfer pair";
+const AI_AUTO_APPLY_CONFIDENCE = 0.85;
+const AI_ASSIST_PREVIEW_BATCH_SIZE = 20;
 
 type TransferLinkDecision = "link" | "separate";
 
@@ -80,6 +105,13 @@ interface PreviewFieldProps {
   label: string;
   value: string;
   mono?: boolean;
+}
+
+interface AiAssistProgress {
+  completedBatchCount: number;
+  totalBatchCount: number;
+  completedRowCount: number;
+  totalRowCount: number;
 }
 
 function PreviewField({ label, value, mono = false }: PreviewFieldProps) {
@@ -164,6 +196,30 @@ function buildTransactionFingerprint(
   ].join("|");
 }
 
+function buildRowOverride(
+  rowIndex: number,
+  suggestion: ImportAiSuggestion,
+): CsvImportRowOverride | null {
+  const rowOverride: CsvImportRowOverride = { rowIndex };
+
+  if (suggestion.cleanedDescription) {
+    rowOverride.description = suggestion.cleanedDescription;
+  }
+  if (suggestion.categoryId) {
+    rowOverride.categoryId = suggestion.categoryId;
+  }
+
+  return rowOverride.description || rowOverride.categoryId ? rowOverride : null;
+}
+
+function chunkRowIndexes(rowIndexes: number[], chunkSize: number): number[][] {
+  const chunks: number[][] = [];
+  for (let offset = 0; offset < rowIndexes.length; offset += chunkSize) {
+    chunks.push(rowIndexes.slice(offset, offset + chunkSize));
+  }
+  return chunks;
+}
+
 function getDateDistanceInDays(left: string, right: string): number {
   const leftDate = new Date(`${left}T00:00:00`);
   const rightDate = new Date(`${right}T00:00:00`);
@@ -177,6 +233,8 @@ function getDateDistanceInDays(left: string, right: string): number {
 }
 
 export function TransactionPreview({
+  file,
+  parserId,
   rows,
   onConfirm,
   onBack,
@@ -185,7 +243,12 @@ export function TransactionPreview({
 }: TransactionPreviewProps) {
   const { formatCurrency, formatSignedCurrency } = useFormatCurrency();
   const { data: accounts = [] } = useAccounts();
+  const { data: categories = [] } = useCategories(true);
+  const { data: automationRules = [] } = useAutomationRules();
   const createAccountMutation = useCreateAccount();
+  const createAutomationRuleMutation = useCreateAutomationRule();
+  const updateAutomationRuleMutation = useUpdateAutomationRule();
+  const importAiAssistMutation = useImportAiAssist();
   const [isCreateAccountModalOpen, setIsCreateAccountModalOpen] =
     useState(false);
   const { data: existingTransactionsData } = useTransactions({
@@ -214,6 +277,30 @@ export function TransactionPreview({
   const [importName, setImportName] = useState(fileName ?? "");
   const [detailRowIndex, setDetailRowIndex] = useState<number | null>(null);
   const [matchDetailRowIndex, setMatchDetailRowIndex] = useState<number | null>(null);
+  const [aiSuggestionsByIndex, setAiSuggestionsByIndex] = useState<
+    Map<number, ImportAiSuggestion>
+  >(new Map());
+  const [aiSuggestionContextKey, setAiSuggestionContextKey] = useState<string | null>(null);
+  const [acceptedAiSuggestionIndexes, setAcceptedAiSuggestionIndexes] =
+    useState<Set<number>>(new Set());
+  const [ignoredAiSuggestionIndexes, setIgnoredAiSuggestionIndexes] =
+    useState<Set<number>>(new Set());
+  const [isRunningAiAssist, setIsRunningAiAssist] = useState(false);
+  const [aiAssistProgress, setAiAssistProgress] = useState<AiAssistProgress | null>(null);
+  const availableCategories = useMemo(
+    () => [...categories].sort((left, right) => left.name.localeCompare(right.name)),
+    [categories],
+  );
+  const defaultRuleCategoryId = availableCategories[0]?.id ?? "";
+  const [isRuleModalOpen, setIsRuleModalOpen] = useState(false);
+  const [editingRuleId, setEditingRuleId] = useState<string | null>(null);
+  const [initialRuleForm, setInitialRuleForm] = useState<RuleFormState>(() =>
+    createDefaultRuleFormState(defaultRuleCategoryId),
+  );
+  const categoriesById = useMemo(
+    () => new Map(availableCategories.map((category) => [category.id, category])),
+    [availableCategories],
+  );
 
   // Find matching account ID based on detected identifier
   const matchedAccountId = useMemo(() => {
@@ -508,6 +595,300 @@ export function TransactionPreview({
     return next;
   }, [selectedDuplicates, selectedWithoutDuplicates]);
 
+  const rowsSignature = useMemo(
+    () => rows.map((row, idx) => (
+      `${idx}:${row.transactionId ?? ""}:${row.date}:${row.amount}:${row.description}`
+    )).join("\u001f"),
+    [rows],
+  );
+  const currentAiContextKey = `${effectiveAccountId}|${parserId}|${rowsSignature}`;
+  const currentAiSuggestionsByIndex = useMemo(
+    () => aiSuggestionContextKey === currentAiContextKey ? aiSuggestionsByIndex : new Map<number, ImportAiSuggestion>(),
+    [aiSuggestionContextKey, aiSuggestionsByIndex, currentAiContextKey],
+  );
+
+  const aiEligibleRowIndexes = useMemo(
+    () => rows
+      .map((_, idx) => idx)
+      .filter((idx) => {
+        if (rows[idx]?.errors.length) {
+          return false;
+        }
+        if (duplicateIndexes.has(idx)) {
+          return false;
+        }
+        if (transferPairCandidatesByIndex.has(idx)) {
+          return false;
+        }
+        return true;
+      }),
+    [duplicateIndexes, rows, transferPairCandidatesByIndex],
+  );
+
+  const acceptedAiSuggestions = useMemo(() => {
+    const next = new Set<number>();
+    acceptedAiSuggestionIndexes.forEach((idx) => {
+      if (currentAiSuggestionsByIndex.has(idx)) {
+        next.add(idx);
+      }
+    });
+    return next;
+  }, [acceptedAiSuggestionIndexes, currentAiSuggestionsByIndex]);
+
+  const ignoredAiSuggestions = useMemo(() => {
+    const next = new Set<number>();
+    ignoredAiSuggestionIndexes.forEach((idx) => {
+      if (currentAiSuggestionsByIndex.has(idx)) {
+        next.add(idx);
+      }
+    });
+    return next;
+  }, [currentAiSuggestionsByIndex, ignoredAiSuggestionIndexes]);
+
+  const aiSuggestionCount = currentAiSuggestionsByIndex.size;
+  const acceptedAiSuggestionCount = acceptedAiSuggestions.size;
+  const pendingReviewAiSuggestionCount = useMemo(
+    () => Array.from(currentAiSuggestionsByIndex.keys()).filter(
+      (idx) => !acceptedAiSuggestions.has(idx) && !ignoredAiSuggestions.has(idx),
+    ).length,
+    [acceptedAiSuggestions, currentAiSuggestionsByIndex, ignoredAiSuggestions],
+  );
+  const pendingHighConfidenceSuggestionCount = useMemo(
+    () => Array.from(currentAiSuggestionsByIndex.entries()).filter(([idx, suggestion]) => (
+      suggestion.confidence >= AI_AUTO_APPLY_CONFIDENCE
+      && !acceptedAiSuggestions.has(idx)
+    )).length,
+    [acceptedAiSuggestions, currentAiSuggestionsByIndex],
+  );
+  const aiAssistProgressLabel = useMemo(() => {
+    if (!aiAssistProgress) {
+      return null;
+    }
+
+    return `${aiAssistProgress.completedRowCount}/${aiAssistProgress.totalRowCount} rows`;
+  }, [aiAssistProgress]);
+
+  const acceptAiSuggestion = useCallback((rowIndex: number) => {
+    setAcceptedAiSuggestionIndexes((previous) => new Set(previous).add(rowIndex));
+    setIgnoredAiSuggestionIndexes((previous) => {
+      const next = new Set(previous);
+      next.delete(rowIndex);
+      return next;
+    });
+  }, []);
+
+  const ignoreAiSuggestion = useCallback((rowIndex: number) => {
+    setAcceptedAiSuggestionIndexes((previous) => {
+      const next = new Set(previous);
+      next.delete(rowIndex);
+      return next;
+    });
+    setIgnoredAiSuggestionIndexes((previous) => new Set(previous).add(rowIndex));
+  }, []);
+
+  const acceptAllHighConfidenceSuggestions = useCallback(() => {
+    setAcceptedAiSuggestionIndexes((previous) => {
+      const next = new Set(previous);
+      currentAiSuggestionsByIndex.forEach((suggestion, rowIndex) => {
+        if (suggestion.confidence >= AI_AUTO_APPLY_CONFIDENCE) {
+          next.add(rowIndex);
+        }
+      });
+      return next;
+    });
+    setIgnoredAiSuggestionIndexes((previous) => {
+      const next = new Set(previous);
+      currentAiSuggestionsByIndex.forEach((suggestion, rowIndex) => {
+        if (suggestion.confidence >= AI_AUTO_APPLY_CONFIDENCE) {
+          next.delete(rowIndex);
+        }
+      });
+      return next;
+    });
+  }, [currentAiSuggestionsByIndex]);
+
+  const closeRuleModal = useCallback(() => {
+    setIsRuleModalOpen(false);
+    setEditingRuleId(null);
+  }, []);
+
+  const handleSaveRule = useCallback((ruleData: {
+    name: string;
+    isEnabled: boolean;
+    triggers: AutomationRule["triggers"];
+    matchMode: AutomationRule["matchMode"];
+    conditions: AutomationRule["conditions"];
+    actions: AutomationRule["actions"];
+  }) => {
+    if (editingRuleId) {
+      updateAutomationRuleMutation.mutate(
+        { id: editingRuleId, ...ruleData },
+        {
+          onSuccess: () => {
+            closeRuleModal();
+            toast.success("Rule updated");
+          },
+          onError: () => toast.error("Failed to update rule"),
+        },
+      );
+      return;
+    }
+
+    createAutomationRuleMutation.mutate(ruleData, {
+      onSuccess: () => {
+        closeRuleModal();
+        toast.success("Rule created");
+      },
+      onError: () => toast.error("Failed to create rule"),
+    });
+  }, [closeRuleModal, createAutomationRuleMutation, editingRuleId, updateAutomationRuleMutation]);
+
+  const openCreateRuleModal = useCallback((rowIndex: number) => {
+    const suggestion = currentAiSuggestionsByIndex.get(rowIndex);
+    if (!suggestion?.categoryId || !suggestion.ruleKeyword) {
+      return;
+    }
+    if (!defaultRuleCategoryId) {
+      toast.info("Add at least one visible category before creating a rule.");
+      return;
+    }
+
+    const categoryName = suggestion.categoryName
+      ?? categoriesById.get(suggestion.categoryId)?.name
+      ?? "AI category";
+    const prefillDraft: AutomationRulePrefillDraft = {
+      name: categoryName,
+      categoryId: suggestion.categoryId,
+      isEnabled: true,
+      triggers: ["on-import", "manual-run"],
+      matchMode: "all",
+      applyToUncategorizedOnly: true,
+      mergeIntoExistingCategoryRule: true,
+      conditions: [
+        {
+          field: "description",
+          operator: "contains",
+          value: suggestion.ruleKeyword,
+        },
+      ],
+    };
+
+    const { initialForm, editingRuleId: resolvedEditingRuleId } =
+      resolveRuleFormPrefill({
+        prefill: prefillDraft,
+        rules: automationRules,
+        defaultCategoryId: defaultRuleCategoryId,
+      });
+
+    setInitialRuleForm(initialForm);
+    setEditingRuleId(resolvedEditingRuleId);
+    setIsRuleModalOpen(true);
+  }, [automationRules, categoriesById, currentAiSuggestionsByIndex, defaultRuleCategoryId]);
+
+  const handleRunAiAssist = useCallback(async () => {
+    if (!effectiveAccountId) {
+      toast.error("Select an account before running AI assist.");
+      return;
+    }
+    if (aiEligibleRowIndexes.length === 0) {
+      toast.info("No eligible rows available for AI suggestions.");
+      return;
+    }
+
+    const rowIndexBatches = chunkRowIndexes(
+      aiEligibleRowIndexes,
+      AI_ASSIST_PREVIEW_BATCH_SIZE,
+    );
+    let completedBatchCount = 0;
+    let completedRowCount = 0;
+    let totalSuggestionCount = 0;
+    let totalAutoAcceptedCount = 0;
+
+    setIsRunningAiAssist(true);
+    setAiSuggestionContextKey(currentAiContextKey);
+    setAiSuggestionsByIndex(new Map());
+    setAcceptedAiSuggestionIndexes(new Set());
+    setIgnoredAiSuggestionIndexes(new Set());
+    setAiAssistProgress({
+      completedBatchCount: 0,
+      totalBatchCount: rowIndexBatches.length,
+      completedRowCount: 0,
+      totalRowCount: aiEligibleRowIndexes.length,
+    });
+
+    try {
+      for (const rowIndexes of rowIndexBatches) {
+        const result = await importAiAssistMutation.mutateAsync({
+          file,
+          accountId: effectiveAccountId,
+          parserId,
+          rowIndexes,
+        });
+
+        completedBatchCount += 1;
+        completedRowCount += rowIndexes.length;
+        totalSuggestionCount += result.suggestions.length;
+        totalAutoAcceptedCount += result.suggestions.filter(
+          (suggestion) => suggestion.confidence >= AI_AUTO_APPLY_CONFIDENCE,
+        ).length;
+
+        setAiSuggestionsByIndex((previous) => {
+          const next = new Map(previous);
+          result.suggestions.forEach((suggestion) => {
+            next.set(suggestion.rowIndex, suggestion);
+          });
+          return next;
+        });
+        setAcceptedAiSuggestionIndexes((previous) => {
+          const next = new Set(previous);
+          result.suggestions.forEach((suggestion) => {
+            if (suggestion.confidence >= AI_AUTO_APPLY_CONFIDENCE) {
+              next.add(suggestion.rowIndex);
+            }
+          });
+          return next;
+        });
+        setAiAssistProgress({
+          completedBatchCount,
+          totalBatchCount: rowIndexBatches.length,
+          completedRowCount,
+          totalRowCount: aiEligibleRowIndexes.length,
+        });
+      }
+
+      if (totalSuggestionCount === 0) {
+        toast.success("AI checked the selected rows and found no useful suggestions.");
+        return;
+      }
+
+      toast.success(
+        `${totalSuggestionCount} AI suggestion${totalSuggestionCount !== 1 ? "s" : ""} ready${totalAutoAcceptedCount > 0 ? `, ${totalAutoAcceptedCount} auto-applied` : ""}`,
+      );
+    } catch (error) {
+      const message = error instanceof Error ? error.message : "Failed to run AI assist";
+      if (completedBatchCount > 0) {
+        toast.error(
+          `${message} Processed ${completedBatchCount}/${rowIndexBatches.length} batches before stopping.`,
+        );
+      } else {
+        toast.error(message);
+      }
+    } finally {
+      setIsRunningAiAssist(false);
+      setAiAssistProgress((previous) => {
+        if (!previous) {
+          return null;
+        }
+
+        return {
+          ...previous,
+          completedBatchCount,
+          completedRowCount,
+        };
+      });
+    }
+  }, [aiEligibleRowIndexes, currentAiContextKey, effectiveAccountId, file, importAiAssistMutation, parserId]);
+
   const toggleRow = (idx: number) => {
     if (duplicateIndexes.has(idx)) {
       setSelectedDuplicateIndexes((prev) => {
@@ -605,12 +986,20 @@ export function TransactionPreview({
         (entry): entry is { rowIndex: number; matchedTransactionId: string } =>
           entry !== null,
       );
+    const rowOverrides = selectedRowIndexes
+      .filter((rowIndex) => acceptedAiSuggestions.has(rowIndex))
+      .map((rowIndex) => {
+        const suggestion = currentAiSuggestionsByIndex.get(rowIndex);
+        return suggestion ? buildRowOverride(rowIndex, suggestion) : null;
+      })
+      .filter((rowOverride): rowOverride is CsvImportRowOverride => rowOverride !== null);
 
     onConfirm(
       selectedRowIndexes,
       effectiveAccountId,
       importName,
       transferLinks,
+      rowOverrides,
     );
   };
 
@@ -632,6 +1021,10 @@ export function TransactionPreview({
     (account) => account.id === effectiveAccountId,
   );
   const detailRow = detailRowIndex !== null ? rows[detailRowIndex] : null;
+  const detailAiSuggestion =
+    detailRowIndex !== null ? currentAiSuggestionsByIndex.get(detailRowIndex) : undefined;
+  const detailAiSuggestionAccepted =
+    detailRowIndex !== null && acceptedAiSuggestions.has(detailRowIndex);
   const detailWarnings =
     detailRowIndex !== null ? (warningsByIndex.get(detailRowIndex) ?? []) : [];
   const detailTransferPairCandidate =
@@ -736,6 +1129,76 @@ export function TransactionPreview({
           )}
         </div>
       </div>
+
+      <Card className="p-3 space-y-3 border-primary/20 bg-primary/[0.04]">
+        <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
+          <div className="space-y-1">
+            <div className="flex flex-wrap items-center gap-2">
+              <Badge variant="default">AI assist</Badge>
+              {aiAssistProgress && (
+                <>
+                  <Badge variant="outline">
+                    Batch {Math.min(aiAssistProgress.completedBatchCount, aiAssistProgress.totalBatchCount)}/{aiAssistProgress.totalBatchCount}
+                  </Badge>
+                  {aiAssistProgressLabel && (
+                    <Badge variant="outline">{aiAssistProgressLabel}</Badge>
+                  )}
+                </>
+              )}
+              {aiSuggestionCount > 0 && (
+                <>
+                  <Badge variant="outline">
+                    {aiSuggestionCount} suggestion{aiSuggestionCount !== 1 ? "s" : ""}
+                  </Badge>
+                  <Badge variant="outline">
+                    {acceptedAiSuggestionCount} accepted
+                  </Badge>
+                  {pendingReviewAiSuggestionCount > 0 && (
+                    <Badge variant="muted">
+                      {pendingReviewAiSuggestionCount} need review
+                    </Badge>
+                  )}
+                </>
+              )}
+            </div>
+            <p className="text-sm text-dimmed">
+              Suggests cleaner descriptions and categories for uncategorized rows.
+              Accepted suggestions only affect this import.
+              {isRunningAiAssist && " Suggestions appear as each batch finishes."}
+            </p>
+          </div>
+
+          <div className="flex flex-wrap items-center gap-2">
+            {pendingHighConfidenceSuggestionCount > 0 && (
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                onClick={acceptAllHighConfidenceSuggestions}
+                disabled={isRunningAiAssist}
+              >
+                Accept all high-confidence
+              </Button>
+            )}
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              onClick={handleRunAiAssist}
+              disabled={!effectiveAccountId || aiEligibleRowIndexes.length === 0 || isRunningAiAssist}
+            >
+              {isRunningAiAssist ? (
+                <Loader2 size={14} className="animate-spin" />
+              ) : (
+                <Sparkles size={14} />
+              )}
+              {isRunningAiAssist
+                ? `Running AI assist${aiAssistProgress ? ` (${Math.min(aiAssistProgress.completedBatchCount + 1, aiAssistProgress.totalBatchCount)}/${aiAssistProgress.totalBatchCount})` : "..."}`
+                : "Run AI assist"}
+            </Button>
+          </div>
+        </div>
+      </Card>
 
       {/* Warnings filter */}
       {stats.warningCount > 0 && (
@@ -859,14 +1322,18 @@ export function TransactionPreview({
                   {displayRows.map(({ row, idx }) => {
                     const isSelected = selectedIndexes.has(idx);
                     const isDuplicate = duplicateIndexes.has(idx);
+                    const aiSuggestion = currentAiSuggestionsByIndex.get(idx);
+                    const aiSuggestionAccepted = acceptedAiSuggestions.has(idx);
+                    const aiSuggestionIgnored = ignoredAiSuggestions.has(idx);
                     const rowWarnings = warningsByIndex.get(idx) ?? [];
                     const hasWarnings = rowWarnings.length > 0;
                     const transferPairCandidate =
                       transferPairCandidatesByIndex.get(idx);
                     const transferDecision = getTransferDecision(idx);
                     const isLinkEnabled = transferDecision === "link";
+                    const hasAiSuggestion = Boolean(aiSuggestion);
                     const hasTransferInfo = Boolean(transferPairCandidate);
-                    const hasSubrows = hasWarnings || hasTransferInfo;
+                    const hasSubrows = hasWarnings || hasAiSuggestion || hasTransferInfo;
 
                     return (
                       <Fragment key={idx}>
@@ -930,7 +1397,7 @@ export function TransactionPreview({
                         {hasWarnings && (
                           <tr className={cn(
                             "bg-warning/[0.04]",
-                            hasTransferInfo ? "" : "border-b border-border",
+                            hasAiSuggestion || hasTransferInfo ? "" : "border-b border-border",
                           )}>
                             <td colSpan={4} className="px-3 py-3">
                               <div className="space-y-2">
@@ -946,6 +1413,90 @@ export function TransactionPreview({
                                     <span>{warning}</span>
                                   </div>
                                 ))}
+                              </div>
+                            </td>
+                          </tr>
+                        )}
+
+                        {aiSuggestion && (
+                          <tr className={cn(
+                            "bg-primary/[0.04]",
+                            hasTransferInfo ? "" : "border-b border-border",
+                          )}>
+                            <td colSpan={4} className="px-3 py-3">
+                              <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+                                <div className="space-y-2">
+                                  <div className="flex flex-wrap items-center gap-2">
+                                    <Badge variant="default">AI suggestion</Badge>
+                                    <Badge variant="outline">
+                                      {Math.round(aiSuggestion.confidence * 100)}% confidence
+                                    </Badge>
+                                    {aiSuggestionAccepted && (
+                                      <Badge variant="outline">Accepted</Badge>
+                                    )}
+                                    {aiSuggestionIgnored && (
+                                      <Badge variant="muted">Ignored</Badge>
+                                    )}
+                                  </div>
+
+                                  <div className="space-y-1 text-sm text-foreground">
+                                    {aiSuggestion.cleanedDescription && (
+                                      <p>
+                                        <span className="text-dimmed">Description:</span>{" "}
+                                        {aiSuggestion.cleanedDescription}
+                                      </p>
+                                    )}
+                                    {aiSuggestion.categoryId && (
+                                      <p>
+                                        <span className="text-dimmed">Category:</span>{" "}
+                                        {aiSuggestion.categoryName
+                                          ?? categoriesById.get(aiSuggestion.categoryId)?.name
+                                          ?? "Unknown category"}
+                                      </p>
+                                    )}
+                                    <p className="text-dimmed">
+                                      {aiSuggestion.reason || "Suggested from similar transactions."}
+                                    </p>
+                                  </div>
+                                </div>
+
+                                <div className="flex flex-wrap items-center gap-2">
+                                  <Button
+                                    type="button"
+                                    variant={aiSuggestionAccepted ? "default" : "outline"}
+                                    size="sm"
+                                    onClick={(event) => {
+                                      event.stopPropagation();
+                                      acceptAiSuggestion(idx);
+                                    }}
+                                  >
+                                    Accept
+                                  </Button>
+                                  <Button
+                                    type="button"
+                                    variant={aiSuggestionIgnored ? "default" : "ghost"}
+                                    size="sm"
+                                    onClick={(event) => {
+                                      event.stopPropagation();
+                                      ignoreAiSuggestion(idx);
+                                    }}
+                                  >
+                                    Ignore
+                                  </Button>
+                                  {aiSuggestionAccepted && aiSuggestion.categoryId && aiSuggestion.ruleKeyword && (
+                                    <Button
+                                      type="button"
+                                      variant="outline"
+                                      size="sm"
+                                      onClick={(event) => {
+                                        event.stopPropagation();
+                                        openCreateRuleModal(idx);
+                                      }}
+                                    >
+                                      Create rule
+                                    </Button>
+                                  )}
+                                </div>
                               </div>
                             </td>
                           </tr>
@@ -1140,6 +1691,39 @@ export function TransactionPreview({
                 )}
               />
 
+              {detailAiSuggestion && (
+                <Card className="p-3 space-y-3 border-primary/20 bg-primary/[0.04]">
+                  <div className="flex flex-wrap items-center gap-2">
+                    <Badge variant="default">AI suggestion</Badge>
+                    <Badge variant="outline">
+                      {Math.round(detailAiSuggestion.confidence * 100)}% confidence
+                    </Badge>
+                    {detailAiSuggestionAccepted && (
+                      <Badge variant="outline">Accepted for import</Badge>
+                    )}
+                  </div>
+                  <div className="space-y-1 text-sm text-foreground">
+                    {detailAiSuggestion.cleanedDescription && (
+                      <p>
+                        <span className="text-dimmed">Suggested description:</span>{" "}
+                        {detailAiSuggestion.cleanedDescription}
+                      </p>
+                    )}
+                    {detailAiSuggestion.categoryId && (
+                      <p>
+                        <span className="text-dimmed">Suggested category:</span>{" "}
+                        {detailAiSuggestion.categoryName
+                          ?? categoriesById.get(detailAiSuggestion.categoryId)?.name
+                          ?? "Unknown category"}
+                      </p>
+                    )}
+                    <p className="text-dimmed">
+                      {detailAiSuggestion.reason || "Suggested from similar transactions."}
+                    </p>
+                  </div>
+                </Card>
+              )}
+
               {detailMetadata.length > 0 && (
                 <Card className="p-3 space-y-3">
                   <div>
@@ -1275,11 +1859,11 @@ export function TransactionPreview({
       <div className="flex gap-3">
         <Button
           onClick={handleConfirm}
-          disabled={stats.count === 0 || !effectiveAccountId || !hasAccounts}
+          disabled={stats.count === 0 || !effectiveAccountId || !hasAccounts || isRunningAiAssist}
         >
           Import {stats.count} transaction{stats.count !== 1 ? "s" : ""}
         </Button>
-        <Button variant="outline" onClick={onBack}>
+        <Button variant="outline" onClick={onBack} disabled={isRunningAiAssist}>
           <X size={14} />
           Back
         </Button>
@@ -1291,6 +1875,17 @@ export function TransactionPreview({
           initialValues={DEFAULT_ACCOUNT_FORM_STATE}
           onCancel={() => setIsCreateAccountModalOpen(false)}
           onSubmit={handleCreateAccount}
+        />
+      )}
+
+      {isRuleModalOpen && (
+        <RuleFormModal
+          editingRuleId={editingRuleId}
+          initialForm={initialRuleForm}
+          defaultCategoryId={defaultRuleCategoryId}
+          categories={availableCategories}
+          onClose={closeRuleModal}
+          onSave={handleSaveRule}
         />
       )}
     </div>

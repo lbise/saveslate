@@ -5,6 +5,8 @@ import json
 
 from httpx import AsyncClient
 
+from app.routers import csv_import as csv_import_router
+from app.services.import_ai import ImportAiSuggestion
 from tests.conftest import csrf_headers
 
 
@@ -221,6 +223,81 @@ class TestCsvPreview:
 
 
 # ============================================================================
+# AI assist
+# ============================================================================
+
+
+class TestCsvImportAssist:
+    """POST /api/import/assist"""
+
+    async def test_assist_returns_structured_suggestions(
+        self,
+        authed_client: AsyncClient,
+        monkeypatch,
+    ):
+        acct_id = await _create_account(authed_client)
+        parser_id = await _create_parser(authed_client)
+
+        category_resp = await authed_client.post(
+            "/api/categories",
+            json={"name": "Food", "icon": "Apple"},
+            headers=csrf_headers(authed_client),
+        )
+        assert category_resp.status_code == 201
+        category_id = category_resp.json()["id"]
+
+        async def fake_suggest_import_rows(**kwargs):
+            rows = kwargs["rows"]
+            assert rows[0]["description"] == "Grocery Store"
+            assert rows[0]["currentCategoryId"] is None
+            return [
+                ImportAiSuggestion(
+                    row_index=0,
+                    cleaned_description="Migros Basel",
+                    category_id=category_id,
+                    confidence=0.94,
+                    reason="Known grocery merchant",
+                    rule_keyword="migros",
+                )
+            ]
+
+        monkeypatch.setattr(csv_import_router, "suggest_import_rows", fake_suggest_import_rows)
+
+        resp = await authed_client.post(
+            "/api/import/assist",
+            files=[
+                _make_upload_file(SIMPLE_CSV),
+                (
+                    "payload",
+                    (
+                        None,
+                        json.dumps(
+                            _transform_payload_keys(
+                                {
+                                    "accountId": acct_id,
+                                    "parserId": parser_id,
+                                    "rowIndexes": [0],
+                                }
+                            )
+                        ),
+                    ),
+                ),
+            ],
+            headers=csrf_headers(authed_client),
+        )
+
+        assert resp.status_code == 200
+        data = resp.json()
+        assert len(data["suggestions"]) == 1
+        suggestion = data["suggestions"][0]
+        assert suggestion["row_index"] == 0
+        assert suggestion["cleaned_description"] == "Migros Basel"
+        assert suggestion["category_id"] == category_id
+        assert suggestion["category_name"] == "Food"
+        assert suggestion["rule_keyword"] == "migros"
+
+
+# ============================================================================
 # Import
 # ============================================================================
 
@@ -398,6 +475,60 @@ class TestCsvImport:
         existing_linked = existing_txn_resp.json()
         assert existing_linked["transfer_pair_id"] == grocery_txn["transfer_pair_id"]
         assert existing_linked["transfer_pair_role"] == "destination"
+
+    async def test_import_row_overrides_win_after_rules(self, authed_client: AsyncClient):
+        acct_id = await _create_account(authed_client)
+        parser_id = await _create_parser(authed_client)
+        h = csrf_headers(authed_client)
+
+        auto_category_resp = await authed_client.post(
+            "/api/categories",
+            json={"name": "Auto Food", "icon": "Apple"},
+            headers=h,
+        )
+        assert auto_category_resp.status_code == 201
+        auto_category_id = auto_category_resp.json()["id"]
+
+        override_category_resp = await authed_client.post(
+            "/api/categories",
+            json={"name": "Manual Grocery", "icon": "ShoppingBasket"},
+            headers=h,
+        )
+        assert override_category_resp.status_code == 201
+        override_category_id = override_category_resp.json()["id"]
+
+        rule_payload = {
+            "name": "Auto-food",
+            "triggers": ["on-import"],
+            "match_mode": "all",
+            "conditions": [{"field": "description", "operator": "contains", "value": "Grocery"}],
+            "actions": [{"type": "set-category", "category_id": auto_category_id}],
+        }
+        rule_resp = await authed_client.post("/api/automation-rules", json=rule_payload, headers=h)
+        assert rule_resp.status_code == 201
+
+        resp = await _post_import_with_payload(
+            authed_client,
+            SIMPLE_CSV,
+            {
+                "accountId": acct_id,
+                "parserId": parser_id,
+                "selectedRowIndexes": [0],
+                "rowOverrides": [
+                    {
+                        "rowIndex": 0,
+                        "description": "Migros Basel",
+                        "categoryId": override_category_id,
+                    }
+                ],
+            },
+        )
+
+        assert resp.status_code == 201
+        data = resp.json()
+        assert len(data) == 1
+        assert data[0]["description"] == "Migros Basel"
+        assert data[0]["category_id"] == override_category_id
 
     async def test_import_transfer_links_use_transfer_category_for_uncategorized(self, authed_client: AsyncClient):
         acct_id = await _create_account(authed_client)
