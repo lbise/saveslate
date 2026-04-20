@@ -706,6 +706,7 @@ async def assist_import_csv(
 
     content = (await file.read()).decode("utf-8-sig")
     parser_config, _ = await _load_parser_config(db, user.id, assist_request.parser_id)
+    uncategorized_category_id = await _load_uncategorized_category_id(db, user.id)
     parse_result = parse_csv_file(content, parser_config)
     if not parse_result.rows:
         return ImportAssistResponse(suggestions=[])
@@ -738,7 +739,12 @@ async def assist_import_csv(
 
     rules = await _load_rule_dicts(db, user.id)
     if rules:
-        run_result = apply_automation_rules(txn_dicts, rules, "on-import")
+        run_result = apply_automation_rules(
+            txn_dicts,
+            rules,
+            "on-import",
+            {str(uncategorized_category_id)} if uncategorized_category_id else None,
+        )
         for idx, updates in run_result.transaction_updates.items():
             for key, value in updates.items():
                 txn_dicts[idx][key] = value
@@ -926,7 +932,12 @@ async def import_csv(
 
     if import_request.apply_rules:
         rules = await _load_rule_dicts(db, user.id)
-        run_result = apply_automation_rules(txn_dicts, rules, "on-import")
+        run_result = apply_automation_rules(
+            txn_dicts,
+            rules,
+            "on-import",
+            {str(uncategorized_category_id)} if uncategorized_category_id else None,
+        )
         for idx, updates in run_result.transaction_updates.items():
             for key, value in updates.items():
                 txn_dicts[idx][key] = value

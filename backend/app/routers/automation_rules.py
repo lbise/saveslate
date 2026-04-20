@@ -11,6 +11,7 @@ from sqlalchemy.orm import selectinload
 
 from app.deps import get_current_user, get_db, verify_csrf
 from app.models.automation_rule import AutomationRule
+from app.models.category import Category
 from app.models.transaction import Transaction
 from app.models.user import User
 from app.schemas.automation_rule import (
@@ -26,6 +27,20 @@ from app.services.automation_engine import (
 )
 
 router = APIRouter(prefix="/api/automation-rules", tags=["automation-rules"])
+
+
+async def _load_uncategorized_category_id(
+    db: AsyncSession,
+    user_id: uuid.UUID,
+) -> uuid.UUID | None:
+    result = await db.execute(
+        select(Category.id).where(
+            Category.user_id == user_id,
+            Category.is_default.is_(True),
+            Category.is_hidden.is_(True),
+        )
+    )
+    return result.scalar_one_or_none()
 
 
 @router.get("", response_model=list[AutomationRuleResponse])
@@ -193,7 +208,14 @@ async def run_automation_rules(
         for t in transactions
     ]
 
-    run_result = apply_automation_rules(txn_dicts, rule_dicts, "manual-run")
+    uncategorized_category_id = await _load_uncategorized_category_id(db, user.id)
+
+    run_result = apply_automation_rules(
+        txn_dicts,
+        rule_dicts,
+        "manual-run",
+        {str(uncategorized_category_id)} if uncategorized_category_id else None,
+    )
 
     # Apply updates to ORM objects
     if run_result.transaction_updates:

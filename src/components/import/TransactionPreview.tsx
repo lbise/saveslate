@@ -1,6 +1,7 @@
 import { Fragment, useCallback, useMemo, useRef, useState } from "react";
 import {
   AlertTriangle,
+  Bot,
   Eye,
   Link2,
   Link2Off,
@@ -37,6 +38,7 @@ import {
   useAccounts,
   useAutomationRules,
   useCategories,
+  useCategoryGroups,
   useCreateAccount,
   useCreateAutomationRule,
   useImportAiAssist,
@@ -44,18 +46,30 @@ import {
   useUpdateAutomationRule,
 } from "../../hooks/api";
 import { RuleFormModal } from "../rules";
+import { applyAutomationRules } from "../../lib/automation-rules";
 import { normalizeAccountIdentifier } from "../../lib/csv";
 import {
   createDefaultRuleFormState,
   resolveRuleFormPrefill,
 } from "../../lib/rule-utils";
-import { cn, formatDate } from "../../lib/utils";
+import {
+  isUncategorizedCategory,
+  resolveTransactionCategoryType,
+  UNCATEGORIZED_CATEGORY_ID,
+} from "../../lib/transaction-type";
+import {
+  getAmountColorClass,
+  iconBoxStyles,
+  UNCATEGORIZED_ICON_STYLE,
+} from "../../lib/transaction-utils";
+import { cn, formatDate, resolveTransferFlowAccounts } from "../../lib/utils";
 import { useFormatCurrency } from "../../hooks";
 import { Card } from "../ui/Card";
-import { PaginationButtons } from "../ui";
+import { Icon, PaginationButtons, Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "../ui";
 import type {
   AutomationRule,
   AutomationRulePrefillDraft,
+  Category,
   CsvImportRowOverride,
   ImportAiSuggestion,
   ParsedRow,
@@ -146,19 +160,15 @@ function getParsedRowType(
 }
 
 function getParsedRowCategory(
-  row: ParsedRow,
+  categoryLabel: string,
   transferCandidate: TransferPairCandidate | undefined,
   isLinkEnabled: boolean,
 ): string {
-  if (row.category?.trim()) {
-    return row.category.trim();
-  }
-
-  if (transferCandidate && isLinkEnabled) {
+  if (transferCandidate && isLinkEnabled && categoryLabel === "Uncategorized") {
     return "Transfer (applied on import)";
   }
 
-  return "Uncategorized";
+  return categoryLabel;
 }
 
 function normalizeDescription(description: string): string {
@@ -194,6 +204,46 @@ function buildTransactionFingerprint(
     currency,
     normalizeDescription(description),
   ].join("|");
+}
+
+function normalizeCategoryName(value: string | undefined): string {
+  return value?.trim().toLowerCase() ?? "";
+}
+
+function resolvePreviewCategoryId(
+  categoryName: string | undefined,
+  categoriesByNormalizedName: ReadonlyMap<string, Category>,
+): string {
+  const normalizedCategoryName = normalizeCategoryName(categoryName);
+  if (!normalizedCategoryName || normalizedCategoryName === "uncategorized") {
+    return UNCATEGORIZED_CATEGORY_ID;
+  }
+
+  return categoriesByNormalizedName.get(normalizedCategoryName)?.id
+    ?? UNCATEGORIZED_CATEGORY_ID;
+}
+
+function resolvePreviewCategory(
+  categoryId: string,
+  categoriesById: ReadonlyMap<string, Category>,
+  fallbackCategoryName?: string,
+): Category {
+  if (categoryId === UNCATEGORIZED_CATEGORY_ID) {
+    return {
+      id: UNCATEGORIZED_CATEGORY_ID,
+      name: "Uncategorized",
+      icon: "CircleHelp",
+      isHidden: true,
+      hidden: true,
+      source: "system",
+    };
+  }
+
+  return categoriesById.get(categoryId) ?? {
+    id: categoryId,
+    name: fallbackCategoryName?.trim() || "Uncategorized",
+    icon: "CircleHelp",
+  };
 }
 
 function buildRowOverride(
@@ -244,6 +294,7 @@ export function TransactionPreview({
   const { formatCurrency, formatSignedCurrency } = useFormatCurrency();
   const { data: accounts = [] } = useAccounts();
   const { data: categories = [] } = useCategories(true);
+  const { data: categoryGroups = [] } = useCategoryGroups();
   const { data: automationRules = [] } = useAutomationRules();
   const createAccountMutation = useCreateAccount();
   const createAutomationRuleMutation = useCreateAutomationRule();
@@ -293,6 +344,10 @@ export function TransactionPreview({
     () => [...categories].sort((left, right) => left.name.localeCompare(right.name)),
     [categories],
   );
+  const categoriesByNormalizedName = useMemo(
+    () => new Map(availableCategories.map((category) => [category.name.trim().toLowerCase(), category] as const)),
+    [availableCategories],
+  );
   const defaultRuleCategoryId = availableCategories[0]?.id ?? "";
   const [isRuleModalOpen, setIsRuleModalOpen] = useState(false);
   const [editingRuleId, setEditingRuleId] = useState<string | null>(null);
@@ -316,11 +371,49 @@ export function TransactionPreview({
 
   const effectiveAccountId =
     accountId || matchedAccountId || accounts[0]?.id || "";
+  const selectedAccount = useMemo(
+    () => accounts.find((account) => account.id === effectiveAccountId),
+    [accounts, effectiveAccountId],
+  );
 
   const selectedAccountCurrency = useMemo(
-    () =>
-      accounts.find((acc) => acc.id === effectiveAccountId)?.currency ?? "CHF",
-    [accounts, effectiveAccountId],
+    () => selectedAccount?.currency ?? "CHF",
+    [selectedAccount],
+  );
+  const categoryGroupsById = useMemo(
+    () => new Map(categoryGroups.map((group) => [group.id, group] as const)),
+    [categoryGroups],
+  );
+
+  const previewRuleTransactions = useMemo(() => rows.map((row, idx) => ({
+    id: `preview-${idx}`,
+    amount: row.amount,
+    currency: row.currency || selectedAccountCurrency,
+    categoryId: resolvePreviewCategoryId(row.category, categoriesByNormalizedName),
+    description: row.description,
+    date: row.date,
+    time: row.time,
+    accountId: effectiveAccountId,
+    transactionId: row.transactionId,
+    metadata: row.metadata,
+    rawData: row.raw,
+  })), [categoriesByNormalizedName, effectiveAccountId, rows, selectedAccountCurrency]);
+  const previewTransactionsWithRules = useMemo(
+    () => applyAutomationRules(previewRuleTransactions, automationRules, "on-import").transactions,
+    [automationRules, previewRuleTransactions],
+  );
+  const previewTransactionsByIndex = useMemo(
+    () => new Map(previewTransactionsWithRules.map((transaction, idx) => [idx, transaction] as const)),
+    [previewTransactionsWithRules],
+  );
+  const previewCategoryLabelsByIndex = useMemo(
+    () => new Map(previewTransactionsWithRules.map((transaction, idx) => {
+      const categoryLabel = transaction.categoryId === UNCATEGORIZED_CATEGORY_ID
+        ? "Uncategorized"
+        : categoriesById.get(transaction.categoryId)?.name ?? rows[idx]?.category?.trim() ?? "Uncategorized";
+      return [idx, categoryLabel] as const;
+    })),
+    [categoriesById, previewTransactionsWithRules, rows],
   );
 
   const hasAccounts = accounts.length > 0;
@@ -1036,14 +1129,24 @@ export function TransactionPreview({
     }
   };
 
-  const selectedAccount = accounts.find(
-    (account) => account.id === effectiveAccountId,
-  );
   const detailRow = detailRowIndex !== null ? rows[detailRowIndex] : null;
+  const detailPreviewCategoryLabel = detailRowIndex !== null
+    ? previewCategoryLabelsByIndex.get(detailRowIndex) ?? "Uncategorized"
+    : "Uncategorized";
   const detailAiSuggestion =
     detailRowIndex !== null ? currentAiSuggestionsByIndex.get(detailRowIndex) : undefined;
   const detailAiSuggestionAccepted =
     detailRowIndex !== null && acceptedAiSuggestions.has(detailRowIndex);
+  const detailDisplayedDescription =
+    detailAiSuggestionAccepted && detailAiSuggestion?.cleanedDescription
+      ? detailAiSuggestion.cleanedDescription
+      : detailRow?.description ?? "—";
+  const detailDisplayedCategoryLabel =
+    detailAiSuggestionAccepted && detailAiSuggestion?.categoryId
+      ? categoriesById.get(detailAiSuggestion.categoryId)?.name
+        ?? detailAiSuggestion.categoryName
+        ?? detailPreviewCategoryLabel
+      : detailPreviewCategoryLabel;
   const detailWarnings =
     detailRowIndex !== null ? (warningsByIndex.get(detailRowIndex) ?? []) : [];
   const detailTransferPairCandidate =
@@ -1329,6 +1432,7 @@ export function TransactionPreview({
                   {displayRows.map(({ row, idx }) => {
                     const isSelected = selectedIndexes.has(idx);
                     const isDuplicate = duplicateIndexes.has(idx);
+                    const previewTransaction = previewTransactionsByIndex.get(idx);
                     const aiSuggestion = currentAiSuggestionsByIndex.get(idx);
                     const aiSuggestionAccepted = acceptedAiSuggestions.has(idx);
                     const aiSuggestionIgnored = ignoredAiSuggestions.has(idx);
@@ -1338,9 +1442,64 @@ export function TransactionPreview({
                       transferPairCandidatesByIndex.get(idx);
                     const transferDecision = getTransferDecision(idx);
                     const isLinkEnabled = transferDecision === "link";
-                    const hasAiSuggestion = Boolean(aiSuggestion);
+                    const displayedDescription =
+                      aiSuggestionAccepted && aiSuggestion?.cleanedDescription
+                        ? aiSuggestion.cleanedDescription
+                        : row.description;
+                    const displayedCategoryId =
+                      aiSuggestionAccepted && aiSuggestion?.categoryId
+                        ? aiSuggestion.categoryId
+                        : previewTransaction?.categoryId ?? UNCATEGORIZED_CATEGORY_ID;
+                    const displayedCategory = resolvePreviewCategory(
+                      displayedCategoryId,
+                      categoriesById,
+                      row.category,
+                    );
+                    const previewCategoryLabel = getParsedRowCategory(
+                      displayedCategory.name,
+                      transferPairCandidate,
+                      isLinkEnabled,
+                    );
+                    const previewType =
+                      transferPairCandidate && isLinkEnabled
+                        ? "transfer"
+                        : row.amount < 0
+                          ? "expense"
+                          : "income";
+                    const previewCategoryType =
+                      transferPairCandidate && isLinkEnabled
+                        ? "transfer"
+                        : resolveTransactionCategoryType(
+                          {
+                            amount: row.amount,
+                            categoryId: displayedCategoryId,
+                          },
+                          displayedCategory,
+                          categoryGroupsById,
+                        );
+                    const previewIconStyle = isUncategorizedCategory(
+                      displayedCategoryId,
+                      displayedCategory,
+                    )
+                      ? UNCATEGORIZED_ICON_STYLE
+                      : iconBoxStyles[previewCategoryType];
+                    const transferFlow =
+                      transferPairCandidate && isLinkEnabled && selectedAccount
+                        ? resolveTransferFlowAccounts({
+                          amount: row.amount,
+                          accountName: selectedAccount.name,
+                          counterpartyAccountName: transferPairCandidate.accountName,
+                          transferPairRole: row.amount < 0 ? "source" : "destination",
+                        })
+                        : null;
+                    const aiSuggestedCategoryName = aiSuggestion?.categoryId
+                      ? categoriesById.get(aiSuggestion.categoryId)?.name
+                        ?? aiSuggestion.categoryName
+                        ?? "Unknown category"
+                      : null;
+                    const hasAiCategorySuggestion = Boolean(aiSuggestion?.categoryId);
                     const hasTransferInfo = Boolean(transferPairCandidate);
-                    const hasSubrows = hasWarnings || hasAiSuggestion || hasTransferInfo;
+                    const hasSubrows = hasWarnings || hasTransferInfo;
 
                     return (
                       <Fragment key={idx}>
@@ -1368,14 +1527,90 @@ export function TransactionPreview({
                             />
                           </td>
                           <td className="px-3 py-2.5 text-foreground">
-                            <p className="break-words font-medium text-foreground">
-                              {row.description || "—"}
-                            </p>
+                            <div className="flex items-start gap-3">
+                              <div
+                                className={cn(
+                                  "flex h-[34px] w-[34px] shrink-0 items-center justify-center rounded-(--radius-md)",
+                                  previewIconStyle,
+                                )}
+                              >
+                                <Icon name={displayedCategory.icon} size={16} />
+                              </div>
+
+                              <div className="min-w-0 flex-1">
+                                <div className="flex items-start gap-2 min-w-0">
+                                  <span
+                                    className="min-w-0 text-sm text-foreground font-medium line-clamp-2"
+                                    title={displayedDescription || "—"}
+                                  >
+                                    {displayedDescription || "—"}
+                                  </span>
+                                </div>
+                                <div className="mt-1 flex flex-wrap items-center gap-1 text-sm text-dimmed">
+                                  <span>
+                                    {transferFlow
+                                      ? `${transferFlow.fromAccountName} → ${transferFlow.toAccountName}`
+                                      : selectedAccount?.name ?? "—"}
+                                  </span>
+                                  <span>&middot;</span>
+                                  <span>{previewCategoryLabel}</span>
+                                  {hasAiCategorySuggestion && aiSuggestedCategoryName && (
+                                    <>
+                                      <span>&middot;</span>
+                                      <TooltipProvider>
+                                        <Tooltip>
+                                          <TooltipTrigger asChild>
+                                            <button
+                                              type="button"
+                                              className={cn(
+                                                "inline-flex h-5 w-5 items-center justify-center rounded-full border-none bg-transparent p-0 transition-colors",
+                                                aiSuggestionAccepted
+                                                  ? "text-primary hover:text-primary/80"
+                                                  : aiSuggestionIgnored
+                                                    ? "text-dimmed hover:text-foreground"
+                                                    : "text-transfer hover:text-transfer/80",
+                                              )}
+                                              aria-label={aiSuggestionAccepted ? "Refuse AI category suggestion" : "Accept AI category suggestion"}
+                                              onClick={(event) => {
+                                                event.stopPropagation();
+                                                if (aiSuggestionAccepted) {
+                                                  ignoreAiSuggestion(idx);
+                                                } else {
+                                                  acceptAiSuggestion(idx);
+                                                }
+                                              }}
+                                            >
+                                              <Bot size={13} />
+                                            </button>
+                                          </TooltipTrigger>
+                                          <TooltipContent
+                                            align="start"
+                                            sideOffset={6}
+                                            className="max-w-80 whitespace-pre-wrap text-left leading-relaxed"
+                                          >
+                                            <p className="font-medium text-background">
+                                              {aiSuggestionAccepted ? "AI category accepted" : aiSuggestionIgnored ? "AI category refused" : "AI category suggestion"}
+                                            </p>
+                                            <p className="mt-1">Suggested category: {aiSuggestedCategoryName}</p>
+                                            <p className="mt-1">{aiSuggestion?.reason || "Suggested from similar transactions."}</p>
+                                            <p className="mt-2 text-[11px] opacity-80">
+                                              {aiSuggestionAccepted ? "Click to refuse this suggestion." : "Click to accept this suggestion."}
+                                            </p>
+                                          </TooltipContent>
+                                        </Tooltip>
+                                      </TooltipProvider>
+                                    </>
+                                  )}
+                                  <span>&middot;</span>
+                                  <span>{formatDate(row.date)}</span>
+                                </div>
+                              </div>
+                            </div>
                           </td>
                           <td
                             className={cn(
                               "px-3 py-2.5 text-right font-medium whitespace-nowrap",
-                              row.amount >= 0 ? "text-income" : "text-expense",
+                              getAmountColorClass(previewType, row.amount),
                             )}
                             style={{ fontFamily: "var(--font-display)" }}
                           >
@@ -1404,7 +1639,7 @@ export function TransactionPreview({
                         {hasWarnings && (
                           <tr className={cn(
                             "bg-warning/[0.04]",
-                            hasAiSuggestion || hasTransferInfo ? "" : "border-b border-border",
+                            hasTransferInfo ? "" : "border-b border-border",
                           )}>
                             <td colSpan={4} className="px-3 py-3">
                               <div className="space-y-2">
@@ -1420,90 +1655,6 @@ export function TransactionPreview({
                                     <span>{warning}</span>
                                   </div>
                                 ))}
-                              </div>
-                            </td>
-                          </tr>
-                        )}
-
-                        {aiSuggestion && (
-                          <tr className={cn(
-                            "bg-primary/[0.04]",
-                            hasTransferInfo ? "" : "border-b border-border",
-                          )}>
-                            <td colSpan={4} className="px-3 py-3">
-                              <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
-                                <div className="space-y-2">
-                                  <div className="flex flex-wrap items-center gap-2">
-                                    <Badge variant="default">AI suggestion</Badge>
-                                    <Badge variant="outline">
-                                      {Math.round(aiSuggestion.confidence * 100)}% confidence
-                                    </Badge>
-                                    {aiSuggestionAccepted && (
-                                      <Badge variant="outline">Accepted</Badge>
-                                    )}
-                                    {aiSuggestionIgnored && (
-                                      <Badge variant="muted">Ignored</Badge>
-                                    )}
-                                  </div>
-
-                                  <div className="space-y-1 text-sm text-foreground">
-                                    {aiSuggestion.cleanedDescription && (
-                                      <p>
-                                        <span className="text-dimmed">Description:</span>{" "}
-                                        {aiSuggestion.cleanedDescription}
-                                      </p>
-                                    )}
-                                    {aiSuggestion.categoryId && (
-                                      <p>
-                                        <span className="text-dimmed">Category:</span>{" "}
-                                        {aiSuggestion.categoryName
-                                          ?? categoriesById.get(aiSuggestion.categoryId)?.name
-                                          ?? "Unknown category"}
-                                      </p>
-                                    )}
-                                    <p className="text-dimmed">
-                                      {aiSuggestion.reason || "Suggested from similar transactions."}
-                                    </p>
-                                  </div>
-                                </div>
-
-                                <div className="flex flex-wrap items-center gap-2">
-                                  <Button
-                                    type="button"
-                                    variant={aiSuggestionAccepted ? "default" : "outline"}
-                                    size="sm"
-                                    onClick={(event) => {
-                                      event.stopPropagation();
-                                      acceptAiSuggestion(idx);
-                                    }}
-                                  >
-                                    Accept
-                                  </Button>
-                                  <Button
-                                    type="button"
-                                    variant={aiSuggestionIgnored ? "default" : "ghost"}
-                                    size="sm"
-                                    onClick={(event) => {
-                                      event.stopPropagation();
-                                      ignoreAiSuggestion(idx);
-                                    }}
-                                  >
-                                    Ignore
-                                  </Button>
-                                  {aiSuggestionAccepted && aiSuggestion.categoryId && aiSuggestion.ruleKeyword && (
-                                    <Button
-                                      type="button"
-                                      variant="outline"
-                                      size="sm"
-                                      onClick={(event) => {
-                                        event.stopPropagation();
-                                        openCreateRuleModal(idx);
-                                      }}
-                                    >
-                                      Create rule
-                                    </Button>
-                                  )}
-                                </div>
                               </div>
                             </td>
                           </tr>
@@ -1639,7 +1790,7 @@ export function TransactionPreview({
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <PreviewField
                   label="Description"
-                  value={detailRow.description || "—"}
+                  value={detailDisplayedDescription}
                 />
                 <PreviewField
                   label="Transaction reference"
@@ -1689,14 +1840,14 @@ export function TransactionPreview({
                 />
               </div>
 
-              <PreviewField
-                label="Category"
-                value={getParsedRowCategory(
-                  detailRow,
-                  detailTransferPairCandidate,
-                  detailIsLinkEnabled,
-                )}
-              />
+                <PreviewField
+                  label="Category"
+                  value={getParsedRowCategory(
+                    detailDisplayedCategoryLabel,
+                    detailTransferPairCandidate,
+                    detailIsLinkEnabled,
+                  )}
+                />
 
               {detailAiSuggestion && (
                 <Card className="p-3 space-y-3 border-primary/20 bg-primary/[0.04]">
@@ -1728,6 +1879,22 @@ export function TransactionPreview({
                       {detailAiSuggestion.reason || "Suggested from similar transactions."}
                     </p>
                   </div>
+                  {detailAiSuggestionAccepted && detailAiSuggestion.categoryId && detailAiSuggestion.ruleKeyword && (
+                    <div className="pt-1">
+                      <Button
+                        type="button"
+                        variant="outline"
+                        size="sm"
+                        onClick={() => {
+                          if (detailRowIndex !== null) {
+                            openCreateRuleModal(detailRowIndex);
+                          }
+                        }}
+                      >
+                        Create rule
+                      </Button>
+                    </div>
+                  )}
                 </Card>
               )}
 

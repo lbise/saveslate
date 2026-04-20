@@ -268,8 +268,24 @@ def does_rule_match(rule: dict[str, Any], txn: dict[str, Any]) -> bool:
 UNCATEGORIZED_CATEGORY_ID = "uncategorized"
 
 
+def _is_uncategorized_category(
+    category_id: Any,
+    uncategorized_category_ids: set[str] | None,
+) -> bool:
+    if category_id is None:
+        return False
+
+    normalized_ids = {UNCATEGORIZED_CATEGORY_ID}
+    if uncategorized_category_ids:
+        normalized_ids.update(str(value) for value in uncategorized_category_ids)
+
+    return str(category_id) in normalized_ids
+
+
 def apply_rule_action(
-    txn: dict[str, Any], action: dict[str, Any]
+    txn: dict[str, Any],
+    action: dict[str, Any],
+    uncategorized_category_ids: set[str] | None = None,
 ) -> tuple[dict[str, Any], bool]:
     """Apply a single action to a transaction dict.
 
@@ -282,7 +298,7 @@ def apply_rule_action(
         target_id = action.get("category_id") or action.get("categoryId")
         current = txn.get("category_id")
 
-        if not overwrite and current is not None and str(current) != UNCATEGORIZED_CATEGORY_ID:
+        if not overwrite and current is not None and not _is_uncategorized_category(current, uncategorized_category_ids):
             return txn, False
         if current is not None and str(current) == str(target_id):
             return txn, False
@@ -313,6 +329,7 @@ def apply_automation_rules(
     transactions: list[dict[str, Any]],
     rules: list[dict[str, Any]],
     trigger: str,
+    uncategorized_category_ids: set[str] | None = None,
 ) -> AutomationRunResult:
     """Apply automation rules to a list of transaction dicts.
 
@@ -360,7 +377,11 @@ def apply_automation_rules(
             stats.matched_count += 1
 
             for action in rule.get("actions", []):
-                current, changed = apply_rule_action(current, action)
+                current, changed = apply_rule_action(
+                    current,
+                    action,
+                    uncategorized_category_ids,
+                )
                 if changed:
                     stats.changed_count += 1
                     changed_count += 1

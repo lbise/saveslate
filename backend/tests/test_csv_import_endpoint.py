@@ -20,6 +20,10 @@ SIMPLE_CSV = """Date,Description,Amount
 2026-01-17,Salary,3000.00
 """
 
+CATEGORY_CSV = """Date,Description,Amount,Category
+2026-01-15,Grocery Store,-50.00,Uncategorized
+"""
+
 SEMICOLON_CSV = """Date;Description;Amount
 15.01.2026;Migros Einkauf;-42.50
 16.01.2026;Kaffee;-4.20
@@ -475,6 +479,57 @@ class TestCsvImport:
         existing_linked = existing_txn_resp.json()
         assert existing_linked["transfer_pair_id"] == grocery_txn["transfer_pair_id"]
         assert existing_linked["transfer_pair_role"] == "destination"
+
+    async def test_import_rules_overwrite_hidden_uncategorized_category(self, authed_client: AsyncClient):
+        acct_id = await _create_account(authed_client)
+        parser_id = await _create_parser(
+            authed_client,
+            config_override={
+                "columnMappings": [
+                    {"field": "date", "columnIndices": [0]},
+                    {"field": "description", "columnIndices": [1]},
+                    {"field": "amount", "columnIndices": [2]},
+                    {"field": "category", "columnIndices": [3]},
+                ],
+            },
+        )
+        h = csrf_headers(authed_client)
+
+        cat_resp = await authed_client.post(
+            "/api/categories",
+            json={"name": "Food", "icon": "Apple"},
+            headers=h,
+        )
+        assert cat_resp.status_code == 201
+        cat_id = cat_resp.json()["id"]
+
+        rule_resp = await authed_client.post(
+            "/api/automation-rules",
+            json={
+                "name": "Auto-food",
+                "triggers": ["on-import"],
+                "match_mode": "all",
+                "conditions": [{"field": "description", "operator": "contains", "value": "Grocery"}],
+                "actions": [{"type": "set-category", "category_id": cat_id}],
+            },
+            headers=h,
+        )
+        assert rule_resp.status_code == 201
+
+        resp = await _post_import_with_payload(
+            authed_client,
+            CATEGORY_CSV,
+            {
+                "accountId": acct_id,
+                "parserId": parser_id,
+            },
+        )
+
+        assert resp.status_code == 201
+        data = resp.json()
+        assert len(data) == 1
+        assert data[0]["description"] == "Grocery Store"
+        assert data[0]["category_id"] == cat_id
 
     async def test_import_row_overrides_win_after_rules(self, authed_client: AsyncClient):
         acct_id = await _create_account(authed_client)
