@@ -2,6 +2,7 @@ import { Fragment, useCallback, useMemo, useRef, useState } from "react";
 import {
   AlertTriangle,
   Bot,
+  Check,
   Eye,
   Link2,
   Link2Off,
@@ -65,7 +66,7 @@ import {
 import { cn, formatDate, resolveTransferFlowAccounts } from "../../lib/utils";
 import { useFormatCurrency } from "../../hooks";
 import { Card } from "../ui/Card";
-import { Icon, PaginationButtons, Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "../ui";
+import { Icon, PaginationButtons } from "../ui";
 import type {
   AutomationRule,
   AutomationRulePrefillDraft,
@@ -246,16 +247,25 @@ function resolvePreviewCategory(
   };
 }
 
+/** Per-field accept/reject decisions for an AI suggestion row. */
+interface AiFieldDecisions {
+  /** undefined = pending, true = accepted, false = rejected */
+  descriptionAccepted?: boolean;
+  /** undefined = pending, true = accepted, false = rejected */
+  categoryAccepted?: boolean;
+}
+
 function buildRowOverride(
   rowIndex: number,
   suggestion: ImportAiSuggestion,
+  decisions: AiFieldDecisions | undefined,
 ): CsvImportRowOverride | null {
   const rowOverride: CsvImportRowOverride = { rowIndex };
 
-  if (suggestion.cleanedDescription) {
+  if (decisions?.descriptionAccepted && suggestion.cleanedDescription) {
     rowOverride.description = suggestion.cleanedDescription;
   }
-  if (suggestion.categoryId) {
+  if (decisions?.categoryAccepted && suggestion.categoryId) {
     rowOverride.categoryId = suggestion.categoryId;
   }
 
@@ -332,10 +342,8 @@ export function TransactionPreview({
     Map<number, ImportAiSuggestion>
   >(new Map());
   const [aiSuggestionContextKey, setAiSuggestionContextKey] = useState<string | null>(null);
-  const [acceptedAiSuggestionIndexes, setAcceptedAiSuggestionIndexes] =
-    useState<Set<number>>(new Set());
-  const [ignoredAiSuggestionIndexes, setIgnoredAiSuggestionIndexes] =
-    useState<Set<number>>(new Set());
+  const [aiDecisionsByIndex, setAiDecisionsByIndex] =
+    useState<Map<number, AiFieldDecisions>>(new Map());
   const [isRunningAiAssist, setIsRunningAiAssist] = useState(false);
   const [aiAssistProgress, setAiAssistProgress] = useState<AiAssistProgress | null>(null);
   const [hasRunAiAssistContextKey, setHasRunAiAssistContextKey] = useState<string | null>(null);
@@ -721,73 +729,101 @@ export function TransactionPreview({
     [duplicateIndexes, rows, transferPairCandidatesByIndex],
   );
 
-  const acceptedAiSuggestions = useMemo(() => {
-    const next = new Set<number>();
-    acceptedAiSuggestionIndexes.forEach((idx) => {
+  /** Scoped decisions — only includes rows that still have a current suggestion. */
+  const currentAiDecisions = useMemo(() => {
+    const next = new Map<number, AiFieldDecisions>();
+    aiDecisionsByIndex.forEach((decisions, idx) => {
       if (currentAiSuggestionsByIndex.has(idx)) {
-        next.add(idx);
+        next.set(idx, decisions);
       }
     });
     return next;
-  }, [acceptedAiSuggestionIndexes, currentAiSuggestionsByIndex]);
+  }, [aiDecisionsByIndex, currentAiSuggestionsByIndex]);
 
-  const ignoredAiSuggestions = useMemo(() => {
-    const next = new Set<number>();
-    ignoredAiSuggestionIndexes.forEach((idx) => {
-      if (currentAiSuggestionsByIndex.has(idx)) {
-        next.add(idx);
-      }
-    });
-    return next;
-  }, [currentAiSuggestionsByIndex, ignoredAiSuggestionIndexes]);
+  /** Whether a row has at least one accepted field — used for rowOverrides and display. */
+  const rowHasAcceptedField = useCallback(
+    (idx: number) => {
+      const d = currentAiDecisions.get(idx);
+      return d?.descriptionAccepted === true || d?.categoryAccepted === true;
+    },
+    [currentAiDecisions],
+  );
+
+  /**
+   * A row is "pending review" if it has a suggestion and at least one proposed
+   * field has no decision yet (undefined).
+   */
+  const isRowPendingReview = useCallback(
+    (idx: number) => {
+      const suggestion = currentAiSuggestionsByIndex.get(idx);
+      if (!suggestion) return false;
+      const d = currentAiDecisions.get(idx);
+      const hasDescProposal =
+        suggestion.cleanedDescription &&
+        suggestion.cleanedDescription !== rows[idx]?.description;
+      const hasCatProposal = Boolean(suggestion.categoryId);
+      if (hasDescProposal && d?.descriptionAccepted === undefined) return true;
+      if (hasCatProposal && d?.categoryAccepted === undefined) return true;
+      return false;
+    },
+    [currentAiDecisions, currentAiSuggestionsByIndex, rows],
+  );
 
   const aiSuggestionCount = currentAiSuggestionsByIndex.size;
   const pendingReviewAiSuggestionCount = useMemo(
-    () => Array.from(currentAiSuggestionsByIndex.keys()).filter(
-      (idx) => !acceptedAiSuggestions.has(idx) && !ignoredAiSuggestions.has(idx),
-    ).length,
-    [acceptedAiSuggestions, currentAiSuggestionsByIndex, ignoredAiSuggestions],
+    () =>
+      Array.from(currentAiSuggestionsByIndex.keys()).filter((idx) =>
+        isRowPendingReview(idx),
+      ).length,
+    [currentAiSuggestionsByIndex, isRowPendingReview],
   );
   const pendingHighConfidenceSuggestionCount = useMemo(
-    () => Array.from(currentAiSuggestionsByIndex.entries()).filter(([idx, suggestion]) => (
-      suggestion.confidence >= AI_AUTO_APPLY_CONFIDENCE
-      && !acceptedAiSuggestions.has(idx)
-    )).length,
-    [acceptedAiSuggestions, currentAiSuggestionsByIndex],
+    () =>
+      Array.from(currentAiSuggestionsByIndex.entries()).filter(
+        ([idx, suggestion]) =>
+          suggestion.confidence >= AI_AUTO_APPLY_CONFIDENCE &&
+          isRowPendingReview(idx),
+      ).length,
+    [currentAiSuggestionsByIndex, isRowPendingReview],
   );
-  const acceptAiSuggestion = useCallback((rowIndex: number) => {
-    setAcceptedAiSuggestionIndexes((previous) => new Set(previous).add(rowIndex));
-    setIgnoredAiSuggestionIndexes((previous) => {
-      const next = new Set(previous);
-      next.delete(rowIndex);
-      return next;
-    });
-  }, []);
 
-  const ignoreAiSuggestion = useCallback((rowIndex: number) => {
-    setAcceptedAiSuggestionIndexes((previous) => {
-      const next = new Set(previous);
-      next.delete(rowIndex);
-      return next;
-    });
-    setIgnoredAiSuggestionIndexes((previous) => new Set(previous).add(rowIndex));
-  }, []);
+  const acceptAiField = useCallback(
+    (rowIndex: number, field: "description" | "category") => {
+      setAiDecisionsByIndex((previous) => {
+        const next = new Map(previous);
+        const decisions = { ...(next.get(rowIndex) ?? {}) };
+        if (field === "description") decisions.descriptionAccepted = true;
+        else decisions.categoryAccepted = true;
+        next.set(rowIndex, decisions);
+        return next;
+      });
+    },
+    [],
+  );
+
+  const rejectAiField = useCallback(
+    (rowIndex: number, field: "description" | "category") => {
+      setAiDecisionsByIndex((previous) => {
+        const next = new Map(previous);
+        const decisions = { ...(next.get(rowIndex) ?? {}) };
+        if (field === "description") decisions.descriptionAccepted = false;
+        else decisions.categoryAccepted = false;
+        next.set(rowIndex, decisions);
+        return next;
+      });
+    },
+    [],
+  );
 
   const acceptAllHighConfidenceSuggestions = useCallback(() => {
-    setAcceptedAiSuggestionIndexes((previous) => {
-      const next = new Set(previous);
+    setAiDecisionsByIndex((previous) => {
+      const next = new Map(previous);
       currentAiSuggestionsByIndex.forEach((suggestion, rowIndex) => {
         if (suggestion.confidence >= AI_AUTO_APPLY_CONFIDENCE) {
-          next.add(rowIndex);
-        }
-      });
-      return next;
-    });
-    setIgnoredAiSuggestionIndexes((previous) => {
-      const next = new Set(previous);
-      currentAiSuggestionsByIndex.forEach((suggestion, rowIndex) => {
-        if (suggestion.confidence >= AI_AUTO_APPLY_CONFIDENCE) {
-          next.delete(rowIndex);
+          const decisions = { ...(next.get(rowIndex) ?? {}) };
+          if (suggestion.cleanedDescription) decisions.descriptionAccepted = true;
+          if (suggestion.categoryId) decisions.categoryAccepted = true;
+          next.set(rowIndex, decisions);
         }
       });
       return next;
@@ -904,8 +940,7 @@ export function TransactionPreview({
     setHasRunAiAssistContextKey(currentAiContextKey);
     setAiSuggestionContextKey(currentAiContextKey);
     setAiSuggestionsByIndex(new Map());
-    setAcceptedAiSuggestionIndexes(new Set());
-    setIgnoredAiSuggestionIndexes(new Set());
+    setAiDecisionsByIndex(new Map());
     setAiAssistProgress({
       completedBatchCount: 0,
       totalBatchCount: rowIndexBatches.length,
@@ -941,11 +976,14 @@ export function TransactionPreview({
           });
           return next;
         });
-        setAcceptedAiSuggestionIndexes((previous) => {
-          const next = new Set(previous);
+        setAiDecisionsByIndex((previous) => {
+          const next = new Map(previous);
           result.suggestions.forEach((suggestion) => {
             if (suggestion.confidence >= AI_AUTO_APPLY_CONFIDENCE) {
-              next.add(suggestion.rowIndex);
+              const decisions = { ...(next.get(suggestion.rowIndex) ?? {}) };
+              if (suggestion.cleanedDescription) decisions.descriptionAccepted = true;
+              if (suggestion.categoryId) decisions.categoryAccepted = true;
+              next.set(suggestion.rowIndex, decisions);
             }
           });
           return next;
@@ -1099,10 +1137,11 @@ export function TransactionPreview({
           entry !== null,
       );
     const rowOverrides = selectedRowIndexes
-      .filter((rowIndex) => acceptedAiSuggestions.has(rowIndex))
+      .filter((rowIndex) => rowHasAcceptedField(rowIndex))
       .map((rowIndex) => {
         const suggestion = currentAiSuggestionsByIndex.get(rowIndex);
-        return suggestion ? buildRowOverride(rowIndex, suggestion) : null;
+        const decisions = currentAiDecisions.get(rowIndex);
+        return suggestion ? buildRowOverride(rowIndex, suggestion, decisions) : null;
       })
       .filter((rowOverride): rowOverride is CsvImportRowOverride => rowOverride !== null);
 
@@ -1135,14 +1174,16 @@ export function TransactionPreview({
     : "Uncategorized";
   const detailAiSuggestion =
     detailRowIndex !== null ? currentAiSuggestionsByIndex.get(detailRowIndex) : undefined;
-  const detailAiSuggestionAccepted =
-    detailRowIndex !== null && acceptedAiSuggestions.has(detailRowIndex);
+  const detailAiDecisions =
+    detailRowIndex !== null ? currentAiDecisions.get(detailRowIndex) : undefined;
+  const detailDescAccepted = detailAiDecisions?.descriptionAccepted === true;
+  const detailCatAccepted = detailAiDecisions?.categoryAccepted === true;
   const detailDisplayedDescription =
-    detailAiSuggestionAccepted && detailAiSuggestion?.cleanedDescription
+    detailDescAccepted && detailAiSuggestion?.cleanedDescription
       ? detailAiSuggestion.cleanedDescription
       : detailRow?.description ?? "—";
   const detailDisplayedCategoryLabel =
-    detailAiSuggestionAccepted && detailAiSuggestion?.categoryId
+    detailCatAccepted && detailAiSuggestion?.categoryId
       ? categoriesById.get(detailAiSuggestion.categoryId)?.name
         ?? detailAiSuggestion.categoryName
         ?? detailPreviewCategoryLabel
@@ -1434,22 +1475,34 @@ export function TransactionPreview({
                     const isDuplicate = duplicateIndexes.has(idx);
                     const previewTransaction = previewTransactionsByIndex.get(idx);
                     const aiSuggestion = currentAiSuggestionsByIndex.get(idx);
-                    const aiSuggestionAccepted = acceptedAiSuggestions.has(idx);
-                    const aiSuggestionIgnored = ignoredAiSuggestions.has(idx);
+                    const aiDecisions = currentAiDecisions.get(idx);
+                    const descAccepted = aiDecisions?.descriptionAccepted === true;
+                    const catAccepted = aiDecisions?.categoryAccepted === true;
                     const rowWarnings = warningsByIndex.get(idx) ?? [];
                     const hasWarnings = rowWarnings.length > 0;
                     const transferPairCandidate =
                       transferPairCandidatesByIndex.get(idx);
                     const transferDecision = getTransferDecision(idx);
                     const isLinkEnabled = transferDecision === "link";
+                    const baseCategoryId = previewTransaction?.categoryId ?? UNCATEGORIZED_CATEGORY_ID;
+                    const baseCategory = resolvePreviewCategory(
+                      baseCategoryId,
+                      categoriesById,
+                      row.category,
+                    );
+                    const basePreviewCategoryLabel = getParsedRowCategory(
+                      baseCategory.name,
+                      transferPairCandidate,
+                      isLinkEnabled,
+                    );
                     const displayedDescription =
-                      aiSuggestionAccepted && aiSuggestion?.cleanedDescription
+                      descAccepted && aiSuggestion?.cleanedDescription
                         ? aiSuggestion.cleanedDescription
                         : row.description;
                     const displayedCategoryId =
-                      aiSuggestionAccepted && aiSuggestion?.categoryId
+                      catAccepted && aiSuggestion?.categoryId
                         ? aiSuggestion.categoryId
-                        : previewTransaction?.categoryId ?? UNCATEGORIZED_CATEGORY_ID;
+                        : baseCategoryId;
                     const displayedCategory = resolvePreviewCategory(
                       displayedCategoryId,
                       categoriesById,
@@ -1497,9 +1550,17 @@ export function TransactionPreview({
                         ?? aiSuggestion.categoryName
                         ?? "Unknown category"
                       : null;
-                    const hasAiCategorySuggestion = Boolean(aiSuggestion?.categoryId);
+                    const proposalDescription = aiSuggestion?.cleanedDescription
+                      && aiSuggestion.cleanedDescription !== row.description
+                        ? aiSuggestion.cleanedDescription
+                        : null;
+                    const proposalCategoryName = aiSuggestedCategoryName
+                      && aiSuggestedCategoryName !== basePreviewCategoryLabel
+                        ? aiSuggestedCategoryName
+                        : null;
+                    const hasAiSuggestion = Boolean(aiSuggestion);
                     const hasTransferInfo = Boolean(transferPairCandidate);
-                    const hasSubrows = hasWarnings || hasTransferInfo;
+                    const hasSubrows = hasWarnings || hasAiSuggestion || hasTransferInfo;
 
                     return (
                       <Fragment key={idx}>
@@ -1554,53 +1615,6 @@ export function TransactionPreview({
                                   </span>
                                   <span>&middot;</span>
                                   <span>{previewCategoryLabel}</span>
-                                  {hasAiCategorySuggestion && aiSuggestedCategoryName && (
-                                    <>
-                                      <span>&middot;</span>
-                                      <TooltipProvider>
-                                        <Tooltip>
-                                          <TooltipTrigger asChild>
-                                            <button
-                                              type="button"
-                                              className={cn(
-                                                "inline-flex h-5 w-5 items-center justify-center rounded-full border-none bg-transparent p-0 transition-colors",
-                                                aiSuggestionAccepted
-                                                  ? "text-primary hover:text-primary/80"
-                                                  : aiSuggestionIgnored
-                                                    ? "text-dimmed hover:text-foreground"
-                                                    : "text-transfer hover:text-transfer/80",
-                                              )}
-                                              aria-label={aiSuggestionAccepted ? "Refuse AI category suggestion" : "Accept AI category suggestion"}
-                                              onClick={(event) => {
-                                                event.stopPropagation();
-                                                if (aiSuggestionAccepted) {
-                                                  ignoreAiSuggestion(idx);
-                                                } else {
-                                                  acceptAiSuggestion(idx);
-                                                }
-                                              }}
-                                            >
-                                              <Bot size={13} />
-                                            </button>
-                                          </TooltipTrigger>
-                                          <TooltipContent
-                                            align="start"
-                                            sideOffset={6}
-                                            className="max-w-80 whitespace-pre-wrap text-left leading-relaxed"
-                                          >
-                                            <p className="font-medium text-background">
-                                              {aiSuggestionAccepted ? "AI category accepted" : aiSuggestionIgnored ? "AI category refused" : "AI category suggestion"}
-                                            </p>
-                                            <p className="mt-1">Suggested category: {aiSuggestedCategoryName}</p>
-                                            <p className="mt-1">{aiSuggestion?.reason || "Suggested from similar transactions."}</p>
-                                            <p className="mt-2 text-[11px] opacity-80">
-                                              {aiSuggestionAccepted ? "Click to refuse this suggestion." : "Click to accept this suggestion."}
-                                            </p>
-                                          </TooltipContent>
-                                        </Tooltip>
-                                      </TooltipProvider>
-                                    </>
-                                  )}
                                   <span>&middot;</span>
                                   <span>{formatDate(row.date)}</span>
                                 </div>
@@ -1635,6 +1649,129 @@ export function TransactionPreview({
                             </Button>
                           </td>
                         </tr>
+
+                        {aiSuggestion && (
+                          <tr className={cn(
+                            "bg-primary/[0.04]",
+                            hasWarnings || hasTransferInfo ? "" : "border-b border-border",
+                          )}>
+                            <td colSpan={4} className="px-3 py-1.5">
+                              <div className="flex items-start gap-2">
+                                <Bot size={14} className="mt-0.5 shrink-0 text-primary" />
+                                <div className="flex-1 min-w-0 space-y-0.5 text-sm">
+                                  {proposalDescription && (
+                                    <div className="flex items-center gap-1">
+                                      <span className={cn(
+                                        "flex-1 min-w-0 break-words",
+                                        aiDecisions?.descriptionAccepted === false && "opacity-40",
+                                      )}>
+                                        <span className="text-dimmed line-through">{row.description}</span>
+                                        <span className="text-dimmed mx-1">&rarr;</span>
+                                        <span className="text-foreground">{proposalDescription}</span>
+                                      </span>
+                                      <Button
+                                        type="button"
+                                        variant={descAccepted ? "default" : "ghost"}
+                                        size="icon-sm"
+                                        title="Accept description"
+                                        onClick={(event) => {
+                                          event.stopPropagation();
+                                          acceptAiField(idx, "description");
+                                        }}
+                                      >
+                                        <Check size={14} />
+                                      </Button>
+                                      <Button
+                                        type="button"
+                                        variant={aiDecisions?.descriptionAccepted === false ? "default" : "ghost"}
+                                        size="icon-sm"
+                                        title="Reject description"
+                                        onClick={(event) => {
+                                          event.stopPropagation();
+                                          rejectAiField(idx, "description");
+                                        }}
+                                      >
+                                        <X size={14} />
+                                      </Button>
+                                    </div>
+                                  )}
+                                  {proposalCategoryName && (
+                                    <div className="flex items-center gap-1">
+                                      <span className={cn(
+                                        "flex-1 min-w-0 break-words",
+                                        aiDecisions?.categoryAccepted === false && "opacity-40",
+                                      )}>
+                                        <span className="text-dimmed line-through">{basePreviewCategoryLabel}</span>
+                                        <span className="text-dimmed mx-1">&rarr;</span>
+                                        <span className="text-foreground">{proposalCategoryName}</span>
+                                      </span>
+                                      <Button
+                                        type="button"
+                                        variant={catAccepted ? "default" : "ghost"}
+                                        size="icon-sm"
+                                        title="Accept category"
+                                        onClick={(event) => {
+                                          event.stopPropagation();
+                                          acceptAiField(idx, "category");
+                                        }}
+                                      >
+                                        <Check size={14} />
+                                      </Button>
+                                      <Button
+                                        type="button"
+                                        variant={aiDecisions?.categoryAccepted === false ? "default" : "ghost"}
+                                        size="icon-sm"
+                                        title="Reject category"
+                                        onClick={(event) => {
+                                          event.stopPropagation();
+                                          rejectAiField(idx, "category");
+                                        }}
+                                      >
+                                        <X size={14} />
+                                      </Button>
+                                    </div>
+                                  )}
+                                  {aiSuggestion.reason && (
+                                    <div className="flex items-center gap-2 text-xs text-dimmed">
+                                      <span className="flex-1 min-w-0">{aiSuggestion.reason}</span>
+                                      {catAccepted && aiSuggestion.categoryId && aiSuggestion.ruleKeyword && (
+                                        <Button
+                                          type="button"
+                                          variant="ghost"
+                                          size="xs"
+                                          title="Create automation rule from this suggestion"
+                                          onClick={(event) => {
+                                            event.stopPropagation();
+                                            openCreateRuleModal(idx);
+                                          }}
+                                        >
+                                          Create rule
+                                        </Button>
+                                      )}
+                                    </div>
+                                  )}
+                                  {/* Create rule fallback when there's no reason text */}
+                                  {!aiSuggestion.reason && catAccepted && aiSuggestion.categoryId && aiSuggestion.ruleKeyword && (
+                                    <div>
+                                      <Button
+                                        type="button"
+                                        variant="ghost"
+                                        size="xs"
+                                        title="Create automation rule from this suggestion"
+                                        onClick={(event) => {
+                                          event.stopPropagation();
+                                          openCreateRuleModal(idx);
+                                        }}
+                                      >
+                                        Create rule
+                                      </Button>
+                                    </div>
+                                  )}
+                                </div>
+                              </div>
+                            </td>
+                          </tr>
+                        )}
 
                         {hasWarnings && (
                           <tr className={cn(
@@ -1856,8 +1993,11 @@ export function TransactionPreview({
                     <Badge variant="outline">
                       {Math.round(detailAiSuggestion.confidence * 100)}% confidence
                     </Badge>
-                    {detailAiSuggestionAccepted && (
-                      <Badge variant="outline">Accepted for import</Badge>
+                    {detailDescAccepted && detailAiSuggestion.cleanedDescription && (
+                      <Badge variant="outline">Description accepted</Badge>
+                    )}
+                    {detailCatAccepted && detailAiSuggestion.categoryId && (
+                      <Badge variant="outline">Category accepted</Badge>
                     )}
                   </div>
                   <div className="space-y-1 text-sm text-foreground">
@@ -1879,7 +2019,7 @@ export function TransactionPreview({
                       {detailAiSuggestion.reason || "Suggested from similar transactions."}
                     </p>
                   </div>
-                  {detailAiSuggestionAccepted && detailAiSuggestion.categoryId && detailAiSuggestion.ruleKeyword && (
+                  {detailCatAccepted && detailAiSuggestion.categoryId && detailAiSuggestion.ruleKeyword && (
                     <div className="pt-1">
                       <Button
                         type="button"
