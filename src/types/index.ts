@@ -376,8 +376,26 @@ export interface ImportAiSuggestion {
   ruleKeyword?: string;
 }
 
+export interface ImportAiDebugChunk {
+  chunkIndex: number;
+  rowIndexes: number[];
+  prompt: string;
+  rawResponseText: string;
+  rawApiResponse: Record<string, unknown>;
+  parsedSuggestionsCount: number;
+  durationMs: number;
+}
+
+export interface ImportAiDebugInfo {
+  model: string;
+  timeoutSeconds: number;
+  totalDurationMs: number;
+  chunks: ImportAiDebugChunk[];
+}
+
 export interface ImportAiAssistResponse {
   suggestions: ImportAiSuggestion[];
+  debug?: ImportAiDebugInfo;
 }
 
 export interface CsvImportRowOverride {

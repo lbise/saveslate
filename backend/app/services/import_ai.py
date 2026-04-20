@@ -4,7 +4,9 @@ import asyncio
 import json
 import math
 import socket
+import time
 from collections.abc import Sequence
+from dataclasses import dataclass, field
 from typing import Any
 from urllib import error as urllib_error
 from urllib import parse as urllib_parse
@@ -45,6 +47,37 @@ class ImportAiSuggestion(BaseModel):
     confidence: float = Field(ge=0, le=1)
     reason: str = ""
     rule_keyword: str | None = None
+
+
+@dataclass
+class ChunkDebugInfo:
+    """Debug data captured for a single AI request chunk."""
+
+    chunk_index: int
+    row_indexes: list[int]
+    prompt: str
+    raw_response_text: str
+    raw_api_response: dict[str, Any]
+    parsed_suggestions_count: int
+    duration_ms: int
+
+
+@dataclass
+class _ChunkResult:
+    """Internal result from a single chunk request."""
+
+    suggestions: list[ImportAiSuggestion]
+    prompt: str
+    raw_response_text: str
+    raw_api_response: dict[str, Any]
+
+
+@dataclass
+class SuggestImportResult:
+    """Result from suggest_import_rows including optional debug info."""
+
+    suggestions: list[ImportAiSuggestion] = field(default_factory=list)
+    debug_chunks: list[ChunkDebugInfo] = field(default_factory=list)
 
 
 def _strip_markdown_fence(text: str) -> str:
@@ -270,7 +303,7 @@ async def _request_suggestions_chunk(
     rows: Sequence[dict[str, Any]],
     allowed_category_ids: set[str],
     uncategorized_row_indexes: set[int],
-) -> list[ImportAiSuggestion]:
+) -> _ChunkResult:
     prompt = _build_prompt(
         account=account,
         preferences=preferences,
@@ -326,12 +359,18 @@ async def _request_suggestions_chunk(
 
     response_payload = await asyncio.to_thread(send_request)
     response_text = _extract_response_text(response_payload)
-    return _parse_suggestions(
+    suggestions = _parse_suggestions(
         response_text=response_text,
         allowed_row_indexes={row["rowIndex"] for row in rows},
         row_descriptions={row["rowIndex"]: row["description"] for row in rows},
         allowed_category_ids=allowed_category_ids,
         uncategorized_row_indexes=uncategorized_row_indexes,
+    )
+    return _ChunkResult(
+        suggestions=suggestions,
+        prompt=prompt,
+        raw_response_text=response_text,
+        raw_api_response=response_payload,
     )
 
 
@@ -346,14 +385,15 @@ async def suggest_import_rows(
     categories: Sequence[dict[str, str]],
     history: Sequence[dict[str, str]],
     rows: Sequence[dict[str, Any]],
-) -> list[ImportAiSuggestion]:
+    collect_debug: bool = False,
+) -> SuggestImportResult:
     """Request AI suggestions for parsed import rows."""
 
     if not api_key:
         raise ImportAiConfigurationError("Import AI assist is not configured.")
 
     if not rows:
-        return []
+        return SuggestImportResult()
 
     allowed_category_ids = {category["id"] for category in categories}
     uncategorized_row_indexes = {
@@ -372,9 +412,13 @@ async def suggest_import_rows(
     )
 
     suggestions: list[ImportAiSuggestion] = []
+    debug_chunks: list[ChunkDebugInfo] = []
+    chunk_index = 0
+
     for offset in range(0, len(rows), MAX_ROWS_PER_REQUEST):
         row_chunk = rows[offset:offset + MAX_ROWS_PER_REQUEST]
-        chunk_suggestions = await _request_suggestions_chunk(
+        chunk_start = time.monotonic()
+        chunk_result = await _request_suggestions_chunk(
             api_key=api_key,
             model=model,
             timeout_seconds=effective_timeout_seconds,
@@ -386,6 +430,21 @@ async def suggest_import_rows(
             allowed_category_ids=allowed_category_ids,
             uncategorized_row_indexes=uncategorized_row_indexes,
         )
-        suggestions.extend(chunk_suggestions)
+        chunk_duration_ms = int((time.monotonic() - chunk_start) * 1000)
 
-    return suggestions
+        suggestions.extend(chunk_result.suggestions)
+
+        if collect_debug:
+            debug_chunks.append(ChunkDebugInfo(
+                chunk_index=chunk_index,
+                row_indexes=[row["rowIndex"] for row in row_chunk],
+                prompt=chunk_result.prompt,
+                raw_response_text=chunk_result.raw_response_text,
+                raw_api_response=chunk_result.raw_api_response,
+                parsed_suggestions_count=len(chunk_result.suggestions),
+                duration_ms=chunk_duration_ms,
+            ))
+
+        chunk_index += 1
+
+    return SuggestImportResult(suggestions=suggestions, debug_chunks=debug_chunks)

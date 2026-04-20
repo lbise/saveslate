@@ -16,12 +16,18 @@ export function useImportAiAssist() {
       parserId: string;
       rowIndexes?: number[];
       signal?: AbortSignal;
-    }) => api.upload<ImportAiAssistResponse>('/api/import/assist', file, undefined, {
-      payload: {
-        accountId,
-        parserId,
-        rowIndexes,
+    }) => api.upload<ImportAiAssistResponse>(
+      '/api/import/assist',
+      file,
+      import.meta.env.DEV ? { debug: 'true' } : undefined,
+      {
+        payload: {
+          accountId,
+          parserId,
+          rowIndexes,
+        },
       },
-    }, signal),
+      signal,
+    ),
   });
 }

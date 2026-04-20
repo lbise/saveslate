@@ -2,7 +2,11 @@ import { Fragment, useCallback, useMemo, useRef, useState } from "react";
 import {
   AlertTriangle,
   Bot,
+  Bug,
   Check,
+  ChevronDown,
+  ChevronRight,
+  Copy,
   Eye,
   Link2,
   Link2Off,
@@ -14,6 +18,12 @@ import {
 import { toast } from "sonner";
 import { Badge } from "@/components/ui/Badge";
 import { Button } from "@/components/ui/button";
+import {
+  Accordion,
+  AccordionContent,
+  AccordionItem,
+  AccordionTrigger,
+} from "@/components/ui/accordion";
 import {
   Dialog,
   DialogContent,
@@ -72,6 +82,7 @@ import type {
   AutomationRulePrefillDraft,
   Category,
   CsvImportRowOverride,
+  ImportAiDebugChunk,
   ImportAiSuggestion,
   ParsedRow,
 } from "../../types";
@@ -272,12 +283,62 @@ function buildRowOverride(
   return rowOverride.description || rowOverride.categoryId ? rowOverride : null;
 }
 
+function confidenceLabel(value: number): { text: string; className: string } {
+  if (value >= 0.75) return { text: "high", className: "text-income" };
+  if (value >= 0.4) return { text: "medium", className: "text-warning" };
+  return { text: "low", className: "text-expense" };
+}
+
 function chunkRowIndexes(rowIndexes: number[], chunkSize: number): number[][] {
   const chunks: number[][] = [];
   for (let offset = 0; offset < rowIndexes.length; offset += chunkSize) {
     chunks.push(rowIndexes.slice(offset, offset + chunkSize));
   }
   return chunks;
+}
+
+function AiDebugJsonBlock({
+  label,
+  data,
+  isJsonString = false,
+}: {
+  label: string;
+  data: string | Record<string, unknown>;
+  isJsonString?: boolean;
+}) {
+  const formatted = useMemo(() => {
+    if (isJsonString && typeof data === "string") {
+      try {
+        return JSON.stringify(JSON.parse(data), null, 2);
+      } catch {
+        return data;
+      }
+    }
+    return typeof data === "string" ? data : JSON.stringify(data, null, 2);
+  }, [data, isJsonString]);
+
+  return (
+    <div className="space-y-1">
+      <div className="flex items-center justify-between">
+        <span className="text-xs font-medium text-muted-foreground">{label}</span>
+        <Button
+          type="button"
+          variant="ghost"
+          size="xs"
+          onClick={() => {
+            navigator.clipboard.writeText(formatted);
+            toast.success(`${label} copied`);
+          }}
+        >
+          <Copy size={12} className="mr-1" />
+          Copy
+        </Button>
+      </div>
+      <pre className="rounded-(--radius-sm) border border-border bg-background p-2 text-[11px] leading-relaxed font-mono max-h-80 overflow-auto whitespace-pre-wrap break-all">
+        {formatted}
+      </pre>
+    </div>
+  );
 }
 
 function getDateDistanceInDays(left: string, right: string): number {
@@ -348,6 +409,9 @@ export function TransactionPreview({
   const [aiAssistProgress, setAiAssistProgress] = useState<AiAssistProgress | null>(null);
   const [hasRunAiAssistContextKey, setHasRunAiAssistContextKey] = useState<string | null>(null);
   const aiAssistAbortControllerRef = useRef<AbortController | null>(null);
+  const [aiDebugChunks, setAiDebugChunks] = useState<ImportAiDebugChunk[]>([]);
+  const [aiDebugModel, setAiDebugModel] = useState<string | null>(null);
+  const [aiDebugExpanded, setAiDebugExpanded] = useState(false);
   const availableCategories = useMemo(
     () => [...categories].sort((left, right) => left.name.localeCompare(right.name)),
     [categories],
@@ -941,6 +1005,9 @@ export function TransactionPreview({
     setAiSuggestionContextKey(currentAiContextKey);
     setAiSuggestionsByIndex(new Map());
     setAiDecisionsByIndex(new Map());
+    setAiDebugChunks([]);
+    setAiDebugModel(null);
+    setAiDebugExpanded(false);
     setAiAssistProgress({
       completedBatchCount: 0,
       totalBatchCount: rowIndexBatches.length,
@@ -994,6 +1061,11 @@ export function TransactionPreview({
           completedRowCount,
           totalRowCount: aiEligibleRowIndexes.length,
         });
+
+        if (result.debug) {
+          setAiDebugModel(result.debug.model);
+          setAiDebugChunks((previous) => [...previous, ...result.debug!.chunks]);
+        }
       }
 
       if (totalSuggestionCount === 0) {
@@ -1731,28 +1803,22 @@ export function TransactionPreview({
                                       </Button>
                                     </div>
                                   )}
-                                  {aiSuggestion.reason && (
-                                    <div className="flex items-center gap-2 text-xs text-dimmed">
-                                      <span className="flex-1 min-w-0">{aiSuggestion.reason}</span>
-                                      {catAccepted && aiSuggestion.categoryId && aiSuggestion.ruleKeyword && (
-                                        <Button
-                                          type="button"
-                                          variant="ghost"
-                                          size="xs"
-                                          title="Create automation rule from this suggestion"
-                                          onClick={(event) => {
-                                            event.stopPropagation();
-                                            openCreateRuleModal(idx);
-                                          }}
+                                  <div className="flex items-center gap-2 text-xs text-dimmed">
+                                    {(() => {
+                                      const cl = confidenceLabel(aiSuggestion.confidence);
+                                      return (
+                                        <Badge
+                                          className={cn("shrink-0 text-[10px] px-1.5 py-0", cl.className)}
+                                          variant="outline"
                                         >
-                                          Create rule
-                                        </Button>
-                                      )}
-                                    </div>
-                                  )}
-                                  {/* Create rule fallback when there's no reason text */}
-                                  {!aiSuggestion.reason && catAccepted && aiSuggestion.categoryId && aiSuggestion.ruleKeyword && (
-                                    <div>
+                                          {cl.text}
+                                        </Badge>
+                                      );
+                                    })()}
+                                    {aiSuggestion.reason && (
+                                      <span className="flex-1 min-w-0">{aiSuggestion.reason}</span>
+                                    )}
+                                    {catAccepted && aiSuggestion.categoryId && aiSuggestion.ruleKeyword && (
                                       <Button
                                         type="button"
                                         variant="ghost"
@@ -1765,8 +1831,8 @@ export function TransactionPreview({
                                       >
                                         Create rule
                                       </Button>
-                                    </div>
-                                  )}
+                                    )}
+                                  </div>
                                 </div>
                               </div>
                             </td>
@@ -1892,6 +1958,62 @@ export function TransactionPreview({
           </div>
         );
       })()}
+
+      {/* AI Debug Panel — dev only */}
+      {import.meta.env.DEV && aiDebugChunks.length > 0 && (
+        <Card className="border-dashed border-muted-foreground/30 bg-muted/30 overflow-hidden">
+          <button
+            type="button"
+            className="flex w-full items-center gap-2 px-3 py-2 text-left text-sm text-muted-foreground hover:text-foreground transition-colors"
+            onClick={() => setAiDebugExpanded((prev) => !prev)}
+          >
+            <Bug size={14} className="shrink-0" />
+            {aiDebugExpanded ? <ChevronDown size={14} /> : <ChevronRight size={14} />}
+            <span className="font-medium">AI Debug</span>
+            <span className="text-xs">
+              {aiDebugChunks.length} chunk{aiDebugChunks.length !== 1 ? "s" : ""}
+              {" / "}
+              {aiDebugChunks.reduce((sum, c) => sum + c.durationMs, 0).toLocaleString()}ms total
+              {aiDebugModel && ` / ${aiDebugModel}`}
+            </span>
+          </button>
+
+          {aiDebugExpanded && (
+            <div className="border-t border-border px-3 pb-3 space-y-3">
+              <Accordion type="multiple" className="w-full">
+                {aiDebugChunks.map((chunk) => (
+                  <AccordionItem key={chunk.chunkIndex} value={`chunk-${chunk.chunkIndex}`}>
+                    <AccordionTrigger className="py-2 text-xs">
+                      <span>
+                        Chunk {chunk.chunkIndex}
+                        <span className="ml-2 text-muted-foreground">
+                          {chunk.rowIndexes.length} rows / {chunk.durationMs.toLocaleString()}ms / {chunk.parsedSuggestionsCount} suggestions
+                        </span>
+                      </span>
+                    </AccordionTrigger>
+                    <AccordionContent className="space-y-3">
+                      <AiDebugJsonBlock
+                        label="Prompt"
+                        data={chunk.prompt}
+                        isJsonString
+                      />
+                      <AiDebugJsonBlock
+                        label="Parsed response"
+                        data={chunk.rawResponseText}
+                        isJsonString
+                      />
+                      <AiDebugJsonBlock
+                        label="Raw API response"
+                        data={chunk.rawApiResponse}
+                      />
+                    </AccordionContent>
+                  </AccordionItem>
+                ))}
+              </Accordion>
+            </div>
+          )}
+        </Card>
+      )}
 
       {detailRow && (
         <Dialog

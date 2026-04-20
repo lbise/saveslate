@@ -6,7 +6,7 @@ import json
 from httpx import AsyncClient
 
 from app.routers import csv_import as csv_import_router
-from app.services.import_ai import ImportAiSuggestion
+from app.services.import_ai import ImportAiSuggestion, SuggestImportResult
 from tests.conftest import csrf_headers
 
 
@@ -254,16 +254,18 @@ class TestCsvImportAssist:
             rows = kwargs["rows"]
             assert rows[0]["description"] == "Grocery Store"
             assert rows[0]["currentCategoryId"] is None
-            return [
-                ImportAiSuggestion(
-                    row_index=0,
-                    cleaned_description="Migros Basel",
-                    category_id=category_id,
-                    confidence=0.94,
-                    reason="Known grocery merchant",
-                    rule_keyword="migros",
-                )
-            ]
+            return SuggestImportResult(
+                suggestions=[
+                    ImportAiSuggestion(
+                        row_index=0,
+                        cleaned_description="Migros Basel",
+                        category_id=category_id,
+                        confidence=0.94,
+                        reason="Known grocery merchant",
+                        rule_keyword="migros",
+                    )
+                ],
+            )
 
         monkeypatch.setattr(csv_import_router, "suggest_import_rows", fake_suggest_import_rows)
 

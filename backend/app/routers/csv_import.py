@@ -1,6 +1,7 @@
 """CSV import router: upload, parse, create transactions, apply rules."""
 
 import json
+import time
 import uuid
 from datetime import date as date_type
 from datetime import datetime, time as time_type, timezone
@@ -83,10 +84,32 @@ class ImportAssistSuggestionResponse(BaseModel):
     rule_keyword: str | None = None
 
 
+class ImportAssistDebugChunk(BaseModel):
+    """Debug data for one AI request chunk."""
+
+    chunk_index: int
+    row_indexes: list[int]
+    prompt: str
+    raw_response_text: str
+    raw_api_response: dict
+    parsed_suggestions_count: int
+    duration_ms: int
+
+
+class ImportAssistDebugInfo(BaseModel):
+    """Debug info for the entire AI assist request."""
+
+    model: str
+    timeout_seconds: int
+    total_duration_ms: int
+    chunks: list[ImportAssistDebugChunk]
+
+
 class ImportAssistResponse(BaseModel):
     """Structured AI suggestions for the selected CSV rows."""
 
     suggestions: list[ImportAssistSuggestionResponse]
+    debug: ImportAssistDebugInfo | None = None
 
 
 class CsvImportPayload(BaseModel):
@@ -687,6 +710,7 @@ async def assist_import_csv(
     payload: str | None = Form(default=None),
     account_id: uuid.UUID | None = Query(default=None, alias="accountId"),
     parser_id: uuid.UUID | None = Query(default=None, alias="parserId"),
+    debug: bool = Query(default=False),
     user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
 ) -> ImportAssistResponse:
@@ -775,8 +799,9 @@ async def assist_import_csv(
             }
         )
 
+    import_ai_start = time.monotonic()
     try:
-        suggestions = await suggest_import_rows(
+        ai_result = await suggest_import_rows(
             api_key=settings.google_ai_api_key,
             model=settings.google_ai_model,
             timeout_seconds=settings.import_ai_timeout_seconds,
@@ -790,6 +815,7 @@ async def assist_import_csv(
             categories=categories,
             history=history_examples,
             rows=ai_rows,
+            collect_debug=debug,
         )
     except ImportAiConfigurationError as exc:
         raise HTTPException(
@@ -806,6 +832,27 @@ async def assist_import_csv(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=str(exc),
         ) from exc
+    import_ai_duration_ms = int((time.monotonic() - import_ai_start) * 1000)
+
+    debug_info: ImportAssistDebugInfo | None = None
+    if debug and ai_result.debug_chunks:
+        debug_info = ImportAssistDebugInfo(
+            model=settings.google_ai_model,
+            timeout_seconds=settings.import_ai_timeout_seconds,
+            total_duration_ms=import_ai_duration_ms,
+            chunks=[
+                ImportAssistDebugChunk(
+                    chunk_index=chunk.chunk_index,
+                    row_indexes=chunk.row_indexes,
+                    prompt=chunk.prompt,
+                    raw_response_text=chunk.raw_response_text,
+                    raw_api_response=chunk.raw_api_response,
+                    parsed_suggestions_count=chunk.parsed_suggestions_count,
+                    duration_ms=chunk.duration_ms,
+                )
+                for chunk in ai_result.debug_chunks
+            ],
+        )
 
     return ImportAssistResponse(
         suggestions=[
@@ -818,8 +865,9 @@ async def assist_import_csv(
                 reason=suggestion.reason,
                 rule_keyword=suggestion.rule_keyword,
             )
-            for suggestion in suggestions
-        ]
+            for suggestion in ai_result.suggestions
+        ],
+        debug=debug_info,
     )
 
 
