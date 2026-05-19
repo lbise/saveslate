@@ -769,7 +769,12 @@ export function TransactionPreview({
     [rows],
   );
   const currentAiContextKey = `${effectiveAccountId}|${parserId}|${rowsSignature}`;
-  const hasRunAiAssistForCurrentImport = hasRunAiAssistContextKey === currentAiContextKey;
+  const selectedSignature = useMemo(
+    () => [...selected].sort((a, b) => a - b).join(","),
+    [selected],
+  );
+  const currentAiEligibleKey = `${currentAiContextKey}|${selectedSignature}`;
+  const hasRunAiAssistForCurrentImport = hasRunAiAssistContextKey === currentAiEligibleKey;
   const currentAiSuggestionsByIndex = useMemo(
     () => aiSuggestionContextKey === currentAiContextKey ? aiSuggestionsByIndex : new Map<number, ImportAiSuggestion>(),
     [aiSuggestionContextKey, aiSuggestionsByIndex, currentAiContextKey],
@@ -779,6 +784,9 @@ export function TransactionPreview({
     () => rows
       .map((_, idx) => idx)
       .filter((idx) => {
+        if (!selected.has(idx)) {
+          return false;
+        }
         if (rows[idx]?.errors.length) {
           return false;
         }
@@ -790,7 +798,7 @@ export function TransactionPreview({
         }
         return true;
       }),
-    [duplicateIndexes, rows, transferPairCandidatesByIndex],
+    [duplicateIndexes, rows, selected, transferPairCandidatesByIndex],
   );
 
   /** Scoped decisions — only includes rows that still have a current suggestion. */
@@ -1001,7 +1009,7 @@ export function TransactionPreview({
     let totalAutoAcceptedCount = 0;
 
     setIsRunningAiAssist(true);
-    setHasRunAiAssistContextKey(currentAiContextKey);
+    setHasRunAiAssistContextKey(currentAiEligibleKey);
     setAiSuggestionContextKey(currentAiContextKey);
     setAiSuggestionsByIndex(new Map());
     setAiDecisionsByIndex(new Map());
@@ -1109,7 +1117,7 @@ export function TransactionPreview({
         };
       });
     }
-  }, [aiEligibleRowIndexes, currentAiContextKey, effectiveAccountId, file, hasRunAiAssistForCurrentImport, importAiAssistMutation, isRunningAiAssist, parserId]);
+  }, [aiEligibleRowIndexes, currentAiContextKey, currentAiEligibleKey, effectiveAccountId, file, hasRunAiAssistForCurrentImport, importAiAssistMutation, isRunningAiAssist, parserId]);
 
   const toggleRow = (idx: number) => {
     if (duplicateIndexes.has(idx)) {
