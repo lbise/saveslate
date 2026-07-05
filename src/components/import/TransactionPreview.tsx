@@ -33,6 +33,7 @@ import {
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Checkbox } from "@/components/ui/checkbox";
 import {
   Select,
   SelectContent,
@@ -406,6 +407,8 @@ export function TransactionPreview({
   const [aiDecisionsByIndex, setAiDecisionsByIndex] =
     useState<Map<number, AiFieldDecisions>>(new Map());
   const [isRunningAiAssist, setIsRunningAiAssist] = useState(false);
+  const [aiCleanDescriptions, setAiCleanDescriptions] = useState(true);
+  const [aiCategorize, setAiCategorize] = useState(true);
   const [aiAssistProgress, setAiAssistProgress] = useState<AiAssistProgress | null>(null);
   const [hasRunAiAssistContextKey, setHasRunAiAssistContextKey] = useState<string | null>(null);
   const aiAssistAbortControllerRef = useRef<AbortController | null>(null);
@@ -489,6 +492,7 @@ export function TransactionPreview({
   );
 
   const hasAccounts = accounts.length > 0;
+  const hasEnabledAiAssistTask = aiCleanDescriptions || aiCategorize;
 
   const duplicateIndexes = useMemo(() => {
     const existingTransactionIds = new Set<string>();
@@ -989,6 +993,10 @@ export function TransactionPreview({
       toast.info("AI assistant can only run once for this import preview.");
       return;
     }
+    if (!hasEnabledAiAssistTask) {
+      toast.info("Choose at least one AI assistant task.");
+      return;
+    }
 
     if (!effectiveAccountId) {
       toast.error("Select an account before running AI assist.");
@@ -1032,6 +1040,8 @@ export function TransactionPreview({
           accountId: effectiveAccountId,
           parserId,
           rowIndexes,
+          cleanDescriptions: aiCleanDescriptions,
+          categorize: aiCategorize,
           signal: abortController.signal,
         });
 
@@ -1117,7 +1127,7 @@ export function TransactionPreview({
         };
       });
     }
-  }, [aiEligibleRowIndexes, currentAiContextKey, currentAiEligibleKey, effectiveAccountId, file, hasRunAiAssistForCurrentImport, importAiAssistMutation, isRunningAiAssist, parserId]);
+  }, [aiCategorize, aiCleanDescriptions, aiEligibleRowIndexes, currentAiContextKey, currentAiEligibleKey, effectiveAccountId, file, hasEnabledAiAssistTask, hasRunAiAssistForCurrentImport, importAiAssistMutation, isRunningAiAssist, parserId]);
 
   const toggleRow = (idx: number) => {
     if (duplicateIndexes.has(idx)) {
@@ -1381,7 +1391,15 @@ export function TransactionPreview({
               variant="outline"
               size="sm"
               onClick={handleRunAiAssist}
-              disabled={!isRunningAiAssist && (!effectiveAccountId || aiEligibleRowIndexes.length === 0 || hasRunAiAssistForCurrentImport)}
+              disabled={
+                !isRunningAiAssist &&
+                (
+                  !effectiveAccountId ||
+                  aiEligibleRowIndexes.length === 0 ||
+                  hasRunAiAssistForCurrentImport ||
+                  !hasEnabledAiAssistTask
+                )
+              }
             >
               {isRunningAiAssist ? (
                 <Loader2 size={14} className="animate-spin" />
@@ -1410,8 +1428,49 @@ export function TransactionPreview({
             )}
           </div>
 
+          <div className="flex flex-wrap items-center gap-4 text-sm text-muted-foreground">
+            <label
+              htmlFor="ai-clean-descriptions"
+              className={cn(
+                "flex items-center gap-2",
+                isRunningAiAssist || hasRunAiAssistForCurrentImport
+                  ? "cursor-not-allowed opacity-60"
+                  : "cursor-pointer",
+              )}
+            >
+              <Checkbox
+                id="ai-clean-descriptions"
+                checked={aiCleanDescriptions}
+                disabled={isRunningAiAssist || hasRunAiAssistForCurrentImport}
+                onCheckedChange={(checked) => {
+                  setAiCleanDescriptions(checked === true);
+                }}
+              />
+              Clean descriptions
+            </label>
+            <label
+              htmlFor="ai-categorize"
+              className={cn(
+                "flex items-center gap-2",
+                isRunningAiAssist || hasRunAiAssistForCurrentImport
+                  ? "cursor-not-allowed opacity-60"
+                  : "cursor-pointer",
+              )}
+            >
+              <Checkbox
+                id="ai-categorize"
+                checked={aiCategorize}
+                disabled={isRunningAiAssist || hasRunAiAssistForCurrentImport}
+                onCheckedChange={(checked) => {
+                  setAiCategorize(checked === true);
+                }}
+              />
+              Categorize
+            </label>
+          </div>
+
           <p className="text-sm text-dimmed">
-            Clean descriptions and suggest categories before you import.
+            Choose whether AI should clean descriptions, suggest categories, or both before you import.
             {isRunningAiAssist && " Results appear batch by batch."}
           </p>
         </div>

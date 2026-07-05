@@ -9,12 +9,16 @@ export function useImportAiAssist() {
       accountId,
       parserId,
       rowIndexes,
+      cleanDescriptions,
+      categorize,
       signal,
     }: {
       file: File;
       accountId: string;
       parserId: string;
       rowIndexes?: number[];
+      cleanDescriptions: boolean;
+      categorize: boolean;
       signal?: AbortSignal;
     }) => api.upload<ImportAiAssistResponse>(
       '/api/import/assist',
@@ -25,6 +29,8 @@ export function useImportAiAssist() {
           accountId,
           parserId,
           rowIndexes,
+          cleanDescriptions,
+          categorize,
         },
       },
       signal,

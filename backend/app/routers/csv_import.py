@@ -68,6 +68,8 @@ class CsvImportAssistPayload(BaseModel):
     account_id: uuid.UUID
     parser_id: uuid.UUID
     row_indexes: list[int] | None = None
+    clean_descriptions: bool = True
+    categorize: bool = True
 
     model_config = {"extra": "forbid"}
 
@@ -194,6 +196,16 @@ def _parse_import_assist_payload(
     account_id: uuid.UUID | None,
     parser_id: uuid.UUID | None,
 ) -> CsvImportAssistPayload:
+    def validate_enabled_task(
+        assist_payload: CsvImportAssistPayload,
+    ) -> CsvImportAssistPayload:
+        if not assist_payload.clean_descriptions and not assist_payload.categorize:
+            raise HTTPException(
+                status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
+                detail="Select at least one AI assistant task",
+            )
+        return assist_payload
+
     if payload is not None:
         try:
             raw_payload = json.loads(payload)
@@ -204,7 +216,9 @@ def _parse_import_assist_payload(
             ) from exc
 
         try:
-            return CsvImportAssistPayload.model_validate(raw_payload)
+            return validate_enabled_task(
+                CsvImportAssistPayload.model_validate(raw_payload)
+            )
         except ValidationError as exc:
             raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_ENTITY, detail=exc.errors()) from exc
 
@@ -219,7 +233,9 @@ def _parse_import_assist_payload(
             detail="parserId is required",
         )
 
-    return CsvImportAssistPayload(account_id=account_id, parser_id=parser_id)
+    return validate_enabled_task(
+        CsvImportAssistPayload(account_id=account_id, parser_id=parser_id)
+    )
 
 
 def _normalize_selected_row_indexes(
@@ -815,6 +831,8 @@ async def assist_import_csv(
             categories=categories,
             history=history_examples,
             rows=ai_rows,
+            clean_descriptions=assist_request.clean_descriptions,
+            categorize=assist_request.categorize,
             collect_debug=debug,
         )
     except ImportAiConfigurationError as exc:

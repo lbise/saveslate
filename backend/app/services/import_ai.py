@@ -100,49 +100,70 @@ def _build_prompt(
     categories: Sequence[dict[str, str]],
     history: Sequence[dict[str, str]],
     rows: Sequence[dict[str, Any]],
+    clean_descriptions: bool,
+    categorize: bool,
 ) -> str:
-    instructions = {
-        "role": "You improve transaction imports for a personal finance app.",
-        "tasks": [
-            "Clean merchant descriptions so they are short, human-friendly, and preserve the merchant/counterparty.",
+    tasks: list[str] = []
+    suggestion_fields = ["rowIndex"]
+
+    if clean_descriptions:
+        tasks.append(
+            "Clean merchant descriptions so they are short, human-friendly, and preserve the merchant/counterparty."
+        )
+        suggestion_fields.append("cleanedDescription")
+
+    if categorize:
+        tasks.extend([
             "Suggest a category only when currentCategoryId is null.",
             "Choose categoryId only from the provided categories.",
+        ])
+        suggestion_fields.append("categoryId")
+
+    suggestion_fields.extend(["confidence", "reason"])
+    if categorize:
+        suggestion_fields.append("ruleKeyword")
+
+    instructions = {
+        "role": "You improve transaction imports for a personal finance app.",
+        "enabledTasks": {
+            "cleanDescriptions": clean_descriptions,
+            "categorize": categorize,
+        },
+        "tasks": tasks,
+        "general_rules": [
             "Return no suggestion for a row unless there is a meaningful improvement.",
             "Use confidence between 0 and 1.",
             "Provide a short reason.",
-            "Provide a short lowercase ruleKeyword only when the category suggestion is strong enough to reuse for future imports.",
         ],
-        "description_rules": [
+        "output": {
+            "format": "JSON object with a suggestions array",
+            "suggestion_fields": suggestion_fields,
+        },
+    }
+
+    if clean_descriptions:
+        instructions["description_rules"] = [
             "Remove excess punctuation, all-caps noise, card suffixes, booking/reference fragments, and duplicated words.",
             "Keep stable merchant wording users would recognize later.",
             "Do not invent details that are not present in the row or history.",
             "Preserve merchant and brand names rather than translating them literally.",
             "If preferences.translateDescriptions is true, return cleaned descriptions in preferences.targetLanguageName.",
             "If preferences.translateDescriptions is false, keep cleaned descriptions in the source language.",
-        ],
-        "category_rules": [
+        ]
+
+    if categorize:
+        instructions["category_rules"] = [
             "Never invent categories or category IDs.",
             "Leave categoryId null if the best choice is unclear.",
             "Prefer categories consistent with the supplied history examples.",
-        ],
-        "output": {
-            "format": "JSON object with a suggestions array",
-            "suggestion_fields": [
-                "rowIndex",
-                "cleanedDescription",
-                "categoryId",
-                "confidence",
-                "reason",
-                "ruleKeyword",
-            ],
-        },
-    }
+            "Provide a short lowercase ruleKeyword only when the category suggestion is strong enough to reuse for future imports.",
+        ]
 
     payload = {
         "instructions": instructions,
         "account": account,
         "preferences": preferences,
-        "categories": list(categories),
+        "categories": list(categories) if categorize else [],
         "historyExamples": list(history[:MAX_HISTORY_EXAMPLES]),
         "rows": list(rows),
     }
@@ -240,6 +261,8 @@ def _parse_suggestions(
     row_descriptions: dict[int, str],
     allowed_category_ids: set[str],
     uncategorized_row_indexes: set[int],
+    clean_descriptions: bool,
+    categorize: bool,
 ) -> list[ImportAiSuggestion]:
     try:
         raw_payload = json.loads(response_text)
@@ -265,15 +288,18 @@ def _parse_suggestions(
         if row_index in suggestions_by_row_index:
             continue
 
-        cleaned_description = _normalize_description(
-            raw_suggestion.get("cleanedDescription"),
-            row_descriptions[row_index],
-        )
+        cleaned_description = None
+        if clean_descriptions:
+            cleaned_description = _normalize_description(
+                raw_suggestion.get("cleanedDescription"),
+                row_descriptions[row_index],
+            )
 
-        category_id = raw_suggestion.get("categoryId")
-        if not isinstance(category_id, str) or category_id not in allowed_category_ids:
-            category_id = None
-        elif row_index not in uncategorized_row_indexes:
+        category_id = None
+        raw_category_id = raw_suggestion.get("categoryId")
+        if categorize and isinstance(raw_category_id, str) and raw_category_id in allowed_category_ids:
+            category_id = raw_category_id
+        if category_id is not None and row_index not in uncategorized_row_indexes:
             category_id = None
 
         if cleaned_description is None and category_id is None:
@@ -303,6 +329,8 @@ async def _request_suggestions_chunk(
     rows: Sequence[dict[str, Any]],
     allowed_category_ids: set[str],
     uncategorized_row_indexes: set[int],
+    clean_descriptions: bool,
+    categorize: bool,
 ) -> _ChunkResult:
     prompt = _build_prompt(
         account=account,
@@ -310,6 +338,8 @@ async def _request_suggestions_chunk(
         categories=categories,
         history=history,
         rows=rows,
+        clean_descriptions=clean_descriptions,
+        categorize=categorize,
     )
     payload = {
         "contents": [
@@ -365,6 +395,8 @@ async def _request_suggestions_chunk(
         row_descriptions={row["rowIndex"]: row["description"] for row in rows},
         allowed_category_ids=allowed_category_ids,
         uncategorized_row_indexes=uncategorized_row_indexes,
+        clean_descriptions=clean_descriptions,
+        categorize=categorize,
     )
     return _ChunkResult(
         suggestions=suggestions,
@@ -385,6 +417,8 @@ async def suggest_import_rows(
     categories: Sequence[dict[str, str]],
     history: Sequence[dict[str, str]],
     rows: Sequence[dict[str, Any]],
+    clean_descriptions: bool = True,
+    categorize: bool = True,
     collect_debug: bool = False,
 ) -> SuggestImportResult:
     """Request AI suggestions for parsed import rows."""
@@ -395,12 +429,15 @@ async def suggest_import_rows(
     if not rows:
         return SuggestImportResult()
 
-    allowed_category_ids = {category["id"] for category in categories}
+    if not clean_descriptions and not categorize:
+        return SuggestImportResult()
+
+    allowed_category_ids = {category["id"] for category in categories} if categorize else set()
     uncategorized_row_indexes = {
         row["rowIndex"]
         for row in rows
         if row.get("currentCategoryId") is None
-    }
+    } if categorize else set()
     preferences = {
         "preferredLanguage": preferred_language,
         "targetLanguageName": LANGUAGE_NAMES.get(preferred_language, preferred_language),
@@ -429,6 +466,8 @@ async def suggest_import_rows(
             rows=row_chunk,
             allowed_category_ids=allowed_category_ids,
             uncategorized_row_indexes=uncategorized_row_indexes,
+            clean_descriptions=clean_descriptions,
+            categorize=categorize,
         )
         chunk_duration_ms = int((time.monotonic() - chunk_start) * 1000)
 

@@ -302,6 +302,83 @@ class TestCsvImportAssist:
         assert suggestion["category_name"] == "Food"
         assert suggestion["rule_keyword"] == "migros"
 
+    async def test_assist_passes_task_selection(
+        self,
+        authed_client: AsyncClient,
+        monkeypatch,
+    ):
+        acct_id = await _create_account(authed_client)
+        parser_id = await _create_parser(authed_client)
+
+        async def fake_suggest_import_rows(**kwargs):
+            assert kwargs["clean_descriptions"] is False
+            assert kwargs["categorize"] is True
+            return SuggestImportResult()
+
+        monkeypatch.setattr(csv_import_router, "suggest_import_rows", fake_suggest_import_rows)
+
+        resp = await authed_client.post(
+            "/api/import/assist",
+            files=[
+                _make_upload_file(SIMPLE_CSV),
+                (
+                    "payload",
+                    (
+                        None,
+                        json.dumps(
+                            _transform_payload_keys(
+                                {
+                                    "accountId": acct_id,
+                                    "parserId": parser_id,
+                                    "rowIndexes": [0],
+                                    "cleanDescriptions": False,
+                                    "categorize": True,
+                                }
+                            )
+                        ),
+                    ),
+                ),
+            ],
+            headers=csrf_headers(authed_client),
+        )
+
+        assert resp.status_code == 200
+        assert resp.json()["suggestions"] == []
+
+    async def test_assist_requires_enabled_task(
+        self,
+        authed_client: AsyncClient,
+    ):
+        acct_id = await _create_account(authed_client)
+        parser_id = await _create_parser(authed_client)
+
+        resp = await authed_client.post(
+            "/api/import/assist",
+            files=[
+                _make_upload_file(SIMPLE_CSV),
+                (
+                    "payload",
+                    (
+                        None,
+                        json.dumps(
+                            _transform_payload_keys(
+                                {
+                                    "accountId": acct_id,
+                                    "parserId": parser_id,
+                                    "rowIndexes": [0],
+                                    "cleanDescriptions": False,
+                                    "categorize": False,
+                                }
+                            )
+                        ),
+                    ),
+                ),
+            ],
+            headers=csrf_headers(authed_client),
+        )
+
+        assert resp.status_code == 422
+
 
 # ============================================================================
 # Import
