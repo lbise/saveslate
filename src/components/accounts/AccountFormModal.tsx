@@ -5,9 +5,13 @@ import { getCurrencyOptionsWithFallback } from '../../lib/currencies';
 import { useSettings } from '../../hooks';
 import { Icon } from '../ui';
 import { Button } from '@/components/ui/button';
-import { Card } from '@/components/ui/Card';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from '@/components/ui/popover';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import {
   Select,
@@ -19,6 +23,7 @@ import {
 import {
   Dialog,
   DialogContent,
+  DialogDescription,
   DialogHeader,
   DialogTitle,
   DialogFooter,
@@ -90,11 +95,16 @@ export function AccountFormModal({
 
   return (
     <Dialog open onOpenChange={(open) => { if (!open) onCancel(); }}>
-      <DialogContent className="max-w-xl" showCloseButton={false}>
+      <DialogContent className="sm:max-w-xl">
         <DialogHeader>
           <DialogTitle>
             {isEditing ? 'Edit Account' : 'Create Account'}
           </DialogTitle>
+          <DialogDescription>
+            {isEditing
+              ? 'Update the account details used across balances and transactions.'
+              : 'Add an account to start tracking its balance and transactions.'}
+          </DialogDescription>
         </DialogHeader>
 
           <form className="space-y-4" onSubmit={handleSubmit}>
@@ -211,26 +221,29 @@ export function AccountFormModal({
               />
             </div>
 
-            <div className="relative">
-              <Label className="mb-1.5 block" htmlFor="account-icon-search">
+            <div>
+              <Label className="mb-1.5 block" htmlFor="account-icon-trigger">
                 Icon
               </Label>
-              <button
-                type="button"
-                className="flex items-center justify-between w-full h-10 rounded-md border border-border bg-card px-4 text-base text-foreground transition-all duration-150 cursor-pointer"
-                onClick={() => setIsIconPickerOpen((current) => !current)}
-                aria-expanded={isIconPickerOpen}
-                aria-controls="account-icon-picker"
-              >
-                <span className="flex items-center gap-2 min-w-0">
-                  <Icon name={form.icon} size={16} className="text-foreground" />
-                  <span className="text-base text-foreground truncate">{form.icon}</span>
-                </span>
-                <ChevronDown size={16} className="text-dimmed" />
-              </button>
-
-              {isIconPickerOpen && (
-                <Card id="account-icon-picker" className="absolute z-20 mt-2 w-full p-3">
+              <Popover open={isIconPickerOpen} onOpenChange={setIsIconPickerOpen}>
+                <PopoverTrigger asChild>
+                  <button
+                    id="account-icon-trigger"
+                    type="button"
+                    className="flex h-11 w-full items-center justify-between rounded-md border border-border bg-card px-4 text-base text-foreground outline-none transition-colors hover:border-dimmed focus-visible:ring-2 focus-visible:ring-ring active:bg-secondary"
+                  >
+                    <span className="flex min-w-0 items-center gap-2">
+                      <Icon name={form.icon} size={16} className="text-foreground" />
+                      <span className="truncate">{form.icon}</span>
+                    </span>
+                    <ChevronDown size={16} className="text-dimmed" />
+                  </button>
+                </PopoverTrigger>
+                <PopoverContent
+                  id="account-icon-picker"
+                  align="start"
+                  className="w-(--radix-popover-trigger-width) p-3"
+                >
                   <div className="relative mb-3">
                     <Search
                       size={14}
@@ -245,7 +258,7 @@ export function AccountFormModal({
                     />
                   </div>
 
-                  <ScrollArea className="max-h-64 rounded-(--radius-md) border border-border">
+                  <ScrollArea className="h-64 rounded-(--radius-md) border border-border">
                     {filteredIconNames.map((iconName) => {
                       const isSelected = form.icon === iconName;
                       return (
@@ -257,7 +270,7 @@ export function AccountFormModal({
                             setIsIconPickerOpen(false);
                           }}
                           className={[
-                            'w-full flex items-center gap-2 px-3 py-2 text-left border-none bg-transparent',
+                            'flex min-h-11 w-full items-center gap-2 border-none bg-transparent px-3 py-2 text-left',
                             'transition-colors duration-150',
                             isSelected
                               ? 'bg-secondary text-foreground'
@@ -265,7 +278,7 @@ export function AccountFormModal({
                           ].join(' ')}
                         >
                           <Icon name={iconName} size={16} />
-                          <span className="text-sm text-muted-foreground">{iconName}</span>
+                          <span className="text-sm">{iconName}</span>
                         </button>
                       );
                     })}
@@ -276,8 +289,8 @@ export function AccountFormModal({
                       </div>
                     )}
                   </ScrollArea>
-                </Card>
-              )}
+                </PopoverContent>
+              </Popover>
             </div>
 
             <DialogFooter>

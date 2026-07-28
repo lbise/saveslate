@@ -5,6 +5,12 @@ import { useOnboarding, useSettings } from '../../hooks';
 import { getCurrencyOptionsWithFallback } from '../../lib/currencies';
 import { Button } from '../ui/button';
 import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogTitle,
+} from '../ui/dialog';
+import {
   Card,
   CardContent,
   CardDescription,
@@ -71,8 +77,18 @@ export function OnboardingGate() {
   }
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-background/88 px-4 py-6 backdrop-blur-sm">
-      <Card className="w-full max-w-4xl overflow-hidden shadow-(--shadow-lg)">
+    <Dialog open>
+      <DialogContent
+        className="sm:max-w-4xl [&>[data-slot=dialog-scroll]]:p-0"
+        showCloseButton={false}
+        onEscapeKeyDown={(event) => event.preventDefault()}
+        onPointerDownOutside={(event) => event.preventDefault()}
+      >
+        <DialogTitle className="sr-only">Set up SaveSlate</DialogTitle>
+        <DialogDescription className="sr-only">
+          Choose a default currency and an initial category structure.
+        </DialogDescription>
+        <Card className="w-full overflow-hidden border-0 shadow-none">
         <CardHeader className="border-b border-border/80 bg-linear-to-br from-primary/14 via-card to-card">
           <div className="flex items-start gap-4">
             <div className="flex size-12 shrink-0 items-center justify-center rounded-2xl bg-primary/15 text-primary">
@@ -167,7 +183,7 @@ export function OnboardingGate() {
           </section>
         </CardContent>
 
-        <CardFooter className="justify-between gap-4 border-t border-border/80 bg-card/95">
+        <CardFooter className="sticky bottom-0 z-10 flex-col items-stretch gap-3 border-t border-border/80 bg-card/95 pb-[max(1rem,env(safe-area-inset-bottom))] backdrop-blur-sm sm:flex-row sm:items-center sm:justify-between">
           <p className="text-sm text-muted-foreground">
             You can revise the category structure later in Settings.
           </p>
@@ -180,7 +196,8 @@ export function OnboardingGate() {
             Start with these defaults
           </Button>
         </CardFooter>
-      </Card>
-    </div>
+        </Card>
+      </DialogContent>
+    </Dialog>
   );
 }

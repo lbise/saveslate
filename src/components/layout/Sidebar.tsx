@@ -63,7 +63,7 @@ export function Sidebar({ collapsed, onToggleCollapse }: SidebarProps) {
   return (
     <aside
       className={cn(
-        'fixed left-0 top-0 bottom-0 z-100 flex flex-col',
+        'fixed left-0 top-0 bottom-0 z-40 flex flex-col',
         'bg-card border-r border-border',
         'transition-[width] duration-200 ease-out',
       )}

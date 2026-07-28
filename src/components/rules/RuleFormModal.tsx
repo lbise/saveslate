@@ -7,6 +7,7 @@ import { Textarea } from "@/components/ui/textarea";
 import {
   Dialog,
   DialogContent,
+  DialogDescription,
   DialogHeader,
   DialogTitle,
   DialogFooter,
@@ -372,11 +373,14 @@ export function RuleFormModal({
 
   return (
     <Dialog open onOpenChange={(open) => { if (!open) onClose(); }}>
-      <DialogContent className="max-w-3xl" showCloseButton={false}>
+      <DialogContent className="sm:max-w-3xl">
         <DialogHeader>
           <DialogTitle>
             {editingRuleId ? "Edit Rule" : "Create Rule"}
           </DialogTitle>
+          <DialogDescription>
+            Choose when this rule runs, what it matches, and what it changes.
+          </DialogDescription>
         </DialogHeader>
 
           <form className="space-y-4" onSubmit={handleSaveRule}>

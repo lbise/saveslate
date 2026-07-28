@@ -6,12 +6,18 @@ import { Card } from "../ui/Card";
 import {
   Dialog,
   DialogContent,
+  DialogDescription,
   DialogHeader,
   DialogTitle,
   DialogFooter,
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from "@/components/ui/popover";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import {
   Select,
@@ -165,11 +171,14 @@ export function GoalFormModal({
 
   return (
     <Dialog open onOpenChange={(open) => { if (!open) onClose(); }}>
-      <DialogContent className="max-w-3xl" showCloseButton={false}>
+      <DialogContent className="sm:max-w-3xl">
         <DialogHeader>
           <DialogTitle>
             {editingGoalId ? "Edit Goal" : "Create Goal"}
           </DialogTitle>
+          <DialogDescription>
+            Set a target or contribution plan and track progress over time.
+          </DialogDescription>
         </DialogHeader>
 
         <form className="space-y-4" onSubmit={handleSubmit}>
@@ -192,32 +201,31 @@ export function GoalFormModal({
               />
             </div>
 
-            <div className="relative">
-              <Label className="mb-1.5 block" htmlFor="goal-icon-search">
+            <div>
+              <Label className="mb-1.5 block" htmlFor="goal-icon-trigger">
                 Icon
               </Label>
-              <button
-                type="button"
-                className="flex items-center justify-between w-full h-10 rounded-md border border-border bg-card px-4 text-base text-foreground transition-all duration-150 cursor-pointer"
-                onClick={() =>
-                  iconPicker.setIsIconPickerOpen((current) => !current)
-                }
-                aria-expanded={iconPicker.isIconPickerOpen}
-                aria-controls="goal-icon-picker"
+              <Popover
+                open={iconPicker.isIconPickerOpen}
+                onOpenChange={iconPicker.setIsIconPickerOpen}
               >
-                <span className="flex items-center gap-2 min-w-0">
-                  <Icon name={form.icon} size={16} className="text-foreground" />
-                  <span className="text-base text-foreground truncate">
-                    {form.icon}
-                  </span>
-                </span>
-                <ChevronDown size={16} className="text-dimmed" />
-              </button>
-
-              {iconPicker.isIconPickerOpen && (
-                <Card
+                <PopoverTrigger asChild>
+                  <button
+                    id="goal-icon-trigger"
+                    type="button"
+                    className="flex h-11 w-full items-center justify-between rounded-md border border-border bg-card px-4 text-base text-foreground outline-none transition-colors hover:border-dimmed focus-visible:ring-2 focus-visible:ring-ring active:bg-secondary"
+                  >
+                    <span className="flex min-w-0 items-center gap-2">
+                      <Icon name={form.icon} size={16} className="text-foreground" />
+                      <span className="truncate">{form.icon}</span>
+                    </span>
+                    <ChevronDown size={16} className="text-dimmed" />
+                  </button>
+                </PopoverTrigger>
+                <PopoverContent
                   id="goal-icon-picker"
-                  className="absolute z-20 mt-2 w-full p-3"
+                  align="start"
+                  className="w-(--radix-popover-trigger-width) p-3"
                 >
                   <div className="relative mb-3">
                     <Search
@@ -235,7 +243,7 @@ export function GoalFormModal({
                     />
                   </div>
 
-                  <ScrollArea className="max-h-64 rounded-(--radius-md) border border-border">
+                  <ScrollArea className="h-64 rounded-(--radius-md) border border-border">
                     {iconPicker.filteredIconNames.map((iconName) => {
                       const isSelected = form.icon === iconName;
                       return (
@@ -250,7 +258,7 @@ export function GoalFormModal({
                             iconPicker.setIsIconPickerOpen(false);
                           }}
                           className={[
-                            "w-full flex items-center gap-2 px-3 py-2 text-left border-none bg-transparent",
+                            "flex min-h-11 w-full items-center gap-2 border-none bg-transparent px-3 py-2 text-left",
                             "transition-colors duration-150",
                             isSelected
                               ? "bg-secondary text-foreground"
@@ -258,7 +266,7 @@ export function GoalFormModal({
                           ].join(" ")}
                         >
                           <Icon name={iconName} size={16} />
-                          <span className="text-sm text-muted-foreground">{iconName}</span>
+                          <span className="text-sm">{iconName}</span>
                         </button>
                       );
                     })}
@@ -269,8 +277,8 @@ export function GoalFormModal({
                       </div>
                     )}
                   </ScrollArea>
-                </Card>
-              )}
+                </PopoverContent>
+              </Popover>
             </div>
           </div>
 

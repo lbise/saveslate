@@ -8,6 +8,7 @@ import {
   AlertDialogDescription,
   AlertDialogFooter,
   AlertDialogHeader,
+  AlertDialogMedia,
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog';
 
@@ -32,12 +33,11 @@ export function DeleteConfirmationModal({
 }: DeleteConfirmationModalProps) {
   return (
     <AlertDialog open onOpenChange={(open) => { if (!open) onClose(); }}>
-      <AlertDialogContent className="max-w-md">
-        <div className="w-10 h-10 rounded-(--radius-md) border border-expense/40 bg-expense/10 flex items-center justify-center text-expense">
-          <Trash2 size={16} />
-        </div>
-
+      <AlertDialogContent className="sm:max-w-md">
         <AlertDialogHeader>
+          <AlertDialogMedia className="border border-expense/30 bg-expense/10 text-expense">
+            <Trash2 />
+          </AlertDialogMedia>
           <AlertDialogTitle>{title}</AlertDialogTitle>
           <AlertDialogDescription asChild>
             <div className="space-y-2">
@@ -49,15 +49,9 @@ export function DeleteConfirmationModal({
         </AlertDialogHeader>
 
         <AlertDialogFooter>
-          <AlertDialogCancel onClick={onClose}>
-            Cancel
-          </AlertDialogCancel>
-          <AlertDialogAction
-            variant="outline"
-            onClick={onConfirm}
-            className="border-expense/40 text-expense hover:bg-expense/10 hover:border-expense"
-          >
-            <Trash2 size={14} />
+          <AlertDialogCancel>Cancel</AlertDialogCancel>
+          <AlertDialogAction variant="destructive" onClick={onConfirm}>
+            <Trash2 data-icon="inline-start" />
             {confirmLabel}
           </AlertDialogAction>
         </AlertDialogFooter>

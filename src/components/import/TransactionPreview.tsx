@@ -27,6 +27,7 @@ import {
 import {
   Dialog,
   DialogContent,
+  DialogDescription,
   DialogFooter,
   DialogHeader,
   DialogTitle,
@@ -979,6 +980,7 @@ export function TransactionPreview({
         defaultCategoryId: defaultRuleCategoryId,
       });
 
+    setDetailRowIndex(null);
     setInitialRuleForm(initialForm);
     setEditingRuleId(resolvedEditingRuleId);
     setIsRuleModalOpen(true);
@@ -2089,12 +2091,15 @@ export function TransactionPreview({
             if (!open) setDetailRowIndex(null);
           }}
         >
-          <DialogContent className="max-w-3xl" showCloseButton={false}>
+          <DialogContent className="sm:max-w-3xl">
             <DialogHeader>
               <DialogTitle>Transaction Details</DialogTitle>
+              <DialogDescription>
+                Review the normalized transaction and its original import data.
+              </DialogDescription>
             </DialogHeader>
 
-            <div className="max-h-[70vh] space-y-4 overflow-y-auto pr-1">
+            <div className="space-y-4">
               {detailWarnings.length > 0 && (
                 <Card className="border-warning/30 bg-warning/[0.06] p-3 space-y-2">
                   <div className="flex items-center gap-2 text-warning">
@@ -2300,9 +2305,12 @@ export function TransactionPreview({
             if (!open) setMatchDetailRowIndex(null);
           }}
         >
-          <DialogContent className="max-w-2xl" showCloseButton={false}>
+          <DialogContent className="sm:max-w-2xl">
             <DialogHeader>
               <DialogTitle>Matched Transaction</DialogTitle>
+              <DialogDescription>
+                Compare the imported row with the transaction already on file.
+              </DialogDescription>
             </DialogHeader>
 
             <div className="space-y-4">

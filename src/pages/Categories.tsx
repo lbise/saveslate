@@ -16,6 +16,7 @@ import { Card } from '@/components/ui/Card';
 import {
   Dialog,
   DialogContent,
+  DialogDescription,
   DialogHeader,
   DialogTitle,
   DialogFooter,
@@ -27,6 +28,11 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from '@/components/ui/popover';
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import type { EntityCardTone } from '../components/ui';
@@ -84,6 +90,89 @@ const CATEGORY_TYPE_OPTIONS: Array<{
     description: 'Ignored in analytics as internal movement.',
   },
 ];
+
+interface IconPickerControlProps {
+  idPrefix: string;
+  icon: string;
+  isOpen: boolean;
+  searchQuery: string;
+  iconNames: string[];
+  onOpenChange: (open: boolean) => void;
+  onSearchChange: (query: string) => void;
+  onSelect: (iconName: string) => void;
+}
+
+function IconPickerControl({
+  idPrefix,
+  icon,
+  isOpen,
+  searchQuery,
+  iconNames,
+  onOpenChange,
+  onSearchChange,
+  onSelect,
+}: IconPickerControlProps) {
+  return (
+    <div>
+      <Label className="mb-1.5 block" htmlFor={`${idPrefix}-trigger`}>Icon</Label>
+      <Popover open={isOpen} onOpenChange={onOpenChange}>
+        <PopoverTrigger asChild>
+          <button
+            id={`${idPrefix}-trigger`}
+            type="button"
+            className="flex h-11 w-full items-center justify-between rounded-md border border-border bg-card px-4 text-base text-foreground outline-none transition-colors hover:border-dimmed focus-visible:ring-2 focus-visible:ring-ring active:bg-secondary"
+          >
+            <span className="flex min-w-0 items-center gap-2">
+              <Icon name={icon} size={16} className="text-foreground" />
+              <span className="truncate">{icon}</span>
+            </span>
+            <ChevronDown size={16} className="text-dimmed" />
+          </button>
+        </PopoverTrigger>
+        <PopoverContent
+          id={`${idPrefix}-picker`}
+          align="start"
+          className="w-(--radix-popover-trigger-width) p-3"
+        >
+          <div className="relative mb-3">
+            <Search
+              size={14}
+              className="absolute left-3 top-1/2 -translate-y-1/2 text-dimmed"
+            />
+            <Input
+              id={`${idPrefix}-search`}
+              className="pl-9"
+              placeholder="Search icon"
+              value={searchQuery}
+              onChange={(event) => onSearchChange(event.target.value)}
+            />
+          </div>
+          <ScrollArea className="h-64 rounded-(--radius-md) border border-border">
+            {iconNames.map((iconName) => (
+              <button
+                key={iconName}
+                type="button"
+                onClick={() => onSelect(iconName)}
+                className={cn(
+                  'flex min-h-11 w-full items-center gap-2 border-none bg-transparent px-3 py-2 text-left text-muted-foreground transition-colors active:bg-secondary',
+                  icon === iconName
+                    ? 'bg-secondary text-foreground'
+                    : 'hover:bg-secondary hover:text-foreground',
+                )}
+              >
+                <Icon name={iconName} size={16} />
+                <span className="text-sm">{iconName}</span>
+              </button>
+            ))}
+            {iconNames.length === 0 && (
+              <div className="px-3 py-4 text-sm text-dimmed">No icons found.</div>
+            )}
+          </ScrollArea>
+        </PopoverContent>
+      </Popover>
+    </div>
+  );
+}
 
 function inferCategoryGroupType(value: Record<string, unknown>): TransactionType {
   if (value.type === 'expense' || value.type === 'income' || value.type === 'transfer') {
@@ -659,11 +748,14 @@ export function Categories() {
 
       {isCreateModalOpen && (
         <Dialog open onOpenChange={(open) => { if (!open) closeModal(); }}>
-          <DialogContent className="max-w-xl" showCloseButton={false}>
+          <DialogContent className="sm:max-w-xl">
             <DialogHeader>
               <DialogTitle>
                 {editingCategoryId ? 'Edit Category' : 'Create Category'}
               </DialogTitle>
+              <DialogDescription>
+                Organize transactions with a clear name, group, icon, and color.
+              </DialogDescription>
             </DialogHeader>
 
               <form className="space-y-4" onSubmit={handleCreateCategory}>
@@ -698,67 +790,19 @@ export function Categories() {
                   </Select>
                 </div>
 
-                <div className="relative">
-                  <Label className="mb-1.5 block" htmlFor="category-icon-search">Icon</Label>
-                  <button
-                    type="button"
-                    className="flex items-center justify-between w-full h-10 rounded-md border border-border bg-card px-4 text-base text-foreground transition-all duration-150 cursor-pointer"
-                    onClick={() => iconPicker.setIsIconPickerOpen((current) => !current)}
-                    aria-expanded={iconPicker.isIconPickerOpen}
-                    aria-controls="category-icon-picker"
-                  >
-                    <span className="flex items-center gap-2 min-w-0">
-                      <Icon name={form.icon} size={16} className="text-foreground" />
-                      <span className="text-base text-foreground truncate">{form.icon}</span>
-                    </span>
-                    <ChevronDown size={16} className="text-dimmed" />
-                  </button>
-
-                  {iconPicker.isIconPickerOpen && (
-                    <Card id="category-icon-picker" className="absolute z-20 mt-2 w-full p-3">
-                      <div className="relative mb-3">
-                        <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-dimmed" />
-                        <Input
-                          id="category-icon-search"
-                          className="pl-9"
-                          placeholder="Search icon"
-                          value={iconPicker.iconSearchQuery}
-                          onChange={(event) => iconPicker.setIconSearchQuery(event.target.value)}
-                        />
-                      </div>
-
-                      <ScrollArea className="max-h-64 rounded-(--radius-md) border border-border">
-                        {iconPicker.filteredIconNames.map((iconName) => {
-                          const isSelected = form.icon === iconName;
-                          return (
-                            <button
-                              key={iconName}
-                              type="button"
-                              onClick={() => {
-                                setForm((current) => ({ ...current, icon: iconName }));
-                                iconPicker.setIsIconPickerOpen(false);
-                              }}
-                              className={cn(
-                                'w-full flex items-center gap-2 px-3 py-2 text-left border-none bg-transparent',
-                                'transition-colors duration-150',
-                                isSelected
-                                  ? 'bg-secondary text-foreground'
-                                  : 'text-muted-foreground hover:bg-secondary hover:text-foreground',
-                              )}
-                            >
-                              <Icon name={iconName} size={16} />
-                              <span className="text-sm text-muted-foreground">{iconName}</span>
-                            </button>
-                          );
-                        })}
-
-                        {iconPicker.filteredIconNames.length === 0 && (
-                          <div className="px-3 py-4 text-sm text-dimmed">No icons found.</div>
-                        )}
-                      </ScrollArea>
-                    </Card>
-                  )}
-                </div>
+                <IconPickerControl
+                  idPrefix="category-icon"
+                  icon={form.icon}
+                  isOpen={iconPicker.isIconPickerOpen}
+                  searchQuery={iconPicker.iconSearchQuery}
+                  iconNames={iconPicker.filteredIconNames}
+                  onOpenChange={iconPicker.setIsIconPickerOpen}
+                  onSearchChange={iconPicker.setIconSearchQuery}
+                  onSelect={(iconName) => {
+                    setForm((current) => ({ ...current, icon: iconName }));
+                    iconPicker.setIsIconPickerOpen(false);
+                  }}
+                />
 
                 <DialogFooter>
                   <Button
@@ -779,11 +823,14 @@ export function Categories() {
 
       {isGroupModalOpen && (
         <Dialog open onOpenChange={(open) => { if (!open) closeGroupModal(); }}>
-          <DialogContent className="max-w-xl" showCloseButton={false}>
+          <DialogContent className="sm:max-w-xl">
             <DialogHeader>
               <DialogTitle>
                 {editingGroupId ? 'Edit Category Group' : 'Create Category Group'}
               </DialogTitle>
+              <DialogDescription>
+                Group related categories and choose how they appear in reports.
+              </DialogDescription>
             </DialogHeader>
 
             <form className="space-y-4" onSubmit={handleCreateGroup}>
@@ -827,67 +874,19 @@ export function Categories() {
                 </RadioGroup>
               </div>
 
-              <div className="relative">
-                <Label className="mb-1.5 block" htmlFor="group-icon-search">Icon</Label>
-                <button
-                  type="button"
-                  className="flex items-center justify-between w-full h-10 rounded-md border border-border bg-card px-4 text-base text-foreground transition-all duration-150 cursor-pointer"
-                  onClick={() => iconPicker.setIsIconPickerOpen((current) => !current)}
-                  aria-expanded={iconPicker.isIconPickerOpen}
-                  aria-controls="group-icon-picker"
-                >
-                  <span className="flex items-center gap-2 min-w-0">
-                    <Icon name={groupForm.icon} size={16} className="text-foreground" />
-                    <span className="text-base text-foreground truncate">{groupForm.icon}</span>
-                  </span>
-                  <ChevronDown size={16} className="text-dimmed" />
-                </button>
-
-                {iconPicker.isIconPickerOpen && (
-                  <Card id="group-icon-picker" className="absolute z-20 mt-2 w-full p-3">
-                    <div className="relative mb-3">
-                      <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-dimmed" />
-                      <Input
-                        id="group-icon-search"
-                        className="pl-9"
-                        placeholder="Search icon"
-                        value={iconPicker.iconSearchQuery}
-                        onChange={(event) => iconPicker.setIconSearchQuery(event.target.value)}
-                      />
-                    </div>
-
-                    <ScrollArea className="max-h-64 rounded-(--radius-md) border border-border">
-                      {iconPicker.filteredIconNames.map((iconName) => {
-                        const isSelected = groupForm.icon === iconName;
-                        return (
-                          <button
-                            key={iconName}
-                            type="button"
-                            onClick={() => {
-                              setGroupForm((current) => ({ ...current, icon: iconName }));
-                              iconPicker.setIsIconPickerOpen(false);
-                            }}
-                            className={cn(
-                              'w-full flex items-center gap-2 px-3 py-2 text-left border-none bg-transparent',
-                              'transition-colors duration-150',
-                              isSelected
-                                ? 'bg-secondary text-foreground'
-                                : 'text-muted-foreground hover:bg-secondary hover:text-foreground',
-                            )}
-                          >
-                            <Icon name={iconName} size={16} />
-                            <span className="text-sm text-muted-foreground">{iconName}</span>
-                          </button>
-                        );
-                      })}
-
-                      {iconPicker.filteredIconNames.length === 0 && (
-                        <div className="px-3 py-4 text-sm text-dimmed">No icons found.</div>
-                      )}
-                    </ScrollArea>
-                  </Card>
-                )}
-              </div>
+              <IconPickerControl
+                idPrefix="group-icon"
+                icon={groupForm.icon}
+                isOpen={iconPicker.isIconPickerOpen}
+                searchQuery={iconPicker.iconSearchQuery}
+                iconNames={iconPicker.filteredIconNames}
+                onOpenChange={iconPicker.setIsIconPickerOpen}
+                onSearchChange={iconPicker.setIconSearchQuery}
+                onSelect={(iconName) => {
+                  setGroupForm((current) => ({ ...current, icon: iconName }));
+                  iconPicker.setIsIconPickerOpen(false);
+                }}
+              />
 
               <DialogFooter>
                 <Button

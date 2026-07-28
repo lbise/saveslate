@@ -1,3 +1,4 @@
+import path from 'node:path';
 import { defineConfig, devices } from '@playwright/test';
 
 /**
@@ -8,6 +9,7 @@ import { defineConfig, devices } from '@playwright/test';
  */
 const baseURL = process.env.BASE_URL || 'http://127.0.0.1:4173';
 const useDevServer = !process.env.BASE_URL;
+const authStatePath = path.join(process.cwd(), 'playwright/.auth/user.json');
 
 export default defineConfig({
   testDir: './tests/e2e',
@@ -34,8 +36,17 @@ export default defineConfig({
     : {}),
   projects: [
     {
+      name: 'setup',
+      testMatch: /.*\.setup\.ts/,
+    },
+    {
       name: 'chromium',
-      use: { ...devices['Desktop Chrome'] },
+      dependencies: ['setup'],
+      testIgnore: /.*\.setup\.ts/,
+      use: {
+        ...devices['Desktop Chrome'],
+        storageState: authStatePath,
+      },
     },
   ],
 });

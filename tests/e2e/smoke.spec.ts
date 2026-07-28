@@ -1,4 +1,4 @@
-import { expect, test, type Page } from '@playwright/test';
+import { expect, test } from '@playwright/test';
 
 const PRIMARY_ROUTES = [
   { label: 'Dashboard', path: '/' },
@@ -12,44 +12,8 @@ const PRIMARY_ROUTES = [
   { label: 'Help', path: '/help' },
 ];
 
-const TEST_USER = {
-  name: 'E2E Smoke User',
-  email: `smoke-${Date.now()}@test.local`,
-  password: 'smoketest1234',
-};
-
-/**
- * Register a test user and complete onboarding so the app lands on Dashboard.
- */
-async function registerAndOnboard(page: Page) {
-  await page.goto('/register');
-  await page.getByLabel('Name').fill(TEST_USER.name);
-  await page.getByLabel('Email').fill(TEST_USER.email);
-  await page.getByLabel('Password').fill(TEST_USER.password);
-  await page.getByRole('button', { name: /register|sign up|create/i }).click();
-
-  // Wait for either onboarding or dashboard to load
-  await page.waitForURL((url) => url.pathname === '/' || url.pathname === '/onboarding', {
-    timeout: 10_000,
-  });
-
-  // If we land on onboarding, complete it
-  if (page.url().includes('/onboarding')) {
-    // Click through onboarding steps — the exact flow depends on the UI
-    // but typically: pick currency, pick category preset, confirm
-    const continueBtn = page.getByRole('button', { name: /continue|next|get started|finish/i });
-    while (await continueBtn.isVisible().catch(() => false)) {
-      await continueBtn.click();
-      await page.waitForTimeout(500);
-    }
-  }
-
-  // Should end up on dashboard
-  await expect(page).toHaveURL((url) => url.pathname === '/', { timeout: 10_000 });
-}
-
 test.beforeEach(async ({ page }) => {
-  await registerAndOnboard(page);
+  await page.goto('/');
 });
 
 test('navigates all primary routes from the sidebar', async ({ page }) => {
@@ -81,6 +45,47 @@ test('creates a new account from Accounts page', async ({ page }) => {
   await page.locator('form').getByRole('button', { name: 'Create Account' }).click();
 
   await expect(page.getByText(accountName)).toBeVisible();
+});
+
+test('keeps account modal controls reachable across mobile viewports', async ({ page }) => {
+  await page.setViewportSize({ width: 320, height: 568 });
+  await page.goto('/accounts');
+  await page.getByRole('button', { name: /^New$/ }).click();
+
+  const dialog = page.getByRole('dialog', { name: 'Create Account' });
+  await expect(dialog).toBeVisible();
+  await expect(dialog.getByRole('button', { name: 'Close' })).toBeVisible();
+  await expect(dialog.getByRole('button', { name: 'Create Account' })).toBeVisible();
+
+  const viewports = [
+    { width: 320, height: 568 },
+    { width: 375, height: 667 },
+    { width: 414, height: 896 },
+    { width: 768, height: 1024 },
+    { width: 568, height: 320 },
+  ];
+
+  for (const viewport of viewports) {
+    await page.setViewportSize(viewport);
+    const dialogBounds = await dialog.boundingBox();
+    expect(dialogBounds).not.toBeNull();
+    expect(dialogBounds!.x).toBeGreaterThanOrEqual(0);
+    expect(dialogBounds!.y).toBeGreaterThanOrEqual(0);
+    expect(dialogBounds!.x + dialogBounds!.width).toBeLessThanOrEqual(viewport.width);
+    expect(dialogBounds!.y + dialogBounds!.height).toBeLessThanOrEqual(viewport.height);
+    await expect(dialog.getByRole('button', { name: 'Create Account' })).toBeVisible();
+  }
+
+  await page.setViewportSize({ width: 320, height: 568 });
+  await dialog.getByRole('button', { name: 'Icon' }).click();
+  const iconPicker = page.locator('[data-slot="popover-content"]');
+  await expect(iconPicker).toBeVisible();
+
+  const pickerBounds = await iconPicker.boundingBox();
+  expect(pickerBounds).not.toBeNull();
+  expect(pickerBounds!.x).toBeGreaterThanOrEqual(0);
+  expect(pickerBounds!.x + pickerBounds!.width).toBeLessThanOrEqual(320);
+  expect(pickerBounds!.y + pickerBounds!.height).toBeLessThanOrEqual(568);
 });
 
 test('creates a new fixed target goal', async ({ page }) => {

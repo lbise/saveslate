@@ -35,6 +35,7 @@ import {
 import {
   Dialog,
   DialogContent,
+  DialogDescription,
   DialogHeader,
   DialogTitle,
   DialogFooter,
@@ -81,7 +82,13 @@ import {
   resolveRuleFormPrefill,
 } from "../lib/rule-utils";
 import { cn } from "../lib/utils";
-import { useFormatCurrency, useOnboarding, useTransactionFilters, usePagination } from "../hooks";
+import {
+  useFormatCurrency,
+  useOnboarding,
+  usePagination,
+  useTransactionFilters,
+  useUncategorizedReview,
+} from "../hooks";
 import type { RuleFormState } from "../lib/rule-utils";
 import type {
   AutomationRule,
@@ -888,20 +895,42 @@ export function Transactions() {
     amountMax,
   ]);
 
-  const uncategorizedCount = useMemo(
+  const uncategorizedTransactions = useMemo(
     () =>
       scopedTransactions.filter(
         (transaction) => isUncategorizedCategory(transaction.categoryId, transaction.category),
-      ).length,
+      ),
     [scopedTransactions],
   );
+
+  const uncategorizedCount = uncategorizedTransactions.length;
+
+  const {
+    reviewedTransactions: uncategorizedReviewTransactions,
+    startReview: startUncategorizedReview,
+    stopReview: stopUncategorizedReview,
+  } = useUncategorizedReview(scopedTransactions, showUncategorizedOnly);
+
+  const toggleUncategorizedReview = () => {
+    if (showUncategorizedOnly) {
+      stopUncategorizedReview();
+      setShowUncategorizedOnly(false);
+      return;
+    }
+
+    startUncategorizedReview(uncategorizedTransactions);
+    setShowUncategorizedOnly(true);
+  };
+
+  const clearFiltersAndReview = () => {
+    stopUncategorizedReview();
+    clearAllFilters();
+  };
 
   // Filtered and sorted
   const filteredTransactions = useMemo(() => {
     const result = showUncategorizedOnly
-      ? scopedTransactions.filter(
-          (transaction) => isUncategorizedCategory(transaction.categoryId, transaction.category),
-        )
+      ? [...(uncategorizedReviewTransactions ?? uncategorizedTransactions)]
       : [...scopedTransactions];
 
     result.sort((a, b) => {
@@ -919,7 +948,14 @@ export function Transactions() {
     });
 
     return result;
-  }, [scopedTransactions, showUncategorizedOnly, sortField, sortDirection]);
+  }, [
+    scopedTransactions,
+    showUncategorizedOnly,
+    uncategorizedReviewTransactions,
+    uncategorizedTransactions,
+    sortField,
+    sortDirection,
+  ]);
 
   // Pagination (extracted to hook)
   const { page, setPage, pageSize, setPageSize, totalPages, pageSizes } =
@@ -1087,9 +1123,12 @@ export function Transactions() {
             setSourceRenameValue("");
           }
         }}>
-          <DialogContent className="max-w-md">
+          <DialogContent className="sm:max-w-md">
             <DialogHeader>
               <DialogTitle>Rename source</DialogTitle>
+              <DialogDescription>
+                Use a shorter name to identify this import throughout the app.
+              </DialogDescription>
             </DialogHeader>
             <div className="space-y-2">
               <Label htmlFor="rename-source-input">
@@ -1593,7 +1632,7 @@ export function Transactions() {
           {hasAnyFilter && (
             <button
               type="button"
-              onClick={clearAllFilters}
+              onClick={clearFiltersAndReview}
               className="text-sm text-dimmed hover:text-foreground cursor-pointer bg-transparent border-none px-1 transition-colors"
             >
               Clear all
@@ -1606,7 +1645,7 @@ export function Transactions() {
         <div className="flex items-center px-1 mt-3">
           <button
             type="button"
-            onClick={() => setShowUncategorizedOnly((prev) => !prev)}
+            onClick={toggleUncategorizedReview}
             aria-pressed={showUncategorizedOnly}
             className={cn(
               "flex items-center gap-2 bg-transparent border-none cursor-pointer transition-opacity px-0 py-0",
@@ -1615,9 +1654,16 @@ export function Transactions() {
           >
             <AlertTriangle size={14} className="text-warning" />
             <span className="text-sm text-warning font-medium hover:underline">
-              {uncategorizedCount} uncategorized transaction
-              {uncategorizedCount === 1 ? "" : "s"}
-              {showUncategorizedOnly ? " (filtered)" : ""}
+              {showUncategorizedOnly ? (
+                <>
+                  {uncategorizedCount} remaining · {uncategorizedReviewTransactions?.length ?? 0} in review
+                </>
+              ) : (
+                <>
+                  {uncategorizedCount} uncategorized transaction
+                  {uncategorizedCount === 1 ? "" : "s"}
+                </>
+              )}
             </span>
             <Filter size={12} className="text-warning" />
           </button>

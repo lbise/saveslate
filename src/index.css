@@ -192,12 +192,14 @@
 
 /* Base styles */
 html {
+  overflow-x: clip;
   font-family: var(--font-body);
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
 }
 
 body {
+  overflow-x: clip;
   background-color: var(--background);
   color: var(--foreground);
 }
