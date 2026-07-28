@@ -37,6 +37,12 @@ http {
         root /usr/share/nginx/html;
         index index.html;
 
+        # Release metadata is polled by open app sessions.
+        location = /release.json {
+            expires -1;
+            try_files /release.json =404;
+        }
+
         location /assets/ {
             expires 1y;
             add_header Cache-Control "public, immutable";

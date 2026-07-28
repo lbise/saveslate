@@ -1,0 +1,9 @@
+{
+  "schemaVersion": 1,
+  "id": "development",
+  "version": "Development",
+  "releasedAt": null,
+  "repositoryUrl": "https://github.com/lbise/saveslate",
+  "compareUrl": "https://github.com/lbise/saveslate/commits/main",
+  "commits": []
+}

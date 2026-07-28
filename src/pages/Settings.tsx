@@ -5,9 +5,18 @@ import {
   type ReactNode,
 } from 'react';
 import { toast } from 'sonner';
-import { Globe, DollarSign, Shield, Download, Trash2, Sparkles } from 'lucide-react';
+import {
+  DollarSign,
+  Download,
+  GitCommitHorizontal,
+  Globe,
+  Shield,
+  Sparkles,
+  Trash2,
+} from 'lucide-react';
 import { PageHeader } from '../components/layout/PageHeader';
 import { Badge } from '../components/ui/Badge';
+import { Button } from '../components/ui/button';
 import { Checkbox } from '@/components/ui/checkbox';
 import {
   Select,
@@ -18,7 +27,8 @@ import {
 } from '@/components/ui/select';
 import { DeleteConfirmationModal } from '../components/ui';
 import { getCurrencyOptionsWithFallback } from '../lib/currencies';
-import { useSettings } from '../hooks';
+import { isPublishedRelease } from '../lib/release-notes';
+import { useReleaseNotes, useSettings } from '../hooks';
 import { useClearAllData } from '../hooks/api';
 
 interface SettingRowProps {
@@ -54,6 +64,7 @@ export function Settings() {
     setPreferredLanguage,
     setAiTranslateDescriptions,
   } = useSettings();
+  const { release, isLoading: isReleaseLoading, openReleaseNotes } = useReleaseNotes();
   const [isClearDataModalOpen, setIsClearDataModalOpen] = useState(false);
   const [clearDataError, setClearDataError] = useState<string | null>(null);
   const clearAllData = useClearAllData();
@@ -235,16 +246,27 @@ export function Settings() {
 
       {/* App Info */}
       <section className="pt-4">
-        <div className="text-center">
-          <div
-             className="text-base text-dimmed"
-             style={{ fontFamily: 'var(--font-display)' }}
-           >
-             SaveSlate v0.1.0
-            </div>
-           <div className="text-sm text-dimmed mt-1">
-            Made with care in Switzerland
+        <div className="flex flex-col items-center gap-3 rounded-(--radius-md) border border-border bg-card px-4 py-5 text-center">
+          <div className="flex size-9 items-center justify-center rounded-(--radius-sm) bg-background text-muted-foreground">
+            <GitCommitHorizontal />
           </div>
+          <div>
+            <div className="font-display text-base text-foreground">
+              SaveSlate {release ? `build ${release.version}` : ''}
+            </div>
+            <div className="mt-1 text-sm text-dimmed">
+              Made with care in Switzerland
+            </div>
+          </div>
+          <Button
+            type="button"
+            variant="outline"
+            size="sm"
+            onClick={openReleaseNotes}
+            disabled={isReleaseLoading || !isPublishedRelease(release)}
+          >
+            What&apos;s new
+          </Button>
         </div>
       </section>
     </div>

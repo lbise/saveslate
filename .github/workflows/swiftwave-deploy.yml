@@ -22,6 +22,9 @@ jobs:
       - name: Check out code
         uses: actions/checkout@v5
 
+      - name: Generate release manifest
+        run: node scripts/generate-release-manifest.mjs
+
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
 

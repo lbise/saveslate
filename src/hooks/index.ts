@@ -1,6 +1,7 @@
 export { useAuth, useUser } from './useUser';
 export { useSettings } from './useSettings';
 export { useOnboarding } from './useOnboarding';
+export { useReleaseNotes } from './useReleaseNotes';
 export { useFormatCurrency } from './useFormatCurrency';
 export { useImportExport } from './useImportExport';
 export { useIconPicker } from './useIconPicker';
