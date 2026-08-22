@@ -1,5 +1,5 @@
 import { useMemo, useRef, useState, type ChangeEvent } from 'react';
-import { Check, ChevronDown, Download, Edit, FileQuestion, Plus, Upload, Zap } from 'lucide-react';
+import { Check, ChevronDown, Copy, Download, Edit, FileQuestion, Plus, Upload, Zap } from 'lucide-react';
 import { cn } from '../../lib/utils';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/Card';
@@ -13,10 +13,17 @@ interface ParserMatcherProps {
   rawContent: string;
   onSelectParser: (parser: CsvParser) => void;
   onEditParser: (parser: CsvParser) => void;
+  onDuplicateParser: (parser: CsvParser) => void;
   onCreateNew: () => void;
 }
 
-export function ParserMatcher({ rawContent, onSelectParser, onEditParser, onCreateNew }: ParserMatcherProps) {
+export function ParserMatcher({
+  rawContent,
+  onSelectParser,
+  onEditParser,
+  onDuplicateParser,
+  onCreateNew,
+}: ParserMatcherProps) {
   const [showDropdown, setShowDropdown] = useState(false);
   const [isImporting, setIsImporting] = useState(false);
   const [importError, setImportError] = useState<string | null>(null);
@@ -55,24 +62,31 @@ export function ParserMatcher({ rawContent, onSelectParser, onEditParser, onCrea
     }
   };
 
-  const { parsers, matchedParser, matchScore } = useMemo(() => {
+  const { parsers, matchedParser, matchScore, isExactMatch } = useMemo(() => {
     let matched: CsvParser | null = null;
     let score = 0;
+    let exactMatch = false;
 
     if (allParsers.length > 0) {
       const result = findBestParserFromRaw(allParsers, rawContent);
       if (result) {
         matched = result.parser;
         score = Math.round(result.score * 100);
+        exactMatch = result.score === 1;
       }
     }
 
-    return { parsers: allParsers, matchedParser: matched, matchScore: score };
+    return {
+      parsers: allParsers,
+      matchedParser: matched,
+      matchScore: score,
+      isExactMatch: exactMatch,
+    };
   }, [rawContent, allParsers]);
 
   const hasExistingParsers = parsers.length > 0;
 
-  // Parser was auto-matched
+  // Exact match or closest partial match
   if (matchedParser) {
     return (
       <div className="space-y-4">
@@ -94,7 +108,7 @@ export function ParserMatcher({ rawContent, onSelectParser, onEditParser, onCrea
             </div>
             <div className="flex-1 min-w-0">
               <p className="text-base text-foreground font-medium">
-                Parser matched: {matchedParser.name}
+                {isExactMatch ? 'Parser matched' : 'Closest parser'}: {matchedParser.name}
               </p>
               <p className="text-sm text-dimmed mt-1">
                 {matchScore}% header match
@@ -105,19 +119,26 @@ export function ParserMatcher({ rawContent, onSelectParser, onEditParser, onCrea
           </div>
 
           <div className="flex gap-2 mt-4 flex-wrap">
-            <Button
-              onClick={() => onSelectParser(matchedParser)}
-            >
-              <Check size={14} />
-              Use this parser
-            </Button>
-            <Button
-              variant="outline"
-              onClick={() => onEditParser(matchedParser)}
-            >
-              <Edit size={14} />
-              Edit parser
-            </Button>
+            {isExactMatch ? (
+              <>
+                <Button onClick={() => onSelectParser(matchedParser)}>
+                  <Check size={14} />
+                  Use this parser
+                </Button>
+                <Button
+                  variant="outline"
+                  onClick={() => onEditParser(matchedParser)}
+                >
+                  <Edit size={14} />
+                  Edit parser
+                </Button>
+              </>
+            ) : (
+              <Button onClick={() => onDuplicateParser(matchedParser)}>
+                <Copy data-icon="inline-start" />
+                Duplicate and adjust
+              </Button>
+            )}
             <div className="relative">
               <Button
                 variant="outline"

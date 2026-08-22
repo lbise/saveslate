@@ -261,6 +261,18 @@ describe('loadAutomationRules', () => {
     expect(rules[0].isEnabled).toBe(true);
   });
 
+  it('preserves case-sensitive conditions', () => {
+    storeRules([
+      makeRule({
+        conditions: [makeCondition({ caseSensitive: true })],
+      }),
+    ]);
+
+    const rules = loadAutomationRules();
+
+    expect(rules[0].conditions[0].caseSensitive).toBe(true);
+  });
+
   it('defaults matchMode to all when missing', () => {
     const raw = { ...makeRule() } as Record<string, unknown>;
     delete raw.matchMode;
@@ -482,6 +494,17 @@ describe('applyAutomationRules - condition evaluation', () => {
       expect(result.matchedCount).toBe(1);
     });
 
+    it('does not match different casing when case-sensitive', () => {
+      const rule = makeMatchRule({
+        field: 'description',
+        operator: 'equals',
+        value: 'GROCERY STORE TEST PURCHASE',
+        caseSensitive: true,
+      });
+      const result = runSingleRule(rule, makeTransaction());
+      expect(result.matchedCount).toBe(0);
+    });
+
     it('does not match different string', () => {
       const rule = makeMatchRule({ field: 'description', operator: 'equals', value: 'Something else' });
       const result = runSingleRule(rule, makeTransaction());
@@ -508,6 +531,17 @@ describe('applyAutomationRules - condition evaluation', () => {
       expect(result.matchedCount).toBe(0);
     });
 
+    it('matches different casing when case-sensitive', () => {
+      const rule = makeMatchRule({
+        field: 'description',
+        operator: 'not-equals',
+        value: 'GROCERY STORE TEST PURCHASE',
+        caseSensitive: true,
+      });
+      const result = runSingleRule(rule, makeTransaction());
+      expect(result.matchedCount).toBe(1);
+    });
+
     it('works with numeric values', () => {
       const rule = makeMatchRule({ field: 'amount', operator: 'not-equals', value: '-100' });
       const result = runSingleRule(rule, makeTransaction({ amount: -50 }));
@@ -520,6 +554,17 @@ describe('applyAutomationRules - condition evaluation', () => {
       const rule = makeMatchRule({ field: 'description', operator: 'contains', value: 'grocery' });
       const result = runSingleRule(rule, makeTransaction());
       expect(result.matchedCount).toBe(1);
+    });
+
+    it('does not match different casing when case-sensitive', () => {
+      const rule = makeMatchRule({
+        field: 'description',
+        operator: 'contains',
+        value: 'grocery',
+        caseSensitive: true,
+      });
+      const result = runSingleRule(rule, makeTransaction());
+      expect(result.matchedCount).toBe(0);
     });
 
     it('does not match absent substring', () => {
@@ -542,6 +587,17 @@ describe('applyAutomationRules - condition evaluation', () => {
       expect(result.matchedCount).toBe(1);
     });
 
+    it('matches different casing when case-sensitive', () => {
+      const rule = makeMatchRule({
+        field: 'description',
+        operator: 'not-contains',
+        value: 'grocery',
+        caseSensitive: true,
+      });
+      const result = runSingleRule(rule, makeTransaction());
+      expect(result.matchedCount).toBe(1);
+    });
+
     it('does not match when substring is present', () => {
       const rule = makeMatchRule({ field: 'description', operator: 'not-contains', value: 'grocery' });
       const result = runSingleRule(rule, makeTransaction());
@@ -554,6 +610,17 @@ describe('applyAutomationRules - condition evaluation', () => {
       const rule = makeMatchRule({ field: 'description', operator: 'starts-with', value: 'grocery' });
       const result = runSingleRule(rule, makeTransaction());
       expect(result.matchedCount).toBe(1);
+    });
+
+    it('does not match different casing when case-sensitive', () => {
+      const rule = makeMatchRule({
+        field: 'description',
+        operator: 'starts-with',
+        value: 'grocery',
+        caseSensitive: true,
+      });
+      const result = runSingleRule(rule, makeTransaction());
+      expect(result.matchedCount).toBe(0);
     });
 
     it('does not match non-prefix', () => {
@@ -570,6 +637,17 @@ describe('applyAutomationRules - condition evaluation', () => {
       expect(result.matchedCount).toBe(1);
     });
 
+    it('does not match different casing when case-sensitive', () => {
+      const rule = makeMatchRule({
+        field: 'description',
+        operator: 'ends-with',
+        value: 'PURCHASE',
+        caseSensitive: true,
+      });
+      const result = runSingleRule(rule, makeTransaction());
+      expect(result.matchedCount).toBe(0);
+    });
+
     it('does not match non-suffix', () => {
       const rule = makeMatchRule({ field: 'description', operator: 'ends-with', value: 'grocery' });
       const result = runSingleRule(rule, makeTransaction());
@@ -582,6 +660,17 @@ describe('applyAutomationRules - condition evaluation', () => {
       const rule = makeMatchRule({ field: 'description', operator: 'regex', value: 'groc.*purchase' });
       const result = runSingleRule(rule, makeTransaction());
       expect(result.matchedCount).toBe(1);
+    });
+
+    it('does not match different casing when case-sensitive', () => {
+      const rule = makeMatchRule({
+        field: 'description',
+        operator: 'regex',
+        value: '^grocery',
+        caseSensitive: true,
+      });
+      const result = runSingleRule(rule, makeTransaction());
+      expect(result.matchedCount).toBe(0);
     });
 
     it('does not match non-matching regex', () => {
@@ -606,6 +695,17 @@ describe('applyAutomationRules - condition evaluation', () => {
   describe('not-regex operator', () => {
     it('matches when regex does not match', () => {
       const rule = makeMatchRule({ field: 'description', operator: 'not-regex', value: '^pharmacy' });
+      const result = runSingleRule(rule, makeTransaction());
+      expect(result.matchedCount).toBe(1);
+    });
+
+    it('matches different casing when case-sensitive', () => {
+      const rule = makeMatchRule({
+        field: 'description',
+        operator: 'not-regex',
+        value: '^grocery',
+        caseSensitive: true,
+      });
       const result = runSingleRule(rule, makeTransaction());
       expect(result.matchedCount).toBe(1);
     });

@@ -1,6 +1,7 @@
 import { useState, useMemo, type FormEvent } from "react";
 import { X } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { Checkbox } from "@/components/ui/checkbox";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
@@ -29,6 +30,7 @@ import {
   AUTOMATION_OPERATOR_OPTIONS,
   AUTOMATION_TRIGGER_OPTIONS,
   automationOperatorNeedsValue,
+  automationOperatorSupportsCaseSensitivity,
 } from "../../lib/automation-rules";
 import { cn } from "../../lib/utils";
 import {
@@ -306,6 +308,7 @@ export function RuleFormModal({
         field: condition.field.trim(),
         operator: condition.operator,
         value: condition.value.trim(),
+        caseSensitive: condition.caseSensitive,
       }))
       .filter((condition) => {
         if (!condition.field) {
@@ -694,8 +697,12 @@ export function RuleFormModal({
                         <Select
                           value={condition.operator}
                           onValueChange={(value) => {
+                            const nextOperator = value as AutomationConditionOperator;
                             handleConditionChange(condition.id, {
-                              operator: value as AutomationConditionOperator,
+                              operator: nextOperator,
+                              caseSensitive: automationOperatorSupportsCaseSensitivity(nextOperator)
+                                ? condition.caseSensitive
+                                : false,
                             });
                           }}
                         >
@@ -775,6 +782,23 @@ export function RuleFormModal({
                       ) : (
                         <div className="h-auto min-h-10 py-2 rounded-md border border-border bg-card px-4 flex items-center text-sm text-dimmed">
                           No value needed for this operator
+                        </div>
+                      )}
+
+                      {automationOperatorSupportsCaseSensitivity(condition.operator) && (
+                        <div className="flex items-center gap-2">
+                          <Checkbox
+                            id={`case-sensitive-${condition.id}`}
+                            checked={condition.caseSensitive}
+                            onCheckedChange={(checked) =>
+                              handleConditionChange(condition.id, {
+                                caseSensitive: checked === true,
+                              })
+                            }
+                          />
+                          <Label htmlFor={`case-sensitive-${condition.id}`}>
+                            Case sensitive
+                          </Label>
                         </div>
                       )}
                     </div>

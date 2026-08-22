@@ -23,6 +23,7 @@ class AutomationCondition(BaseModel):
     field: str
     operator: str
     value: str | None = None
+    case_sensitive: bool = False
 
 
 class SetCategoryAction(BaseModel):
@@ -173,6 +174,10 @@ def evaluate_condition(txn: dict[str, Any], condition: dict[str, Any]) -> bool:
     field = condition.get("field", "")
     operator = condition.get("operator", "")
     expected_raw = condition.get("value")
+    case_sensitive = condition.get(
+        "case_sensitive",
+        condition.get("caseSensitive", False),
+    ) is True
 
     field_value = _resolve_field_value(txn, field)
     field_text = _normalize_text(field_value)
@@ -188,6 +193,8 @@ def evaluate_condition(txn: dict[str, Any], condition: dict[str, Any]) -> bool:
         right = _parse_comparable_value(expected_raw)
         if left is not None and right is not None:
             return left == right
+        if case_sensitive:
+            return field_text == expected_text
         return field_text.lower() == expected_text.lower()
 
     if operator == "not-equals":
@@ -195,25 +202,36 @@ def evaluate_condition(txn: dict[str, Any], condition: dict[str, Any]) -> bool:
         right = _parse_comparable_value(expected_raw)
         if left is not None and right is not None:
             return left != right
+        if case_sensitive:
+            return field_text != expected_text
         return field_text.lower() != expected_text.lower()
 
     if operator == "contains":
+        if case_sensitive:
+            return len(expected_text) > 0 and expected_text in field_text
         return len(expected_text) > 0 and expected_text.lower() in field_text.lower()
 
     if operator == "not-contains":
+        if case_sensitive:
+            return len(expected_text) > 0 and expected_text not in field_text
         return len(expected_text) > 0 and expected_text.lower() not in field_text.lower()
 
     if operator == "starts-with":
+        if case_sensitive:
+            return len(expected_text) > 0 and field_text.startswith(expected_text)
         return len(expected_text) > 0 and field_text.lower().startswith(expected_text.lower())
 
     if operator == "ends-with":
+        if case_sensitive:
+            return len(expected_text) > 0 and field_text.endswith(expected_text)
         return len(expected_text) > 0 and field_text.lower().endswith(expected_text.lower())
 
     if operator == "regex":
         if not expected_text:
             return False
         try:
-            return bool(re.search(expected_text, field_text, re.IGNORECASE))
+            flags = 0 if case_sensitive else re.IGNORECASE
+            return bool(re.search(expected_text, field_text, flags))
         except re.error:
             return False
 
@@ -221,7 +239,8 @@ def evaluate_condition(txn: dict[str, Any], condition: dict[str, Any]) -> bool:
         if not expected_text:
             return False
         try:
-            return not bool(re.search(expected_text, field_text, re.IGNORECASE))
+            flags = 0 if case_sensitive else re.IGNORECASE
+            return not bool(re.search(expected_text, field_text, flags))
         except re.error:
             return False
 

@@ -417,6 +417,22 @@ describe('findBestParser', () => {
 // ─── findBestParserFromRaw ───────────────────────────────────
 
 describe('findBestParserFromRaw', () => {
+  it('returns the closest parser when no headers match exactly', () => {
+    const raw = 'Date,Description,Debit,Credit,Currency,Account,Reference,Unexpected\n01.01.2025,Test,10,,CHF,123,abc,value';
+    const weakerParser = makeParser({
+      id: 'weaker',
+      headerPatterns: ['Date', 'Description', 'Missing 1', 'Missing 2'],
+    });
+    const closestParser = makeParser({
+      id: 'closest',
+      headerPatterns: ['Date', 'Description', 'Debit', 'Credit', 'Currency', 'Account', 'Reference', 'Balance'],
+    });
+
+    const result = findBestParserFromRaw([weakerParser, closestParser], raw);
+
+    expect(result).toEqual({ parser: closestParser, score: 0.875 });
+  });
+
   it('re-parses with parser settings to find correct headers', () => {
     // CSV with 2 skip rows, then headers
     const raw = 'Bank Export\nDate: 2025\nDate,Amount,Description\n01.01.2025,100,Test';

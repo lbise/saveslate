@@ -42,6 +42,7 @@ export function Import() {
   const [selectedParser, setSelectedParser] = useState<CsvParser | null>(null);
   const [isCreatingParser, setIsCreatingParser] = useState(false);
   const [parserToEdit, setParserToEdit] = useState<CsvParser | null>(null);
+  const [parserTemplate, setParserTemplate] = useState<CsvParser | null>(null);
   const [importResult, setImportResult] = useState<{ count: number; income: number; expense: number } | null>(null);
 
   // ─── Derived CSV data (client-side, for parser matching step) ──
@@ -68,6 +69,8 @@ export function Import() {
     setFile(fileObj);
     setSelectedParser(null);
     setIsCreatingParser(false);
+    setParserToEdit(null);
+    setParserTemplate(null);
     resetCsvPreview();
     setStep('parser');
   }, [resetCsvPreview]);
@@ -84,18 +87,28 @@ export function Import() {
 
   const handleCreateNew = useCallback(() => {
     setParserToEdit(null);
+    setParserTemplate(null);
     setIsCreatingParser(true);
     setStep('parser');
   }, []);
 
   const handleEditParser = useCallback((parser: CsvParser) => {
     setParserToEdit(parser);
+    setParserTemplate(null);
+    setIsCreatingParser(true);
+    setStep('parser');
+  }, []);
+
+  const handleDuplicateParser = useCallback((parser: CsvParser) => {
+    setParserToEdit(null);
+    setParserTemplate(parser);
     setIsCreatingParser(true);
     setStep('parser');
   }, []);
 
   const handleParserSaved = useCallback((parser: CsvParser) => {
     setParserToEdit(null);
+    setParserTemplate(null);
     setIsCreatingParser(false);
     if (file) {
       setSelectedParser(parser);
@@ -110,6 +123,7 @@ export function Import() {
   const handleCancelCreate = useCallback(() => {
     setIsCreatingParser(false);
     setParserToEdit(null);
+    setParserTemplate(null);
     setStep(rawContent ? 'parser' : 'upload');
   }, [rawContent]);
 
@@ -166,6 +180,7 @@ export function Import() {
     setFile(null);
     setSelectedParser(null);
     setParserToEdit(null);
+    setParserTemplate(null);
     setIsCreatingParser(false);
     resetCsvPreview();
   }, [resetCsvPreview]);
@@ -174,6 +189,7 @@ export function Import() {
     setStep('parser');
     setSelectedParser(null);
     setParserToEdit(null);
+    setParserTemplate(null);
     setIsCreatingParser(false);
     resetCsvPreview();
   }, [resetCsvPreview]);
@@ -185,6 +201,7 @@ export function Import() {
     setFile(null);
     setSelectedParser(null);
     setParserToEdit(null);
+    setParserTemplate(null);
     setIsCreatingParser(false);
     setImportResult(null);
     resetCsvPreview();
@@ -246,6 +263,7 @@ export function Import() {
             rawContent={rawContent}
             onSelectParser={handleSelectParser}
             onEditParser={handleEditParser}
+            onDuplicateParser={handleDuplicateParser}
             onCreateNew={handleCreateNew}
           />
         </div>
@@ -256,6 +274,7 @@ export function Import() {
         <ParserEditor
           rawContent={rawContent}
           existingParser={parserToEdit ?? undefined}
+          templateParser={parserTemplate ?? undefined}
           onSave={handleParserSaved}
           onCancel={handleCancelCreate}
         />

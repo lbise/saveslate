@@ -47,7 +47,36 @@ vi.mock('../../src/components/transactions', () => ({
 
 vi.mock('../../src/components/ui', () => ({
   DeleteConfirmationModal: () => null,
-  MultiSelectDropdown: () => null,
+  MultiSelectDropdown: ({
+    options,
+    selectedIds,
+    onChange,
+    allLabel,
+  }: {
+    options: Array<{ id: string; label: string }>;
+    selectedIds: string[];
+    onChange: (ids: string[]) => void;
+    allLabel: string;
+  }) =>
+    allLabel === 'Goals' ? (
+      <div>
+        {options.map((option) => (
+          <button
+            key={option.id}
+            type="button"
+            onClick={() =>
+              onChange(
+                selectedIds.includes(option.id)
+                  ? selectedIds.filter((id) => id !== option.id)
+                  : [...selectedIds, option.id],
+              )
+            }
+          >
+            {option.label}
+          </button>
+        ))}
+      </div>
+    ) : null,
   PaginationButtons: () => null,
 }));
 
@@ -147,7 +176,17 @@ vi.mock('../../src/hooks/api', () => ({
     refetch: vi.fn(),
   }),
   useCategoryGroups: () => ({ data: [] }),
-  useGoals: () => ({ data: [] }),
+  useGoals: () => ({
+    data: [
+      {
+        id: 'goal-1',
+        name: 'Emergency fund',
+        icon: 'Shield',
+        targetAmount: 1000,
+        createdAt: '2026-01-01',
+      },
+    ],
+  }),
   useTransactions: () => ({
     data: {
       items: [
@@ -159,6 +198,16 @@ vi.mock('../../src/hooks/api', () => ({
           description: 'Coffee shop',
           date: '2026-03-14',
           accountId: 'account-1',
+        },
+        {
+          id: 'tx-2',
+          amount: -25,
+          currency: 'CHF',
+          categoryId: 'cat-1',
+          description: 'Goal contribution',
+          date: '2026-03-13',
+          accountId: 'account-1',
+          goalId: 'goal-1',
         },
       ],
     },
@@ -194,6 +243,31 @@ describe('Transactions rule creation flow', () => {
     createAutomationRuleMutate.mockImplementation((_, options) => {
       options?.onSuccess?.();
     });
+  });
+
+  it('filters transactions that have no goal', async () => {
+    const user = userEvent.setup();
+
+    render(
+      <MemoryRouter initialEntries={['/transactions']}>
+        <Routes>
+          <Route path="/transactions" element={<Transactions />} />
+        </Routes>
+      </MemoryRouter>,
+    );
+
+    expect(screen.getByRole('button', { name: 'Create rule for Coffee shop' })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Create rule for Goal contribution' })).toBeInTheDocument();
+
+    await user.click(screen.getByRole('button', { name: 'No goal' }));
+
+    expect(screen.getByRole('button', { name: 'Create rule for Coffee shop' })).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Create rule for Goal contribution' })).not.toBeInTheDocument();
+
+    await user.click(screen.getByRole('button', { name: 'Emergency fund' }));
+
+    expect(screen.getByRole('button', { name: 'Create rule for Coffee shop' })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Create rule for Goal contribution' })).toBeInTheDocument();
   });
 
   it('opens the rule modal in place and stays on transactions after save', async () => {

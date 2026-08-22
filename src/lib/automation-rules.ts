@@ -127,6 +127,19 @@ export function automationOperatorNeedsValue(operator: AutomationConditionOperat
   return operator !== 'exists' && operator !== 'not-exists';
 }
 
+export function automationOperatorSupportsCaseSensitivity(
+  operator: AutomationConditionOperator,
+): boolean {
+  return operator === 'equals'
+    || operator === 'not-equals'
+    || operator === 'contains'
+    || operator === 'not-contains'
+    || operator === 'starts-with'
+    || operator === 'ends-with'
+    || operator === 'regex'
+    || operator === 'not-regex';
+}
+
 export function createAutomationConditionId(): string {
   return `condition-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
 }
@@ -160,6 +173,10 @@ function parseCondition(value: unknown): AutomationCondition | null {
 
   if (typeof value.value === 'string' && value.value.trim()) {
     condition.value = value.value.trim();
+  }
+
+  if (value.caseSensitive === true) {
+    condition.caseSensitive = true;
   }
 
   return condition;
@@ -524,7 +541,9 @@ function evaluateCondition(transaction: Transaction, condition: AutomationCondit
         return left === right;
       }
 
-      return fieldText.toLowerCase() === expectedText.toLowerCase();
+      return condition.caseSensitive
+        ? fieldText === expectedText
+        : fieldText.toLowerCase() === expectedText.toLowerCase();
     }
     case 'not-equals': {
       const left = parseComparableValue(fieldValue);
@@ -533,27 +552,37 @@ function evaluateCondition(transaction: Transaction, condition: AutomationCondit
         return left !== right;
       }
 
-      return fieldText.toLowerCase() !== expectedText.toLowerCase();
+      return condition.caseSensitive
+        ? fieldText !== expectedText
+        : fieldText.toLowerCase() !== expectedText.toLowerCase();
     }
     case 'contains':
       return expectedText.length > 0
-        && fieldText.toLowerCase().includes(expectedText.toLowerCase());
+        && (condition.caseSensitive
+          ? fieldText.includes(expectedText)
+          : fieldText.toLowerCase().includes(expectedText.toLowerCase()));
     case 'not-contains':
       return expectedText.length > 0
-        && !fieldText.toLowerCase().includes(expectedText.toLowerCase());
+        && (condition.caseSensitive
+          ? !fieldText.includes(expectedText)
+          : !fieldText.toLowerCase().includes(expectedText.toLowerCase()));
     case 'starts-with':
       return expectedText.length > 0
-        && fieldText.toLowerCase().startsWith(expectedText.toLowerCase());
+        && (condition.caseSensitive
+          ? fieldText.startsWith(expectedText)
+          : fieldText.toLowerCase().startsWith(expectedText.toLowerCase()));
     case 'ends-with':
       return expectedText.length > 0
-        && fieldText.toLowerCase().endsWith(expectedText.toLowerCase());
+        && (condition.caseSensitive
+          ? fieldText.endsWith(expectedText)
+          : fieldText.toLowerCase().endsWith(expectedText.toLowerCase()));
     case 'regex': {
       if (!expectedText) {
         return false;
       }
 
       try {
-        return new RegExp(expectedText, 'i').test(fieldText);
+        return new RegExp(expectedText, condition.caseSensitive ? '' : 'i').test(fieldText);
       } catch {
         return false;
       }
@@ -564,7 +593,7 @@ function evaluateCondition(transaction: Transaction, condition: AutomationCondit
       }
 
       try {
-        return !new RegExp(expectedText, 'i').test(fieldText);
+        return !new RegExp(expectedText, condition.caseSensitive ? '' : 'i').test(fieldText);
       } catch {
         return false;
       }

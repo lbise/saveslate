@@ -216,8 +216,8 @@ export function findBestParser(
 }
 
 /**
- * Find the best matching parser by re-parsing raw CSV content with each
- * parser's own settings (delimiter, skipRows, hasHeaderRow).
+ * Find the closest parser with a positive header match by re-parsing raw CSV
+ * content with each parser's own settings (delimiter, skipRows, hasHeaderRow).
  *
  * This solves the problem where the initial header extraction uses default
  * settings (skipRows=0, auto-detected delimiter), which produces wrong headers
@@ -226,7 +226,7 @@ export function findBestParser(
 export function findBestParserFromRaw(
   parsers: CsvParser[],
   rawContent: string,
-  threshold = 0.7,
+  threshold = 0,
 ): MatchResult | null {
   let best: MatchResult | null = null;
 
@@ -235,7 +235,7 @@ export function findBestParserFromRaw(
     const { headers } = extractHeadersAndData(rawRows, parser.hasHeaderRow, parser.skipRows);
     const score = scoreParserMatch(parser, headers);
 
-    if (score >= threshold && (!best || score > best.score)) {
+    if (score > 0 && score >= threshold && (!best || score > best.score)) {
       best = { parser, score };
     }
   }

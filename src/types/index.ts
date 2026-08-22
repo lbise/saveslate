@@ -186,6 +186,7 @@ export interface AutomationCondition {
   field: string;
   operator: AutomationConditionOperator;
   value?: string;
+  caseSensitive?: boolean;
 }
 
 export interface SetCategoryAutomationAction {
@@ -219,6 +220,7 @@ export interface AutomationRulePrefillCondition {
   field: string;
   operator: AutomationConditionOperator;
   value?: string;
+  caseSensitive?: boolean;
 }
 
 export interface AutomationRulePrefillDraft {

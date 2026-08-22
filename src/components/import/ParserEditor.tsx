@@ -1,5 +1,5 @@
 import { useState, useMemo, useCallback } from "react";
-import { Save, RotateCcw, Plus, Pencil } from "lucide-react";
+import { Copy, Save, RotateCcw, Plus, Pencil } from "lucide-react";
 import { toast } from "sonner";
 import { cn } from "../../lib/utils";
 import { Button } from "@/components/ui/button";
@@ -43,8 +43,10 @@ import { TRANSACTION_FIELD_LABELS } from "../../types";
 
 interface ParserEditorProps {
   rawContent: string;
-  /** If provided, we're editing an existing parser */
+  /** If provided, we're editing an existing parser. */
   existingParser?: CsvParser;
+  /** If provided, we're creating a new parser prefilled from this parser. */
+  templateParser?: CsvParser;
   onSave: (parser: CsvParser) => void;
   onCancel: () => void;
 }
@@ -109,10 +111,12 @@ function getFieldRows(
 export function ParserEditor({
   rawContent,
   existingParser,
+  templateParser,
   onSave,
   onCancel,
 }: ParserEditorProps) {
   const hasSampleData = rawContent.trim().length > 0;
+  const sourceParser = existingParser ?? templateParser;
 
   // ─── Mutations ─────────────────────────────────────────────
   const createParserMutation = useCreateCsvParser();
@@ -124,43 +128,45 @@ export function ParserEditor({
     [rawContent],
   );
 
-  const [name, setName] = useState(existingParser?.name ?? "");
+  const [name, setName] = useState(
+    existingParser?.name ?? (templateParser ? `${templateParser.name} copy` : ""),
+  );
   const [delimiter, setDelimiter] = useState<CsvDelimiter>(
-    existingParser?.delimiter ?? detectedDelimiter,
+    sourceParser?.delimiter ?? detectedDelimiter,
   );
   const [hasHeaderRow, setHasHeaderRow] = useState(
-    existingParser?.hasHeaderRow ?? true,
+    sourceParser?.hasHeaderRow ?? true,
   );
-  const [skipRows, setSkipRows] = useState(existingParser?.skipRows ?? 0);
+  const [skipRows, setSkipRows] = useState(sourceParser?.skipRows ?? 0);
   const [amountFormat, setAmountFormat] = useState<AmountFormat>(
-    existingParser?.amountFormat ?? "single",
+    sourceParser?.amountFormat ?? "single",
   );
   const [timeMode, setTimeMode] = useState<CsvParser["timeMode"]>(
-    existingParser?.timeMode ?? "none",
+    sourceParser?.timeMode ?? "none",
   );
   const [timeFormat, setTimeFormat] = useState(
-    existingParser?.timeFormat ?? "HH:mm",
+    sourceParser?.timeFormat ?? "HH:mm",
   );
   const [dateFormat, setDateFormat] = useState(
-    existingParser?.dateFormat ?? "DD.MM.YYYY",
+    sourceParser?.dateFormat ?? "DD.MM.YYYY",
   );
   const [decimalSeparator, setDecimalSeparator] = useState<"." | ",">(
-    existingParser?.decimalSeparator ?? ".",
+    sourceParser?.decimalSeparator ?? ".",
   );
   const [multiColumnSeparator, setMultiColumnSeparator] = useState(
-    existingParser?.multiColumnSeparator ?? " ",
+    sourceParser?.multiColumnSeparator ?? " ",
   );
   const [metadataMappings, setMetadataMappings] = useState<MetadataMapping[]>(
     () => {
-      if (existingParser?.metadataMappings) {
-        return existingParser.metadataMappings.map((mapping) => ({
+      if (sourceParser?.metadataMappings) {
+        return sourceParser.metadataMappings.map((mapping) => ({
           key: mapping.key,
           columnIndices: [...mapping.columnIndices],
         }));
       }
 
       const legacyMetadataColumnIndices = (
-        existingParser as
+        sourceParser as
           | (CsvParser & { metadataColumnIndices?: number[] })
           | undefined
       )?.metadataColumnIndices;
@@ -179,7 +185,7 @@ export function ParserEditor({
     },
   );
   const [accountPattern, setAccountPattern] = useState(
-    existingParser?.accountPattern ?? "",
+    sourceParser?.accountPattern ?? "",
   );
   const dateFormatOptions = useMemo(
     () =>
@@ -220,9 +226,9 @@ export function ParserEditor({
   const [fieldMappings, setFieldMappings] = useState<
     Map<AssignableField, number[]>
   >(() => {
-    if (existingParser) {
+    if (sourceParser) {
       const map = new Map<AssignableField, number[]>();
-      for (const m of existingParser.columnMappings) {
+      for (const m of sourceParser.columnMappings) {
         if (m.field !== "ignore") {
           map.set(m.field as AssignableField, [...m.columnIndices]);
         }
@@ -234,7 +240,7 @@ export function ParserEditor({
 
   // ─── Field transforms ──────────────────────────────────────
   const [transforms, setTransforms] = useState<FieldTransform[]>(
-    existingParser?.transforms ?? [],
+    sourceParser?.transforms ?? [],
   );
 
   const addTransform = useCallback(() => {
@@ -622,8 +628,18 @@ export function ParserEditor({
       {/* Header */}
       <div className="flex items-center justify-between">
         <h2 className="font-display text-lg font-medium text-foreground flex items-center gap-2">
-          {existingParser ? <Pencil size={18} /> : <Plus size={18} />}
-          {existingParser ? "Edit parser" : "Create new parser"}
+          {existingParser ? (
+            <Pencil size={18} />
+          ) : templateParser ? (
+            <Copy size={18} />
+          ) : (
+            <Plus size={18} />
+          )}
+          {existingParser
+            ? "Edit parser"
+            : templateParser
+              ? "Duplicate parser"
+              : "Create new parser"}
         </h2>
         <Button variant="ghost" onClick={onCancel}>
           <RotateCcw size={14} />

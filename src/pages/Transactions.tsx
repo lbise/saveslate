@@ -112,6 +112,7 @@ const activeTypePillStyles: Record<TransactionType, string> = {
 };
 
 const MANUAL_SOURCE_ID = "manual";
+const NO_GOAL_FILTER_ID = "__no_goal__";
 const MAX_RECENT_CATEGORY_IDS = 4;
 
 interface SourceOption {
@@ -636,7 +637,10 @@ export function Transactions() {
   }, [transactions]);
 
   const goalOptions = useMemo(
-    () => goals.map((g) => ({ id: g.id, label: g.name })),
+    () => [
+      { id: NO_GOAL_FILTER_ID, label: "No goal" },
+      ...goals.map((g) => ({ id: g.id, label: g.name })),
+    ],
     [goals],
   );
 
@@ -850,7 +854,12 @@ export function Transactions() {
 
     if (goalFilterIds.length > 0) {
       const selected = new Set(goalFilterIds);
-      result = result.filter((t) => t.goalId && selected.has(t.goalId));
+      const includesTransactionsWithoutGoal = selected.has(NO_GOAL_FILTER_ID);
+      result = result.filter((transaction) =>
+        transaction.goalId
+          ? selected.has(transaction.goalId)
+          : includesTransactionsWithoutGoal,
+      );
     }
 
     if (accountFilterIds.length > 0) {

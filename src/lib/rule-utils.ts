@@ -28,6 +28,7 @@ export interface RuleFormCondition {
   field: string;
   operator: AutomationConditionOperator;
   value: string;
+  caseSensitive: boolean;
 }
 
 export interface RuleFormAction {
@@ -100,6 +101,7 @@ export function createEmptyCondition(): RuleFormCondition {
     field: "description",
     operator: "contains",
     value: "",
+    caseSensitive: false,
   };
 }
 
@@ -198,6 +200,7 @@ export function toFormCondition(condition: AutomationCondition): RuleFormConditi
     field: condition.field,
     operator: condition.operator,
     value: condition.value ?? "",
+    caseSensitive: condition.caseSensitive === true,
   };
 }
 
@@ -242,6 +245,7 @@ export function toRuleFormStateFromPrefill(
         field: condition.field,
         operator: condition.operator,
         value: condition.value ?? "",
+        caseSensitive: condition.caseSensitive === true,
       }))
     : [createEmptyCondition()];
 
@@ -345,6 +349,7 @@ export function resolveRuleFormPrefill({
       field: "description",
       operator: "contains",
       value: keyword,
+      caseSensitive: false,
     });
     initialForm.matchMode = "any";
   }

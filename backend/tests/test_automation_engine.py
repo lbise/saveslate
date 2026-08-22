@@ -25,6 +25,41 @@ class TestEvaluateCondition:
         cond = {"field": "description", "operator": "contains", "value": "grocery"}
         assert evaluate_condition(self._txn(), cond) is True
 
+    def test_contains_is_case_sensitive_when_requested(self):
+        cond = {
+            "field": "description",
+            "operator": "contains",
+            "value": "grocery",
+            "case_sensitive": True,
+        }
+        assert evaluate_condition(self._txn(), cond) is False
+
+    @pytest.mark.parametrize(
+        ("operator", "value", "expected"),
+        [
+            ("equals", "grocery store", False),
+            ("not-equals", "grocery store", True),
+            ("not-contains", "grocery", True),
+            ("starts-with", "grocery", False),
+            ("ends-with", "STORE", False),
+            ("regex", r"^grocery", False),
+            ("not-regex", r"^grocery", True),
+        ],
+    )
+    def test_other_text_operators_are_case_sensitive_when_requested(
+        self,
+        operator: str,
+        value: str,
+        expected: bool,
+    ):
+        cond = {
+            "field": "description",
+            "operator": operator,
+            "value": value,
+            "case_sensitive": True,
+        }
+        assert evaluate_condition(self._txn(), cond) is expected
+
     def test_contains_no_match(self):
         cond = {"field": "description", "operator": "contains", "value": "pharmacy"}
         assert evaluate_condition(self._txn(), cond) is False
